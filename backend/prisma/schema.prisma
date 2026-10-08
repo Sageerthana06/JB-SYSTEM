@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  STAFF
+  TAILOR
+  CUTTING
+  EMBROIDERY
+  CASHIER
+}
+
+enum OrderStatus {
+  // === APPROVAL & REJECTION ===
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CHANGES_REQUIRED
+
+  // === PRICE CONFIRMATION ===
+  WAITING_CUSTOMER_APPROVAL
+  PRICE_SET
+  CUSTOMER_APPROVED
+  PRICE_REVISION_REQUIRED
+  PRICE_DECLINED
+
+  // === LEGACY (preserved for data safety) ===
+  PENDING           // old default — maps to ORDER_CONFIRMED in UI
+  EMBROIDERY_AARI   // old name — maps to AARI_EMBROIDERY in UI
+
+  // === FULL PRODUCTION WORKFLOW ===
+  ORDER_CONFIRMED
+  PENDING_PRODUCTION
+  TAILOR_ASSIGNED
+  IN_PROGRESS
+  CUTTING
+  STITCHING
+  AARI_EMBROIDERY
+  QUALITY_CHECK
+  ALTERATION
+  FITTING_ALTERATION
+  FINISHING
+  READY
+  DELIVERED
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(STAFF)
+  branchId  Int?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  productionHistory ProductionHistory[]
+  assignedOrders Order[] @relation("TailorAssignedOrders")
+  attendances Attendance[]
+}
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  phone     String?
+  manager   String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  orders    Order[]
+}
+
+model Customer {
+  id               Int      @id @default(autoincrement())
+  name             String
+  primaryPhone     String   @unique
+  alternativePhone String?
+  email            String?  @unique
+  password         String?
+  address          String?
+  profilePhoto     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  orders           Order[]
+  measurements     CustomerMeasurement[]
+}
+
+model Order {
+  id              Int             @id @default(autoincrement())
+  orderNumber     String          @unique
+  orderDate       DateTime        @default(now())
+  customerId      Int
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  branchId        Int?
+  branch          Branch?         @relation(fields: [branchId], references: [id])
+  previousOrderId Int?
+  previousOrder   Order?          @relation("PreviousOrder", fields: [previousOrderId], references: [id])
+  nextOrders      Order[]         @relation("PreviousOrder")
+  garmentDetails  GarmentDetails?
+  orderSource     String          @default("SHOP") // "SHOP" or "ONLINE"
+  status          OrderStatus     @default(ORDER_CONFIRMED)
+  totalAmount     Float           @default(0)
+  advancePayment  Float           @default(0)
+  balanceAmount   Float           @default(0)
+
+  // Pricing breakdown & Customer confirmation
+  basePrice              Float?   @default(0)
+  designCharge           Float?   @default(0)
+  cuttingCharge          Float?   @default(0)
+  stitchingCharge        Float?   @default(0)
+  embroideryCharge       Float?   @default(0)
+  additionalCharge       Float?   @default(0)
+  serviceCharge          Float    @default(0)
+  additionalWorkCharge   Float    @default(0)
+  materialCharge         Float    @default(0)
+  discountAmount         Float    @default(0)
+  priceStatus            String   @default("PENDING") // PENDING, SENT, ACCEPTED, DECLINED
+  priceSetBy             String?
+  priceSetAt             DateTime?
+  priceSentAt            DateTime?
+  priceAcceptedByCustomer Boolean  @default(false)
+  priceAcceptedAt        DateTime?
+  priceDeclinedAt        DateTime?
+  priceDeclineReason     String?
+  agreedTotal            Float?
+  agreedAdvance          Float?
+  agreedBalance          Float?
+  advanceRequired        Float?   @default(0)
+  paymentStatus          String   @default("Unpaid")
+  payments               Payment[]
+  
+  // Approval workflow
+  approvedBy          String?
+  approvedAt          DateTime?
+  rejectedBy          String?
+  rejectedAt          DateTime?
+  rejectionReason     String?
+  changesRequestedBy  String?
+  changesRequestedAt  DateTime?
+  changesReason       String?
+  customerApprovedAt  DateTime?
+  revisionReason      String?
+
+  // Delivery & Completion
+  deliveredBy         String?
+  deliveredAt         DateTime?
+  deliveryNotes       String?
+  completedBy         String?
+  completedAt         DateTime?
+
+  // Tailor assignment (ONE ORDER = ONE TAILOR)
+  assignedTailorId Int?
+  assignedTailor   User?          @relation("TailorAssignedOrders", fields: [assignedTailorId], references: [id])
+  assignedBy       String?
+  assignedAt       DateTime?
+  tailorAccepted   Boolean        @default(false)
+  tailorAcceptedAt DateTime?
+  tailorRejectedAt DateTime?
+  tailorRejectionReason String?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  productionHistory ProductionHistory[]
+}
+
+model GarmentDetails {
+  id                        Int      @id @default(autoincrement())
+  orderId                   Int      @unique
+  order                     Order    @relation(fields: [orderId], references: [id])
+  dressType                 String
+  quantity                  Int
+  occasion                  String?
+  fabricSuppliedBy          String?
+  fabricType                String?
+  fabricColour              String?
+  liningRequired            Boolean  @default(false)
+  paddingCupRequired        Boolean  @default(false)
+  workRequired              Boolean  @default(false)
+  workDetails               String?
+  accessoriesSupplied       String?
+  specialDesignInstructions String?
+  designReferenceImage      String?
+  measurements              Json?
+  measurementUnit           String?  @default("Inches")
+  fitPreference             String?
+  additionalImages          Json?
+  customerMeasurementId     Int?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model CustomerMeasurement {
+  id                  Int       @id @default(autoincrement())
+  customerId          Int
+  customer            Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId             Int?
+  dressType           String
+  measurementUnit     String    @default("Inches")
+  fitPreference       String    @default("Regular")
+  takenBy             String    @default("Customer")
+  measurementDate     DateTime  @default(now())
+  measurements        Json
+  fittingInstructions String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([customerId, dressType])
+}
+
+model ProductionHistory {
+  id            Int          @id @default(autoincrement())
+  orderId       Int
+  order         Order        @relation(fields: [orderId], references: [id])
+  stage         OrderStatus
+  previousStage OrderStatus?
+  nextStage     OrderStatus?
+  assignedToId  Int?
+  assignedTo    User?        @relation(fields: [assignedToId], references: [id])
+  notes         String?
+  startedAt     DateTime     @default(now())
+  completedAt   DateTime?
+  durationMins  Int?
+  createdAt     DateTime     @default(now())
+}
+
+model Payment {
+  id              Int       @id @default(autoincrement())
+  orderId         Int
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount          Float
+  paymentMethod   String?   @default("Cash")
+  notes           String?
+  recordedBy      String?
+  slipImage       String?
+  status          String?   @default("VERIFIED") // PENDING_VERIFICATION, VERIFIED, REJECTED
+  transactionRef  String?
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([orderId])
+}
+
+model Attendance {
+  id        Int       @id @default(autoincrement())
+  userId    Int?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tailorId  Int?
+  date      String    // YYYY-MM-DD
+  status    String    // Present, Checked Out, Absent, Not Marked
+  checkIn   DateTime?
+  checkOut  DateTime?
+  role      String?
+  branch    String?
+  markedBy  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([tailorId])
+  @@index([date])
+}
+

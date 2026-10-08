@@ -1,0 +1,919 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap');
+
+:root {
+  /* JB Group Official Brand Palette (From Logo) */
+  --jb-navy: #0B1F3A;
+  --jb-navy-dark: #071526;
+  --jb-navy-light: #123C73;
+  --jb-blue-accent: #2563EB; /* Professional bright blue */
+  --jb-crimson: #DC2626; /* Primary red */
+  --jb-crimson-hover: #EF4444; /* Bright red */
+  --jb-crimson-light: #FEE2E2;
+
+  /* Status Colors */
+  --status-success: #10b981;
+  --status-success-bg: #d1fae5;
+  --status-warning: #f59e0b;
+  --status-warning-bg: #fef3c7;
+  --status-danger: #ef4444;
+  --status-danger-bg: #fee2e2;
+  --status-info: #06b6d4;
+  --status-info-bg: #cffafe;
+
+  /* Light Enterprise Theme Defaults */
+  --bg-main: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --bg-header: #FFFFFF;
+  --bg-sidebar: #0B1F3A;
+  --text-main: #172033;
+  --text-muted: #667085;
+  --text-sidebar: #94a3b8;
+  --text-sidebar-active: #FFFFFF;
+  --border-color: #e5e7eb;
+  --shadow-card: 0 2px 8px rgba(23, 32, 51, 0.05), 0 1px 2px rgba(23, 32, 51, 0.03);
+  --shadow-dropdown: 0 12px 24px -4px rgba(23, 32, 51, 0.12), 0 4px 8px -2px rgba(23, 32, 51, 0.04);
+}
+
+/* Dark Executive Cockpit Theme */
+[data-theme='dark'] {
+  --bg-main: #070a12;
+  --bg-card: #111726;
+  --bg-header: #0f1624;
+  --bg-sidebar: #070c18;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-sidebar: #64748b;
+  --text-sidebar-active: #ffffff;
+  --border-color: #1e293b;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-dropdown: 0 16px 32px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-heading {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* Common UI Utility Classes */
+.btn-primary {
+  background-color: var(--jb-navy-light);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.btn-primary:hover {
+  background-color: var(--jb-navy);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(11, 31, 58, 0.25);
+}
+
+.btn-danger {
+  background-color: var(--jb-crimson);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.btn-danger:hover {
+  background-color: var(--jb-crimson-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+}
+
+.btn-secondary {
+  background-color: var(--bg-card);
+  color: var(--jb-navy-light);
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--jb-navy-light);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-main);
+  border-color: var(--jb-navy);
+  color: var(--jb-navy);
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background-color: var(--status-success-bg);
+  color: #065f46;
+}
+
+.badge-warning {
+  background-color: var(--status-warning-bg);
+  color: #92400e;
+}
+
+.badge-danger {
+  background-color: var(--status-danger-bg);
+  color: #991b1b;
+}
+
+.badge-info {
+  background-color: var(--status-info-bg);
+  color: #155e75;
+}
+
+.badge-navy {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+/* Haute Couture Atelier Floating Particles Animations */
+@keyframes floatParticles {
+  0% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: translateY(-25px) rotate(12deg) scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    opacity: 0.7;
+  }
+}
+
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 25px rgba(217, 4, 41, 0.4), 0 20px 40px rgba(10, 25, 47, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 45px rgba(217, 4, 41, 0.7), 0 25px 50px rgba(10, 25, 47, 0.5);
+  }
+}
+
+@keyframes zoomInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-float-slow {
+  animation: floatParticles 6s ease-in-out infinite;
+}
+
+.animate-float-fast {
+  animation: floatParticles 4s ease-in-out infinite reverse;
+}
+
+.animate-modal-entry {
+  animation: zoomInModal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-glow-pulse {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* 🎬 Full-Screen Tailoring Motion Animations */
+@keyframes silkWave1 {
+
+  0%,
+  100% {
+    transform: translateY(0px) scaleY(1);
+  }
+
+  50% {
+    transform: translateY(-40px) scaleY(1.08);
+  }
+}
+
+@keyframes silkWave2 {
+
+  0%,
+  100% {
+    transform: translateY(0px) scaleY(1);
+  }
+
+  50% {
+    transform: translateY(35px) scaleY(0.94);
+  }
+}
+
+@keyframes tapeSlide {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes tapeSlideReverse {
+  0% {
+    transform: translateX(-50%);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes threadDash {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes scissorsSnip {
+
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(-18deg) scale(1.12);
+  }
+}
+
+.animate-silk-wave-1 {
+  animation: silkWave1 12s ease-in-out infinite;
+}
+
+.animate-silk-wave-2 {
+  animation: silkWave2 10s ease-in-out infinite alternate;
+}
+
+.animate-tape-slide {
+  animation: tapeSlide 25s linear infinite;
+}
+
+.animate-tape-slide-reverse {
+  animation: tapeSlideReverse 25s linear infinite;
+}
+
+.animate-thread-draw {
+  animation: threadDash 3s linear infinite;
+}
+
+.animate-thread-draw-crimson {
+  animation: threadDash 4s linear infinite reverse;
+}
+
+.animate-scissors-snip {
+  animation: scissorsSnip 3s ease-in-out infinite;
+}
+
+/* 🎬 Cinematic Slow Pan-Zoom Keyframes for Video Motion Background */
+@keyframes cinematicZoom {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+
+  50% {
+    transform: scale(1.08) translate(-10px, -8px);
+  }
+
+  100% {
+    transform: scale(1) translate(0, 0);
+  }
+}
+
+@keyframes pulseGlowNavy {
+
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes pulseGlowCrimson {
+
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+}
+
+.animate-cinematic-zoom {
+  animation: cinematicZoom 16s ease-in-out infinite;
+}
+
+.animate-pulse-glow-navy {
+  animation: pulseGlowNavy 8s ease-in-out infinite;
+}
+
+.animate-pulse-glow-crimson {
+  animation: pulseGlowCrimson 7s ease-in-out infinite alternate;
+}
+
+/* 💎 Premium Ultra-Luxury Login Card & Button Animations */
+@keyframes buttonShine {
+  0% {
+    left: -100%;
+  }
+
+  50%,
+  100% {
+    left: 200%;
+  }
+}
+
+@keyframes borderGlowPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 25px 65px -10px rgba(0, 0, 0, 0.75), 0 0 35px rgba(0, 82, 204, 0.4), 0 0 35px rgba(217, 4, 41, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 30px 80px -10px rgba(0, 0, 0, 0.85), 0 0 55px rgba(0, 82, 204, 0.65), 0 0 55px rgba(217, 4, 41, 0.65);
+  }
+}
+
+/* 🚀 BOLD DUAL-TONE (ROYAL BLUE & CRIMSON RED ONLY) LASER BORDER */
+@keyframes spinConicBlueRed {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes borderGlowPulseBold {
+  0%, 100% {
+    box-shadow: 0 30px 85px -10px rgba(0, 0, 0, 0.85), 0 0 50px rgba(0, 82, 204, 0.75), 0 0 50px rgba(217, 4, 41, 0.75);
+  }
+  50% {
+    box-shadow: 0 35px 100px -10px rgba(0, 0, 0, 0.95), 0 0 75px rgba(0, 82, 204, 0.95), 0 0 75px rgba(217, 4, 41, 0.95);
+  }
+}
+
+.animate-card-glow-bold {
+  animation: borderGlowPulseBold 3.5s ease-in-out infinite;
+}
+
+.animate-spin-blue-red {
+  animation: spinConicBlueRed 4.5s linear infinite;
+}
+
+
+.animate-pulse-glow-violet {
+  animation: pulseGlowViolet 7s ease-in-out infinite;
+}
+
+.animate-pulse-glow-cyan {
+  animation: pulseGlowCyan 6s ease-in-out infinite alternate;
+}
+
+.shine-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-button::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+  transform: rotate(25deg);
+  animation: buttonShine 3.5s infinite ease-in-out;
+}
+
+/* ==========================================================================
+   📱 UNIVERSAL ENTERPRISE RESPONSIVE SYSTEM (320px — 1920px)
+   ========================================================================== */
+
+/* 1. Global Touch & Scroll Safety */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 2. Responsive Module Container */
+@media (max-width: 768px) {
+  .module-container-responsive {
+    padding: 14px 12px !important;
+  }
+}
+
+/* 3. Navigation Drawer & Mobile Overlay */
+@media (max-width: 1023px) {
+  .header-mobile-menu-btn {
+    display: flex !important;
+  }
+  .sidebar-drawer {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    z-index: 1050 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4) !important;
+  }
+  .sidebar-drawer.open {
+    transform: translateX(0) !important;
+  }
+  .sidebar-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background-color: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(3px) !important;
+    z-index: 1040 !important;
+  }
+  .sidebar-mobile-close-btn {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .header-mobile-menu-btn {
+    display: none !important;
+  }
+  .sidebar-mobile-close-btn {
+    display: none !important;
+  }
+  .sidebar-backdrop {
+    display: none !important;
+  }
+  .sidebar-drawer {
+    transform: none !important;
+  }
+}
+
+/* 4. Top Header Responsive Adaptations */
+@media (max-width: 820px) {
+  .header-search-container {
+    display: none !important;
+  }
+  .header-division-badge {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-header-responsive {
+    padding: 0 10px !important;
+  }
+  .header-fy-badge,
+  .header-date-badge {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-user-details {
+    display: none !important;
+  }
+}
+
+/* 5. Responsive Grids for Dashboards & Modals */
+.grid-vault-main {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+}
+.grid-responsive-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.grid-responsive-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .grid-charts-row {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-vault-main {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-responsive-3col {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .grid-responsive-2col {
+    grid-template-columns: 1fr !important;
+  }
+  .grid-responsive-3col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 6. Universal Modal Safe Sizing & Scrolling */
+.modal-overlay-responsive {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px !important;
+  overflow-y: auto !important;
+  z-index: 9999 !important;
+  box-sizing: border-box !important;
+}
+
+.modal-card-responsive {
+  width: 100% !important;
+  max-height: 92vh !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 640px) {
+  .modal-card-responsive {
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* 7. Contained Table & Stage Horizontal Scrolling */
+.table-responsive,
+.responsive-table-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.horizontal-stepper-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+  
+  .btn-primary, .btn-secondary, .btn-danger {
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* 8. Mobile-First ERP Specific Classes */
+.erp-page-container {
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .erp-page-container {
+    padding: 12px 10px !important;
+  }
+}
+
+/* KPI Cards Responsive Grid */
+.kpi-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .kpi-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+  .kpi-cards-grid .card {
+    padding: 12px 10px !important;
+  }
+  .kpi-cards-grid h3 {
+    font-size: 1.15rem !important;
+    margin-top: 4px !important;
+  }
+}
+
+/* Sales Charts Responsive Row */
+.sales-charts-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+  .sales-charts-row {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* Desktop vs Mobile Recent Orders & Production View */
+.production-desktop-table,
+.sales-desktop-table,
+.recent-orders-desktop-table {
+  display: block;
+}
+.production-mobile-cards,
+.sales-mobile-cards,
+.recent-orders-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .production-desktop-table,
+  .sales-desktop-table,
+  .recent-orders-desktop-table {
+    display: none !important;
+  }
+  .production-mobile-cards,
+  .sales-mobile-cards,
+  .recent-orders-mobile-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+}
+
+/* Mobile Order Card */
+.erp-mobile-order-card,
+.mobile-order-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.erp-mobile-order-card:active,
+.mobile-order-card:active {
+  transform: scale(0.99);
+}
+
+.erp-mobile-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.touch-target-btn,
+.touch-btn {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+  border-radius: 8px;
+  touch-action: manipulation;
+  cursor: pointer;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.journey-stages-container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+
+@media (max-width: 640px) {
+  .invoice-modal-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+  .invoice-modal-toolbar > a {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .invoice-modal-toolbar > div {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+  .invoice-modal-toolbar > div button {
+    justify-content: center !important;
+    padding: 8px 4px !important;
+    font-size: 0.75rem !important;
+  }
+  .invoice-receipt-wrapper {
+    padding: 12px 6px !important;
+  }
+  .invoice-receipt-card {
+    padding: 16px 12px !important;
+  }
+  
+  .payment-modal-body {
+    padding: 14px 12px !important;
+  }
+  .payment-balance-grid {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 6px !important;
+  }
+  .payment-balance-grid > div {
+    padding: 8px 4px !important;
+  }
+}
+
+/* View Order Modal Adaptive Full Screen / Bottom Sheet */
+.view-order-modal-container {
+  background-color: var(--bg-main);
+  border-radius: 14px;
+  width: 92%;
+  max-width: 820px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.view-order-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.view-order-modal-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .view-order-modal-container {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    padding: 16px 12px 90px 12px !important;
+    inset: 0 !important;
+  }
+  .view-order-modal-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  .view-order-modal-header-actions {
+    margin-bottom: 12px !important;
+  }
+}
+
+/* Sticky Bottom Action Bar on Mobile */
+.mobile-sticky-action-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-sticky-action-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    gap: 8px;
+    z-index: 1100;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+  }
+}
