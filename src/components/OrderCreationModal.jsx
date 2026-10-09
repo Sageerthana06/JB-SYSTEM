@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Search, CheckCircle, AlertCircle, Plus, ChevronDown, Upload, 
-  Image as ImageIcon, FileText, User, Camera, Ruler, Eye, Trash2, Check, Sparkles 
+  Image as ImageIcon, FileText, User, Camera, Ruler, Eye, Trash2, Check, Sparkles, CreditCard 
 } from 'lucide-react';
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 import { API_URL, getImageUrl } from '../config/api';
@@ -63,6 +63,10 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
   // Payment Details State
   const [totalAmount, setTotalAmount] = useState('');
   const [advancePayment, setAdvancePayment] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [transactionRef, setTransactionRef] = useState('');
+  const [paymentSlip, setPaymentSlip] = useState(null);
+  const [paymentSlipPreview, setPaymentSlipPreview] = useState(null);
   
   // Image Upload State
   const [designImage, setDesignImage] = useState(null);
@@ -154,6 +158,10 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
     // Reset Payment Details
     setTotalAmount('');
     setAdvancePayment('');
+    setPaymentMethod('Cash');
+    setTransactionRef('');
+    setPaymentSlip(null);
+    setPaymentSlipPreview(null);
     
     // Reset Image
     setDesignImage(null);
@@ -269,6 +277,28 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
     } else {
       setCustomerPhotoPreview(null);
     }
+  };
+
+  const handlePaymentSlipChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Payment receipt photo must be 5MB or smaller.');
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
+        setError('Invalid file type for receipt. Only JPG, PNG, and WEBP images are allowed.');
+        return;
+      }
+      setPaymentSlip(file);
+      setPaymentSlipPreview(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
+  const handleRemovePaymentSlip = () => {
+    setPaymentSlip(null);
+    setPaymentSlipPreview(null);
   };
 
   const handleSearch = async () => {
@@ -437,6 +467,30 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
         }
       }
 
+      // Handle Payment Slip Upload if present
+      let uploadedPaymentSlipUrl = null;
+      if (paymentSlip) {
+        const slipFormData = new FormData();
+        slipFormData.append('paymentSlip', paymentSlip);
+        
+        const slipUploadRes = await fetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+          },
+          body: slipFormData
+        });
+        
+        const slipUploadData = await slipUploadRes.json();
+        if (slipUploadData.success) {
+          uploadedPaymentSlipUrl = slipUploadData.imageUrl || slipUploadData.photoUrl;
+        } else {
+          setError(slipUploadData.message || 'Error uploading payment receipt.');
+          setLoading(false);
+          return;
+        }
+      }
+
       // Prepare final measurements payload
       const finalMeasurements = { ...measurements };
       if (customRows.length > 0) {
@@ -476,7 +530,10 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
         garmentDetails,
         paymentDetails: {
           totalAmount: totalAmount || 0,
-          advancePayment: advancePayment || 0
+          advancePayment: advancePayment || 0,
+          paymentMethod: paymentMethod || 'Cash',
+          transactionRef: transactionRef || null,
+          slipImage: uploadedPaymentSlipUrl || null
         },
         profilePhoto: uploadedCustomerPhotoUrl || (customerType === 'returning' ? selectedCustomer?.profilePhoto : null),
         orderSource: 'SHOP'
@@ -728,6 +785,8 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>Customer Name <span style={{color: 'var(--jb-crimson)'}}>*</span></label>
                   <input 
                     type="text" 
+                    name="new_customer_name_field"
+                    autoComplete="off"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Priya Jayaseelan"
@@ -739,6 +798,8 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>Primary Contact / WhatsApp <span style={{color: 'var(--jb-crimson)'}}>*</span></label>
                   <input 
                     type="text" 
+                    name="new_customer_primary_phone"
+                    autoComplete="off"
                     value={primaryPhone}
                     onChange={(e) => setPrimaryPhone(e.target.value)}
                     placeholder="e.g. +447XXXXXXXXX or 077XXXXXXX"
@@ -750,6 +811,8 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>Alternative Contact</label>
                   <input 
                     type="text" 
+                    name="new_customer_alt_phone"
+                    autoComplete="off"
                     value={alternativePhone}
                     onChange={(e) => setAlternativePhone(e.target.value)}
                     placeholder="Optional phone number"
@@ -1562,6 +1625,129 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
                 />
               </div>
             </div>
+
+            {/* Payment Method & Transaction Reference */}
+            <div className="grid-responsive-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '14px' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px' }}>Payment Method</label>
+                <select
+                  className="touch-input"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: '#ffffff', fontWeight: 700 }}
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Card">Card</option>
+                  <option value="Online Banking">Online Banking</option>
+                  <option value="Cheque">Cheque</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px' }}>Reference / Slip No. (Optional)</label>
+                <input
+                  type="text"
+                  className="touch-input"
+                  value={transactionRef}
+                  onChange={(e) => setTransactionRef(e.target.value)}
+                  placeholder="e.g. Bank ref #, Card auth, Txn ID"
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+
+            {/* Payment Slip / Receipt Photo Upload Box */}
+            <div style={{ marginTop: '14px', backgroundColor: '#f8fafc', border: '1.5px dashed #cbd5e1', borderRadius: '12px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ backgroundColor: '#e0f2fe', color: '#0284c7', padding: '6px', borderRadius: '6px', display: 'flex' }}>
+                    <CreditCard size={16} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      Upload Payment Slip / Receipt Photo
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>
+                      Bank transfer slip, receipt, or payment confirmation photo (Max 5MB)
+                    </span>
+                  </div>
+                </div>
+                {paymentSlipPreview && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePaymentSlip}
+                    style={{
+                      background: '#fee2e2',
+                      border: 'none',
+                      color: '#dc2626',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Trash2 size={13} /> Remove Slip
+                  </button>
+                )}
+              </div>
+
+              {paymentSlipPreview ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', backgroundColor: '#ffffff', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <img
+                    src={paymentSlipPreview}
+                    alt="Payment Slip Preview"
+                    style={{ width: '70px', height: '70px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#059669', fontSize: '0.85rem', fontWeight: 700 }}>
+                      <CheckCircle size={15} /> Payment Proof Attached
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                      {paymentSlip?.name} ({((paymentSlip?.size || 0) / 1024).toFixed(0)} KB)
+                    </div>
+                    <label style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, cursor: 'pointer', marginTop: '4px', display: 'inline-block' }}>
+                      Change photo
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/jpg"
+                        onChange={handlePaymentSlipChange}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                <label style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '16px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer'
+                }}>
+                  <Upload size={20} color="var(--jb-blue-accent)" style={{ marginBottom: '6px' }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Click or tap to upload payment slip / receipt photo
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Supports JPG, PNG, WEBP (Max 5MB)
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={handlePaymentSlipChange}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              )}
+            </div>
           </div>
 
           {/* SECTION 6: ORDER REVIEW SUMMARY */}
@@ -1601,7 +1787,7 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
               {/* Payment Box */}
               <div style={{ backgroundColor: '#ffffff', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Payment
+                  Payment ({paymentMethod})
                 </div>
                 <div style={{ fontWeight: 800, color: '#059669', fontSize: '0.95rem' }}>
                   Total: Rs. {parseFloat(totalAmount || 0).toFixed(2)}
@@ -1609,6 +1795,18 @@ export const OrderCreationModal = ({ isOpen, onClose }) => {
                 <div style={{ fontSize: '0.825rem', color: '#475569', marginTop: '2px' }}>
                   Adv: Rs. {parseFloat(advancePayment || 0).toFixed(2)} | Bal: Rs. {(Math.max(0, parseFloat(totalAmount || 0) - parseFloat(advancePayment || 0))).toFixed(2)}
                 </div>
+                {paymentSlipPreview ? (
+                  <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                    <img src={paymentSlipPreview} alt="Receipt preview" style={{ width: '26px', height: '26px', objectFit: 'cover', borderRadius: '4px' }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#16a34a' }}>Receipt Photo Attached</span>
+                  </div>
+                ) : (
+                  transactionRef && (
+                    <div style={{ marginTop: '4px', fontSize: '0.75rem', color: '#64748b' }}>
+                      Ref: {transactionRef}
+                    </div>
+                  )
+                )}
               </div>
             </div>
 

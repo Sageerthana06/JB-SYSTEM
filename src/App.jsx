@@ -5,6 +5,8 @@ import { TopHeader } from './components/TopHeader';
 import { Sidebar } from './components/Sidebar';
 import { ModuleRenderer } from './components/ModuleRenderer';
 import { LoginModal } from './components/LoginModal';
+import { StaffAttendanceDashboard } from './components/StaffAttendanceDashboard';
+import { TailorDashboard } from './components/TailorDashboard';
 
 // Customer Portal Components
 import { CustomerLogin } from './components/CustomerPortal/CustomerLogin';
@@ -116,7 +118,17 @@ function MainLayout() {
     return <LoginModal />;
   }
 
-  // Authenticated staff — show full ERP layout
+  // Dedicated Staff Attendance Dashboard for Staff (Pratheep)
+  if (user?.role === 'STAFF') {
+    return <StaffAttendanceDashboard />;
+  }
+
+  // Dedicated Tailor Workspace for Tailors (Pushpamalar, Uruththiradevi, Susitha)
+  if (['TAILOR', 'CUTTING', 'EMBROIDERY'].includes(user?.role)) {
+    return <TailorDashboard />;
+  }
+
+  // Authenticated management / CEO / tailors — show full ERP layout
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
       <Sidebar />

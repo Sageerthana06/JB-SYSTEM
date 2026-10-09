@@ -9,7 +9,8 @@ async function configureBranches() {
   await pool.query(`
     UPDATE "Branch"
     SET name = 'JB Group (Main)',
-        address = 'No. 128 Galle Road, Colombo 03, Sri Lanka',
+        address = 'First Floor, no 71, Thirugnanasampanthar Street
+Trincomalee',
         phone = '+94 11 234 5678',
         status = 'ACTIVE',
         "updatedAt" = NOW()
@@ -20,7 +21,7 @@ async function configureBranches() {
   await pool.query(`
     UPDATE "Branch"
     SET name = 'Bella Design',
-        address = 'Boutique & Studio, Colombo 04, Sri Lanka',
+        address = 'Sri Lanka',
         phone = '+94 11 987 6543',
         status = 'ACTIVE',
         "updatedAt" = NOW()

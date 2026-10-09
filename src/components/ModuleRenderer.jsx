@@ -4,10 +4,17 @@ import { SalesERP } from './SalesERP';
 import { ProductionERP } from './ProductionERP';
 import { TailorERP } from './TailorERP';
 import { CustomerVaultERP } from './CustomerVaultERP';
+import { CeoAttendanceCenter } from './CeoAttendanceCenter';
+import { TailorDashboard } from './TailorDashboard';
 import { LayoutDashboard, ShoppingCart, Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
 
 export const ModuleRenderer = () => {
-  const { activeTab, activeBranch } = useAuth();
+  const { activeTab, activeBranch, user } = useAuth();
+
+  // If a tailor craftsman accesses ModuleRenderer, render their dedicated workspace exclusively
+  if (['TAILOR', 'CUTTING', 'EMBROIDERY'].includes(user?.role)) {
+    return <TailorDashboard />;
+  }
 
   // Route active tab to dedicated sub-dashboards
   if (activeTab === 'sales' || activeTab === 'overview') {
@@ -24,6 +31,47 @@ export const ModuleRenderer = () => {
 
   if (activeTab === 'customers') {
     return <CustomerVaultERP />;
+  }
+
+  if (activeTab === 'staff') {
+    return (
+      <div className="module-container-responsive" style={{ padding: '28px' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '24px',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              padding: '12px',
+              borderRadius: '12px',
+              backgroundColor: 'var(--jb-crimson-light)',
+              color: 'var(--jb-crimson)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <UserCheck size={24} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                Staff Attendance & Roster Center
+              </h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+                Real-time employee clock-in records, working hours, and branch attendance telemetry
+              </p>
+            </div>
+          </div>
+          <div className="badge badge-navy" style={{ padding: '8px 14px', fontSize: '0.8rem' }}>
+            Filter: <strong>{activeBranch === 'ALL' ? 'All Branches Combined' : activeBranch}</strong>
+          </div>
+        </div>
+        <CeoAttendanceCenter />
+      </div>
+    );
   }
 
   const moduleInfo = {

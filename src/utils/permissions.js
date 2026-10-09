@@ -56,20 +56,14 @@ const ROLE_PERMISSIONS = {
     'pdf.generate'
   ],
   TAILOR: [
-    'orders.view',
-    'customers.view',
     'production.view', 'production.update',
     'pdf.generate'
   ],
   CUTTING: [
-    'orders.view',
-    'customers.view',
     'production.view', 'production.update',
     'pdf.generate'
   ],
   EMBROIDERY: [
-    'orders.view',
-    'customers.view',
     'production.view', 'production.update',
     'pdf.generate'
   ],

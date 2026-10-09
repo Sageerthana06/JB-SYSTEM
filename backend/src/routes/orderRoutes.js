@@ -57,6 +57,13 @@ router.patch(
   orderController.updateOrderStatus
 );
 
+// WhatsApp Ready Notification — management and staff
+router.post(
+  '/:id/notify-ready',
+  authorizeRoles('ADMIN', 'MANAGER', 'STAFF', 'TAILOR'),
+  orderController.notifyOrderReady
+);
+
 // Record payment — management, staff, cashier, manager
 router.post(
   '/:id/payment',

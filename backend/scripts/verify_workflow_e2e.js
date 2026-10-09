@@ -23,7 +23,7 @@ async function runE2EWorkflowTests() {
     // AUTHENTICATION SETUP
     // ----------------------------------------------------
     console.log('--- 1. AUTHENTICATION SETUP ---');
-    
+
     // 1.1 CEO Login
     const ceoRes = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
@@ -60,7 +60,7 @@ async function runE2EWorkflowTests() {
         email: customerEmail,
         primaryPhone: customerPhone,
         password: 'Password123!',
-        address: '45 Galle Road, Colombo 03'
+        address: 'srilanka'
       })
     });
     const custRegData = await custRegRes.json();
@@ -386,7 +386,7 @@ async function runE2EWorkflowTests() {
       body: JSON.stringify({ amount: 5000 })
     });
     const payData = await payRes.json();
-    
+
     // Check status after payment
     const checkOrder3 = await pool.query('SELECT status, "advancePayment" FROM "Order" WHERE id = $1', [order3.id]);
     const advancePaid = parseFloat(checkOrder3.rows[0].advancePayment);

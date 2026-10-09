@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, DollarSign, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { X, CreditCard, DollarSign, CheckCircle, AlertCircle, ArrowRight, Upload, Trash2 } from 'lucide-react';
 import { API_URL } from '../config/api';
 
 export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }) => {
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [transactionRef, setTransactionRef] = useState('');
+  const [notes, setNotes] = useState('');
+  const [slipFile, setSlipFile] = useState(null);
+  const [slipPreview, setSlipPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -13,6 +17,10 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
       const balance = Math.max(0, Number(order.totalAmount || 0) - Number(order.advancePayment || 0));
       // Default to full balance or empty
       setAmount(balance > 0 ? String(balance) : '');
+      setTransactionRef('');
+      setNotes('');
+      setSlipFile(null);
+      setSlipPreview(null);
       setError(null);
     }
   }, [order, isOpen]);
@@ -32,6 +40,28 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
     setError(null);
   };
 
+  const handleSlipChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Payment slip photo must be 5MB or smaller.');
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
+        setError('Invalid file type for receipt. Only JPG, PNG, and WEBP images are allowed.');
+        return;
+      }
+      setSlipFile(file);
+      setSlipPreview(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
+  const handleRemoveSlip = () => {
+    setSlipFile(null);
+    setSlipPreview(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -48,6 +78,28 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
 
     try {
       setLoading(true);
+
+      let uploadedSlipUrl = null;
+      if (slipFile) {
+        const formData = new FormData();
+        formData.append('paymentSlip', slipFile);
+        const uploadRes = await fetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+          },
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          uploadedSlipUrl = uploadData.imageUrl || uploadData.photoUrl;
+        } else {
+          setError(uploadData.message || 'Failed to upload payment slip photo.');
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/orders/${order.id}/payment`, {
         method: 'POST',
         headers: {
@@ -56,7 +108,10 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
         },
         body: JSON.stringify({
           amount: numAmount,
-          paymentMethod
+          paymentMethod,
+          transactionRef: transactionRef.trim() || undefined,
+          notes: notes.trim() || undefined,
+          slipImage: uploadedSlipUrl
         })
       });
 
@@ -279,7 +334,7 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
           </div>
 
           {/* Payment Method */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
               Payment Method
             </label>
@@ -304,6 +359,128 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Reference / Slip No & Note */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                Ref / Slip No. (Optional)
+              </label>
+              <input
+                type="text"
+                value={transactionRef}
+                onChange={(e) => setTransactionRef(e.target.value)}
+                placeholder="e.g. Bank ref #, Txn ID"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  color: '#0f172a',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Paid in shop"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  color: '#0f172a',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Payment Slip / Receipt Photo Upload Box */}
+          <div style={{
+            marginBottom: '18px',
+            backgroundColor: '#f8fafc',
+            border: '1.5px dashed #cbd5e1',
+            borderRadius: '10px',
+            padding: '14px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#334155' }}>
+                Payment Slip / Receipt Photo (Optional)
+              </span>
+              {slipPreview && (
+                <button
+                  type="button"
+                  onClick={handleRemoveSlip}
+                  style={{
+                    background: '#fee2e2',
+                    border: 'none',
+                    color: '#dc2626',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Trash2 size={12} /> Remove
+                </button>
+              )}
+            </div>
+
+            {slipPreview ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#ffffff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <img
+                  src={slipPreview}
+                  alt="Receipt Preview"
+                  style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontSize: '0.8rem', fontWeight: 700 }}>
+                    <CheckCircle size={14} /> Receipt Attached
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                    {slipFile?.name} ({((slipFile?.size || 0) / 1024).toFixed(0)} KB)
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                cursor: 'pointer'
+              }}>
+                <Upload size={16} color="#2563eb" />
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>
+                  Upload Receipt / Bank Slip Photo
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>(JPG, PNG, WEBP max 5MB)</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  onChange={handleSlipChange}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            )}
           </div>
 
           {/* Live Outcome Preview */}

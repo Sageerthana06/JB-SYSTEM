@@ -184,18 +184,24 @@ exports.getCeoAttendanceCenter = async (req, res, next) => {
   try {
     const date = getTodayDateString(req.query.date);
 
-    // Fetch all active staff/craftsmen users (excluding Customers)
+    // Fetch only authorized working team: Manager, Pratheep (Staff), and 3 Tailors (Pushpamalar, Uruththiradevi, Susitha)
     const employees = await prisma.user.findMany({
       where: {
         isActive: true,
-        role: {
-          in: ['MANAGER', 'STAFF', 'TAILOR', 'CUTTING', 'EMBROIDERY', 'CASHIER', 'ADMIN', 'SUPER_ADMIN']
+        email: {
+          in: [
+            'manager@jbgroup.com',
+            'staff@jbgroup.com',
+            'pushpamalar@jbgroup.com',
+            'uruththiradevi@jbgroup.com',
+            'susitha@jbgroup.com'
+          ]
         }
       },
       include: {
         branch: { select: { id: true, name: true } }
       },
-      orderBy: { name: 'asc' }
+      orderBy: { id: 'asc' }
     });
 
     // Fetch all attendance rows for today
@@ -415,6 +421,33 @@ exports.checkOut = async (req, res, next) => {
       }
     });
     res.json({ success: true, message: 'Check out recorded successfully.', data: record });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/attendance/my-history
+ * Attendance history for logged-in staff member / user
+ */
+exports.getMyAttendanceHistory = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const records = await prisma.attendance.findMany({
+      where: {
+        OR: [
+          { userId },
+          { tailorId: userId }
+        ]
+      },
+      orderBy: { date: 'desc' },
+      take: 31
+    });
+
+    res.json({
+      success: true,
+      records
+    });
   } catch (error) {
     next(error);
   }

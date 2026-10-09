@@ -89,8 +89,8 @@ exports.createOrder = async (req, res, next) => {
       previousOrderId: previousOrderId ? parseInt(previousOrderId) : null,
       orderSource: orderSource,
       status: initialStatus,
-      priceStatus: 'PENDING',
-      priceAcceptedByCustomer: false,
+      priceStatus: 'ACCEPTED',
+      priceAcceptedByCustomer: true,
       totalAmount: 0,
       advancePayment: 0,
       balanceAmount: 0,
@@ -410,12 +410,17 @@ exports.updateOrderStatus = async (req, res, next) => {
       where: { id: orderId },
       select: {
         id: true,
+        orderNumber: true,
         status: true,
         assignedTailorId: true,
         tailorAccepted: true,
         priceAcceptedByCustomer: true,
         balanceAmount: true,
-        totalAmount: true
+        totalAmount: true,
+        readyNotificationSent: true,
+        readyNotificationSentAt: true,
+        readyNotificationStatus: true,
+        customer: { select: { id: true, name: true, primaryPhone: true } }
       }
     });
 
@@ -497,14 +502,8 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
-    // Production Gate: Production cannot start without price acceptance & tailor assignment
+    // Production Gate: Production cannot start without tailor assignment
     if (['CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK', 'ALTERATION', 'READY'].includes(status)) {
-      if (!currentOrder.priceAcceptedByCustomer && !['CUSTOMER_APPROVED', 'ORDER_CONFIRMED'].includes(currentOrder.status)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Production cannot proceed: Customer has not approved the price quote.'
-        });
-      }
       if (!currentOrder.assignedTailorId) {
         return res.status(400).json({
           success: false,
@@ -521,7 +520,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           message: 'Access denied. You can only update orders assigned to you.'
         });
       }
-      const tailorAllowedStages = ['IN_PROGRESS', 'CUTTING', 'STITCHING', 'ALTERATION', 'QUALITY_CHECK'];
+      const tailorAllowedStages = ['IN_PROGRESS', 'CUTTING', 'STITCHING', 'ALTERATION', 'QUALITY_CHECK', 'FINISHING', 'READY'];
       if (!tailorAllowedStages.includes(status)) {
         return res.status(403).json({
           success: false,
@@ -585,10 +584,59 @@ exports.updateOrderStatus = async (req, res, next) => {
       updateData.completedAt = now;
     }
 
+    // Customer WhatsApp Ready Notification logic (JB GROUP only)
+    let notificationResult = null;
+    if (status === 'READY') {
+      const custName = currentOrder.customer?.name || 'Customer';
+      const ordNum = currentOrder.orderNumber || (currentOrder.id ? `ORD-${currentOrder.id}` : 'N/A');
+      const phone = currentOrder.customer?.primaryPhone;
+      const readyMsg = `Dear ${custName},\n\nYour order ${ordNum} from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!`;
+
+      if (!currentOrder.readyNotificationSent) {
+        updateData.readyNotificationSent = true;
+        updateData.readyNotificationSentAt = now;
+        updateData.readyNotificationStatus = 'SENT';
+
+        notificationResult = {
+          sent: true,
+          duplicatePrevented: false,
+          phone,
+          customerName: custName,
+          orderNumber: ordNum,
+          message: readyMsg,
+          status: 'SENT',
+          sentAt: now
+        };
+      } else {
+        notificationResult = {
+          sent: false,
+          duplicatePrevented: true,
+          phone,
+          customerName: custName,
+          orderNumber: ordNum,
+          message: readyMsg,
+          status: currentOrder.readyNotificationStatus || 'SENT',
+          sentAt: currentOrder.readyNotificationSentAt,
+          note: 'Notification was already sent previously. Duplicate prevented.'
+        };
+      }
+    }
+
     // Update the order status
     const order = await prisma.order.update({
       where: { id: orderId },
-      data: updateData
+      data: updateData,
+      include: {
+        customer: true,
+        garmentDetails: true,
+        branch: true,
+        assignedTailor: {
+          select: { id: true, name: true, email: true }
+        },
+        payments: {
+          orderBy: { createdAt: 'asc' }
+        }
+      }
     });
 
     // Create a new open ProductionHistory record for the new stage
@@ -607,7 +655,8 @@ exports.updateOrderStatus = async (req, res, next) => {
       success: true,
       message: `Status updated to: ${ORDER_STATUS_LABELS[status] || status}`,
       order,
-      historyRecord
+      historyRecord,
+      notification: notificationResult
     });
   } catch (error) {
     console.error('Error updating order status:', error);
@@ -619,7 +668,7 @@ exports.updateOrderStatus = async (req, res, next) => {
 exports.recordPayment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { amount, paymentMethod, notes } = req.body;
+    const { amount, paymentMethod, notes, transactionRef, slipImage } = req.body;
     const orderId = parseInt(id);
 
     if (isNaN(orderId)) {
@@ -684,6 +733,8 @@ exports.recordPayment = async (req, res, next) => {
         orderId,
         amount: paymentAmount,
         paymentMethod: method,
+        transactionRef: transactionRef || null,
+        slipImage: slipImage || null,
         notes: notes || null,
         recordedBy,
         status: 'VERIFIED'
@@ -1809,14 +1860,6 @@ exports.assignTailor = async (req, res, next) => {
     if (order.status === 'REJECTED') {
       return res.status(400).json({ success: false, message: 'Cannot assign tailor to a rejected order.' });
     }
-    
-    // Workflow Gate: Customer must approve price before tailor assignment
-    if (!['CUSTOMER_APPROVED', 'ORDER_CONFIRMED'].includes(order.status) && !order.priceAcceptedByCustomer) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order cannot be assigned to a tailor until the customer has approved the price quote.'
-      });
-    }
 
     const tailor = await prisma.user.findUnique({
       where: { id: parseInt(tailorId) }
@@ -2378,6 +2421,81 @@ exports.getTailorPerformance = async (req, res, next) => {
   } catch (error) {
     console.error('Error retrieving tailor performance:', error);
     res.status(500).json({ success: false, message: 'Server error retrieving tailor performance.' });
+  }
+};
+
+/**
+ * POST /api/orders/:id/notify-ready
+ * Trigger or re-send WhatsApp Ready Notification (JB GROUP)
+ */
+exports.notifyOrderReady = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { force } = req.body || {};
+    const orderId = parseInt(id);
+
+    if (isNaN(orderId)) {
+      return res.status(400).json({ success: false, message: 'Invalid order ID.' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { customer: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    if (order.status !== 'READY') {
+      return res.status(400).json({
+        success: false,
+        message: `Notification can only be sent when order is Ready for Collection. Current status: ${ORDER_STATUS_LABELS[order.status] || order.status}.`
+      });
+    }
+
+    // Check duplicate prevention
+    if (order.readyNotificationSent && !force) {
+      return res.status(200).json({
+        success: true,
+        alreadySent: true,
+        message: 'Ready notification was already sent to customer. Duplicate prevented.',
+        sentAt: order.readyNotificationSentAt,
+        status: order.readyNotificationStatus || 'SENT',
+        order
+      });
+    }
+
+    const now = new Date();
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        readyNotificationSent: true,
+        readyNotificationSentAt: now,
+        readyNotificationStatus: 'SENT'
+      },
+      include: { customer: true, garmentDetails: true, branch: true }
+    });
+
+    const custName = updatedOrder.customer?.name || 'Customer';
+    const ordNum = updatedOrder.orderNumber || (updatedOrder.id ? `ORD-${updatedOrder.id}` : 'N/A');
+    const phone = updatedOrder.customer?.primaryPhone;
+    const msg = `Dear ${custName},\n\nYour order ${ordNum} from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!`;
+
+    res.status(200).json({
+      success: true,
+      message: 'WhatsApp notification sent successfully.',
+      phone,
+      customerName: custName,
+      orderNumber: ordNum,
+      whatsAppMessage: msg,
+      sentAt: now,
+      status: 'SENT',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error notifying order ready:', error);
+    next(error);
   }
 };
 

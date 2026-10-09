@@ -251,13 +251,16 @@ exports.createCustomer = async (req, res, next) => {
       });
     }
 
-    if (advancePayment > 0) {
+    if (advancePayment > 0 || paymentDetails?.slipImage) {
       await prisma.payment.create({
         data: {
           orderId: newOrder.id,
-          amount: advancePayment,
-          paymentMethod: 'Cash',
-          notes: 'Advance payment received at order creation',
+          amount: advancePayment > 0 ? advancePayment : 0,
+          paymentMethod: paymentDetails?.paymentMethod || 'Cash',
+          transactionRef: paymentDetails?.transactionRef || null,
+          slipImage: paymentDetails?.slipImage || null,
+          notes: paymentDetails?.notes || (advancePayment > 0 ? 'Advance payment received at order creation' : 'Payment slip attached at order creation'),
+          status: 'VERIFIED',
           recordedBy: req.user?.name || req.user?.email || 'Staff'
         }
       });
@@ -265,11 +268,22 @@ exports.createCustomer = async (req, res, next) => {
 
     createdCustomerId = null; // Success, no rollback needed
 
+    // Re-fetch order to include newly created payment record
+    const completeOrder = await prisma.order.findUnique({
+      where: { id: newOrder.id },
+      include: {
+        garmentDetails: true,
+        branch: true,
+        payments: { orderBy: { createdAt: 'asc' } },
+        assignedTailor: { select: { id: true, name: true, email: true } }
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Customer and order created successfully',
       customer,
-      order: newOrder
+      order: completeOrder || newOrder
     });
 
   } catch (error) {

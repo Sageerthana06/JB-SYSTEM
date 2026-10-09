@@ -100,8 +100,8 @@ export const CeoAttendanceCenter = () => {
       // Role filter
       if (roleFilter !== 'ALL') {
         if (roleFilter === 'MANAGER' && item.role !== 'MANAGER') return false;
-        if (roleFilter === 'STAFF' && item.role !== 'STAFF' && item.role !== 'CASHIER') return false;
-        if (roleFilter === 'TAILOR' && !['TAILOR', 'CUTTING', 'EMBROIDERY'].includes(item.role)) return false;
+        if (roleFilter === 'STAFF' && item.role !== 'STAFF') return false;
+        if (roleFilter === 'TAILOR' && item.role !== 'TAILOR') return false;
       }
 
       // Branch filter

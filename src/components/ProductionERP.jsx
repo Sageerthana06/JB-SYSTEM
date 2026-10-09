@@ -19,7 +19,8 @@ import {
   Check,
   X,
   ShieldAlert,
-  SlidersHorizontal
+  SlidersHorizontal,
+  MessageCircle
 } from 'lucide-react';
 import {
   getStatusLabel,
@@ -32,6 +33,27 @@ import {
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 import { SelfAttendanceCard } from './SelfAttendanceCard';
 import { API_URL, getImageUrl } from '../config/api';
+
+const normalizePhoneForWhatsApp = (phone) => {
+  if (!phone) return '';
+  const raw = phone.toString().replace(/[^0-9]/g, '');
+  if (raw.startsWith('94')) return raw;
+  if (raw.startsWith('00')) return raw.slice(2);
+  if (raw.startsWith('0')) return '94' + raw.slice(1);
+  return raw;
+};
+
+const generateOrderReadyWhatsAppMessage = (order) => {
+  if (!order) return '';
+  const customerName = order.customer?.name || order.customerName || 'Customer';
+  const orderNumber = order.orderNumber || (order.id ? `ORD-${order.id}` : 'N/A');
+
+  return `Dear ${customerName},
+
+Your order ${orderNumber} from JB GROUP is now ready for collection.
+
+Thank you for choosing JB GROUP!`;
+};
 
 export const ProductionERP = () => {
   const { activeBranch, getAuthHeaders, user } = useAuth();
@@ -149,7 +171,16 @@ export const ProductionERP = () => {
       const data = await res.json();
       if (data.success) {
         // Update state immediately with the updated order
-        setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, status: targetStatus } : o)));
+        const updatedOrderObj = data.order || {};
+        setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...updatedOrderObj, status: targetStatus } : o)));
+        if (targetStatus === 'READY') {
+          const targetOrd = data.order || orders.find(o => o.id === orderId) || {};
+          const phone = targetOrd.customer?.primaryPhone || targetOrd.phone;
+          if (phone) {
+            const waUrl = `https://wa.me/${normalizePhoneForWhatsApp(phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrd))}`;
+            window.open(waUrl, '_blank');
+          }
+        }
       } else {
         alert(data.message || 'Failed to update order status');
       }
@@ -763,6 +794,47 @@ export const ProductionERP = () => {
                         ) : (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
                         )}
+
+                        {order.status === 'READY' && order.customer?.primaryPhone && (
+                          <div style={{ marginTop: '6px' }}>
+                            <a
+                              href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(order))}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={async () => {
+                                try {
+                                  await fetch(`${API_URL}/api/orders/${order.id}/notify-ready`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+                                    },
+                                    body: JSON.stringify({ force: false })
+                                  });
+                                  setOrders(prev => prev.map(o => o.id === order.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
+                              title={order.readyNotificationSent ? `Delivered at ${order.readyNotificationSentAt ? new Date(order.readyNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)` : 'Send WhatsApp Ready notification to customer'}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                backgroundColor: order.readyNotificationSent ? '#15803d' : '#22c55e',
+                                color: '#ffffff',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                textDecoration: 'none'
+                              }}
+                            >
+                              <MessageCircle size={12} />
+                              {order.readyNotificationSent ? '✓ WA Delivered' : 'Send WA Ready'}
+                            </a>
+                          </div>
+                        )}
                       </td>
 
                       {/* Details / Specs / Invoice Trigger */}
@@ -1002,6 +1074,45 @@ export const ProductionERP = () => {
                         )}
                       </button>
                     ) : null}
+
+                    {/* WhatsApp Ready Notification Button */}
+                    {order.status === 'READY' && order.customer?.primaryPhone && (
+                      <a
+                        href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(order))}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={async () => {
+                          try {
+                            await fetch(`${API_URL}/api/orders/${order.id}/notify-ready`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+                              },
+                              body: JSON.stringify({ force: false })
+                            });
+                            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }}
+                        className="touch-target-btn"
+                        style={{
+                          backgroundColor: order.readyNotificationSent ? '#15803d' : '#22c55e',
+                          color: '#ffffff',
+                          fontSize: '0.78rem',
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          minHeight: '38px'
+                        }}
+                      >
+                        <MessageCircle size={15} />
+                        {order.readyNotificationSent ? '✓ WhatsApp Delivered (JB GROUP)' : 'Send WA Ready (JB GROUP)'}
+                      </a>
+                    )}
 
                     {/* Secondary Actions: Specs & Invoice */}
                     <div style={{ display: 'grid', gridTemplateColumns: user?.role !== 'TAILOR' ? '1fr 1fr' : '1fr', gap: '8px' }}>

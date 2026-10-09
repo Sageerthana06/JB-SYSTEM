@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const LoginModal = () => {
-  const { isLoginOpen, login } = useAuth();
+  const { isLoginOpen, login, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +31,8 @@ export const LoginModal = () => {
     }
   }, [isLoginOpen]);
 
-  if (!isLoginOpen) return null;
+  // If user is already authenticated and modal is not forced open, hide modal
+  if (user && !isLoginOpen) return null;
 
   const handleSignIn = async (e) => {
     e.preventDefault();

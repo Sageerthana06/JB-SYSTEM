@@ -976,9 +976,12 @@ export const CustomerOrders = () => {
                   ];
 
                   const stageOrder = [
-                    'PENDING_APPROVAL', 'APPROVED', 'ORDER_CONFIRMED', 'PENDING_PRODUCTION',
+                    'PENDING_APPROVAL', 'CHANGES_REQUIRED',
+                    'APPROVED', 'PRICE_SET', 'WAITING_CUSTOMER_APPROVAL', 'CUSTOMER_APPROVED', 'PRICE_REVISION_REQUIRED', 'PRICE_DECLINED',
+                    'ORDER_CONFIRMED', 'PENDING_PRODUCTION', 'TAILOR_ASSIGNED', 'IN_PROGRESS',
                     'CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'EMBROIDERY_AARI',
-                    'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK', 'READY', 'DELIVERED'
+                    'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK', 'ALTERATION', 
+                    'READY', 'DELIVERED', 'COMPLETED'
                   ];
 
                   const currentIdx = stageOrder.indexOf(selectedOrder.status);
@@ -1001,9 +1004,9 @@ export const CustomerOrders = () => {
                           const stIdx = stageOrder.indexOf(st.key);
                           const isDone = currentIdx > stIdx;
                           const isCurrent = selectedOrder.status === st.key ||
-                            (st.key === 'APPROVED' && selectedOrder.status === 'APPROVED') ||
-                            (st.key === 'STITCHING' && ['AARI_EMBROIDERY', 'EMBROIDERY_AARI', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK'].includes(selectedOrder.status)) ||
-                            (st.key === 'ORDER_CONFIRMED' && ['PENDING', 'PENDING_PRODUCTION'].includes(selectedOrder.status));
+                            (st.key === 'APPROVED' && ['APPROVED', 'PRICE_SET', 'WAITING_CUSTOMER_APPROVAL', 'CUSTOMER_APPROVED', 'PRICE_REVISION_REQUIRED', 'PRICE_DECLINED'].includes(selectedOrder.status)) ||
+                            (st.key === 'STITCHING' && ['STITCHING', 'AARI_EMBROIDERY', 'EMBROIDERY_AARI', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK', 'ALTERATION'].includes(selectedOrder.status)) ||
+                            (st.key === 'ORDER_CONFIRMED' && ['ORDER_CONFIRMED', 'PENDING', 'PENDING_PRODUCTION', 'TAILOR_ASSIGNED', 'IN_PROGRESS'].includes(selectedOrder.status));
 
                           const circleColor = isDone ? '#10b981' : (isCurrent ? '#0052cc' : '#cbd5e1');
                           const textColor = isDone ? '#065f46' : (isCurrent ? '#0052cc' : '#94a3b8');

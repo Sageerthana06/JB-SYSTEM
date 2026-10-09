@@ -11,9 +11,11 @@ exports.login = async (req, res, next) => {
     }
 
     const normalizedEmail = (email || '').trim().toLowerCase();
+    const effectiveEmail = normalizedEmail === 'pratheep@jbgroup.com' ? 'staff@jbgroup.com' : normalizedEmail;
+
     const user = await prisma.user.findFirst({
       where: {
-        email: { equals: normalizedEmail, mode: 'insensitive' }
+        email: { equals: effectiveEmail, mode: 'insensitive' }
       }
     });
     if (!user) {

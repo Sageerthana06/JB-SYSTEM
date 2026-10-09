@@ -194,49 +194,19 @@ const normalizePhoneForWhatsApp = (phone) => {
 
 const generateOrderReadyWhatsAppMessage = (order) => {
   if (!order) return '';
-  const customerName = order.customer?.name || 'Customer';
-  const orderNumber = order.orderNumber || order.id || 'N/A';
-  const orderDate = order.orderDate ? new Date(order.orderDate).toLocaleDateString() : 'N/A';
-  const dressType = order.garmentDetails?.dressType || 'Not Added';
-  const quantity = order.garmentDetails?.quantity || 1;
-  const occasion = order.garmentDetails?.occasion || 'Not Added';
-  const fabric = order.garmentDetails?.fabricType || 'Not Added';
-  const fabricColour = order.garmentDetails?.fabricColour || 'Not Added';
-  const workDetails = order.garmentDetails?.workDetails || (order.garmentDetails?.workRequired ? 'Required' : 'None');
+  const customerName = order.customer?.name || order.customerName || 'Customer';
+  const orderNumber = order.orderNumber || (order.id ? `ORD-${order.id}` : 'N/A');
 
-  let designRef = 'No Reference Image';
-  if (order.garmentDetails?.designReferenceImage) {
-    designRef = getImageUrl(order.garmentDetails.designReferenceImage);
-  }
+  return `Dear ${customerName},
 
-  return `Hello ${customerName} 👋
+Your order ${orderNumber} from JB GROUP is now ready for collection.
 
-Your Bella Design order is now *READY FOR COLLECTION*. ✅
-
-📋 *ORDER DETAILS*
-
-Order No: ${orderNumber}
-Order Date: ${orderDate}
-Dress Type: ${dressType}
-Quantity: ${quantity}
-Occasion: ${occasion}
-Fabric: ${fabric}
-Fabric Colour: ${fabricColour}
-Work / Embroidery: ${workDetails}
-
-🖼️ *DESIGN REFERENCE*
-${designRef}
-
-📌 *ORDER STATUS: READY FOR COLLECTION*
-
-Your order is ready. You can visit our store and collect your order.
-
-Thank you for choosing *Bella Design / JB GROUP*. 🙏`;
+Thank you for choosing JB GROUP!`;
 };
 
 const generateQuotationWhatsAppMessage = (order) => {
   if (!order) return '';
-  const customerName = order.customer?.name || 'Customer';
+  const customerName = order.customer?.name || order.customerName || 'Customer';
   const orderNumber = order.orderNumber || order.id || 'N/A';
   const dressType = order.garmentDetails?.dressType || 'Bespoke Garment';
   const quantity = order.garmentDetails?.quantity || 1;
@@ -247,7 +217,7 @@ const generateQuotationWhatsAppMessage = (order) => {
 
   return `Hello ${customerName} 👋
 
-Thank you for choosing *Bella Design / JB GROUP*! ✨
+Thank you for choosing *JB GROUP*! ✨
 
 Here is the Price Quotation for your bespoke tailoring order:
 
@@ -261,7 +231,7 @@ Here is the Price Quotation for your bespoke tailoring order:
 Please review and confirm to begin production. You can also view details and confirm via our Customer Portal.
 
 Thank you! 🙏
-*JB GROUP — Bella Design*`;
+*JB GROUP*`;
 };
 
 const PriceSettingModal = ({ order, isOpen, onClose, onPriceSaved, user }) => {
@@ -629,20 +599,20 @@ const ViewOrderModal = ({
               <FileText size={14} /> Digital Invoice
             </button>
           )}
-          {isFullAccess && order.customer?.primaryPhone && (
+          {order.status === 'READY' && order.customer?.primaryPhone && (
             <a
               href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(order))}`}
               target="_blank"
               rel="noreferrer"
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                backgroundColor: '#22C55E', color: '#fff',
+                backgroundColor: order.readyNotificationSent ? '#15803d' : '#22C55E', color: '#fff',
                 padding: '6px 12px', borderRadius: '6px',
                 fontSize: '0.85rem', fontWeight: 600,
                 textDecoration: 'none'
               }}
             >
-              <MessageCircle size={14} /> WhatsApp
+              <MessageCircle size={14} /> {order.readyNotificationSent ? '✓ WA Delivered' : 'WhatsApp Ready'}
             </a>
           )}
           <button
@@ -656,6 +626,123 @@ const ViewOrderModal = ({
             <X size={24} color="var(--text-muted)" />
           </button>
         </div>
+
+        {/* WhatsApp Order Ready Notification Banner */}
+        {order.status === 'READY' && order.customer?.primaryPhone && (
+          <div style={{
+            backgroundColor: '#f0fdf4',
+            border: '2px solid #22c55e',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            boxShadow: '0 2px 8px rgba(34, 197, 94, 0.15)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', maxWidth: '650px' }}>
+              <div style={{
+                backgroundColor: '#dcfce7',
+                color: '#16a34a',
+                padding: '10px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                marginTop: '2px'
+              }}>
+                <MessageCircle size={22} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#14532d' }}>
+                    JB GROUP WhatsApp Ready Notification
+                  </h4>
+                  {order.readyNotificationSent ? (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      backgroundColor: '#bbf7d0', color: '#14532d',
+                      padding: '2px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800,
+                      border: '1px solid #86efac'
+                    }}>
+                      ✓ WhatsApp Delivered ({order.readyNotificationStatus || 'SENT'})
+                    </span>
+                  ) : (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      backgroundColor: '#fef3c7', color: '#b45309',
+                      padding: '2px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800,
+                      border: '1px solid #fde68a'
+                    }}>
+                      ● Pending Notification
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#166534', lineHeight: 1.4 }}>
+                  Customer: <strong>{order.customer?.name}</strong> | Phone: <strong>{order.customer?.primaryPhone}</strong>
+                  {order.readyNotificationSent && order.readyNotificationSentAt && (
+                    <span style={{ display: 'block', fontSize: '0.75rem', color: '#15803d', marginTop: '2px' }}>
+                      Sent at: {new Date(order.readyNotificationSentAt).toLocaleString()} (Duplicate protection active)
+                    </span>
+                  )}
+                </p>
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px 12px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '8px',
+                  border: '1px solid #bbf7d0',
+                  fontSize: '0.78rem',
+                  color: '#1e293b',
+                  whiteSpace: 'pre-line',
+                  fontFamily: 'monospace'
+                }}>
+                  {generateOrderReadyWhatsAppMessage(order)}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <a
+                href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(order))}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={async () => {
+                  try {
+                    await fetch(`${API_URL}/api/orders/${order.id}/notify-ready`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+                      },
+                      body: JSON.stringify({ force: false })
+                    });
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#22c55e',
+                  color: '#ffffff',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)'
+                }}
+              >
+                <MessageCircle size={16} />
+                {order.readyNotificationSent ? 'Open WhatsApp (Delivered)' : 'Send WhatsApp Message'}
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Customer Payment Slip Pending Verification Banner */}
         {isFullAccess && order.payments?.some(p => p.status === 'PENDING_VERIFICATION') && (
@@ -965,13 +1052,7 @@ const ViewOrderModal = ({
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                       Assign Responsible Tailor (1 Order = 1 Tailor):
                     </label>
-                    {!order.priceAcceptedByCustomer ? (
-                      <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 12px', fontSize: '0.8rem', color: '#92400e' }}>
-                        <div style={{ fontWeight: 800, marginBottom: '2px' }}>⏳ Tailor Assignment Locked</div>
-                        <div>Customer has not accepted the price quote yet (Current price status: <strong>{getPriceStatusLabel(order.priceStatus || 'PENDING')}</strong>). Tailor assignment will automatically unlock once the customer confirms the price.</div>
-                      </div>
-                    ) : (
-                      <div>
+                    <div>
                         {/* Tailor waiting acceptance banner for logged-in tailor */}
                         {isMyAssignedPending && (
                           <div style={{
@@ -1052,73 +1133,9 @@ const ViewOrderModal = ({
 
                         {canAssignTailor ? (
                           <div>
-                            {!isPriceConfirmed ? (
-                              <div style={{
-                                backgroundColor: '#fffbeb',
-                                border: '1px solid #fde68a',
-                                borderRadius: '10px',
-                                padding: '12px 14px',
-                                marginBottom: '12px'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b45309', fontWeight: 800, fontSize: '0.85rem' }}>
-                                  <Clock size={16} /> Assign Tailor Locked — Customer Confirmation Required
-                                </div>
-                                <p style={{ margin: '4px 0 10px 0', fontSize: '0.78rem', color: '#92400e', lineHeight: 1.4 }}>
-                                  Tailor cannot be assigned before the customer confirms the price quote. Once the customer accepts (via Customer Portal, WhatsApp, or in-store), tailor assignment will unlock.
-                                </p>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                  {Number(order.totalAmount || 0) > 0 ? (
-                                    <button
-                                      onClick={() => onConfirmCustomerPrice && onConfirmCustomerPrice(order.id)}
-                                      style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                        padding: '6px 14px', borderRadius: '6px',
-                                        backgroundColor: '#16a34a', color: '#ffffff',
-                                        border: 'none', fontSize: '0.78rem', fontWeight: 800,
-                                        cursor: 'pointer', boxShadow: '0 2px 4px rgba(22,163,74,0.2)'
-                                      }}
-                                    >
-                                      <Check size={14} /> Mark Customer Confirmed (Phone / In-Store)
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => onOpenPricing && onOpenPricing(order)}
-                                      style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                        padding: '6px 14px', borderRadius: '6px',
-                                        backgroundColor: '#0052cc', color: '#ffffff',
-                                        border: 'none', fontSize: '0.78rem', fontWeight: 800,
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      <DollarSign size={14} /> Set Order Price First
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{
-                                backgroundColor: '#f0fdf4',
-                                border: '1px solid #bbf7d0',
-                                borderRadius: '8px',
-                                padding: '6px 12px',
-                                marginBottom: '10px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '0.8rem',
-                                color: '#166534',
-                                fontWeight: 700
-                              }}>
-                                <CheckCircle size={15} color="#16a34a" />
-                                <span>Price Confirmed by Customer — Ready for Tailor Assignment</span>
-                              </div>
-                            )}
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', opacity: !isPriceConfirmed ? 0.6 : 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                               <select
                                 value={localTailorId}
-                                disabled={!isPriceConfirmed}
                                 onChange={(e) => setLocalTailorId(e.target.value)}
                                 style={{
                                   padding: '7px 12px',
@@ -1126,8 +1143,8 @@ const ViewOrderModal = ({
                                   border: '1px solid var(--border-color)',
                                   fontSize: '0.84rem',
                                   fontWeight: 600,
-                                  backgroundColor: !isPriceConfirmed ? '#f1f5f9' : '#ffffff',
-                                  cursor: !isPriceConfirmed ? 'not-allowed' : 'pointer'
+                                  backgroundColor: '#ffffff',
+                                  cursor: 'pointer'
                                 }}
                               >
                                 <option value="">-- Select Tailor --</option>
@@ -1137,16 +1154,16 @@ const ViewOrderModal = ({
                               </select>
                               <button
                                 onClick={() => onAssignTailor && onAssignTailor(order.id, localTailorId)}
-                                disabled={!isPriceConfirmed || !localTailorId || Number(localTailorId) === Number(order.assignedTailorId)}
+                                disabled={!localTailorId || Number(localTailorId) === Number(order.assignedTailorId)}
                                 style={{
                                   padding: '7px 14px',
                                   borderRadius: '8px',
-                                  backgroundColor: (isPriceConfirmed && localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'var(--jb-crimson)' : '#e2e8f0',
-                                  color: (isPriceConfirmed && localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? '#ffffff' : '#94a3b8',
+                                  backgroundColor: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'var(--jb-crimson)' : '#e2e8f0',
+                                  color: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? '#ffffff' : '#94a3b8',
                                   border: 'none',
                                   fontSize: '0.82rem',
                                   fontWeight: 700,
-                                  cursor: (isPriceConfirmed && localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'pointer' : 'not-allowed'
+                                  cursor: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'pointer' : 'not-allowed'
                                 }}
                               >
                                 {order.assignedTailorId ? 'Reassign Tailor' : 'Assign Tailor'}
@@ -1185,9 +1202,8 @@ const ViewOrderModal = ({
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
                 {nextInfo && order.status !== 'PENDING_APPROVAL' && (
                   <div style={{ marginTop: '4px' }}>
                     <button
@@ -2359,6 +2375,19 @@ export const SalesERP = () => {
       if (data.success) {
         // Update local state to reflect change immediately without full reload
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...(data.order || {}), status: newStatus } : o));
+        if (viewingOrder?.id === orderId) {
+          setViewingOrder(prev => ({ ...prev, ...(data.order || {}), status: newStatus }));
+        }
+
+        // When order status is marked READY (Finished), dispatch WhatsApp ready notification
+        if (newStatus === 'READY') {
+          const targetOrd = data.order || orders.find(o => o.id === orderId) || {};
+          const phone = targetOrd.customer?.primaryPhone || targetOrd.phone;
+          if (phone) {
+            const waUrl = `https://wa.me/${normalizePhoneForWhatsApp(phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrd))}`;
+            window.open(waUrl, '_blank');
+          }
+        }
       } else {
         alert(data.message || 'Failed to update status');
       }
@@ -2480,6 +2509,20 @@ export const SalesERP = () => {
     if (selectedFilter === 'Rejected') return ord.status === 'REJECTED';
     return true;
   });
+
+  // Restrict executive Sales & Financial Dashboard strictly to CEO and Manager
+  if (!isFullAccess) {
+    return (
+      <div style={{ padding: '60px 24px', textAlign: 'center', backgroundColor: '#ffffff', borderRadius: '14px', margin: '24px', border: '1px solid #e2e8f0' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+          Access Restricted
+        </h3>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto' }}>
+          This executive sales, revenue, and customer payments dashboard is reserved strictly for CEO and Management.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="erp-page-container">
@@ -3556,6 +3599,44 @@ export const SalesERP = () => {
                                 </button>
                               );
                             })()}
+                            
+                            {ord.status === 'READY' && ord.phone && (
+                              <a
+                                href={`https://wa.me/${normalizePhoneForWhatsApp(ord.phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrder))}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={async () => {
+                                  try {
+                                    await fetch(`${API_URL}/api/orders/${targetOrder.id}/notify-ready`, {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+                                      },
+                                      body: JSON.stringify({ force: false })
+                                    });
+                                    setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
+                                  } catch (e) {
+                                    console.error(e);
+                                  }
+                                }}
+                                title="Send WhatsApp Ready Notification"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                  padding: '4px 8px', borderRadius: '6px',
+                                  backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#25D366',
+                                  color: '#fff',
+                                  fontSize: '0.72rem', fontWeight: 800,
+                                  textDecoration: 'none',
+                                  whiteSpace: 'nowrap',
+                                  border: 'none',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <MessageCircle size={12} />
+                                <span>{targetOrder.readyNotificationSent ? '✓ WA Sent' : 'Send WhatsApp'}</span>
+                              </a>
+                            )}
                           </div>
                         )}
                       </td>
@@ -3687,21 +3768,43 @@ export const SalesERP = () => {
                             </button>
                           )}
 
-                          {/* WhatsApp button */}
-                          {(ord.status === 'READY' || ord.status === 'DELIVERED') && ord.phone && (
+                          {/* WhatsApp Ready Notification & Delivery Status */}
+                          {ord.status === 'READY' && ord.phone && (
                             <a
                               href={`https://wa.me/${normalizePhoneForWhatsApp(ord.phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrder))}`}
                               target="_blank"
                               rel="noreferrer"
+                              onClick={async () => {
+                                try {
+                                  await fetch(`${API_URL}/api/orders/${targetOrder.id}/notify-ready`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+                                    },
+                                    body: JSON.stringify({ force: false })
+                                  });
+                                  setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
+                              title={
+                                targetOrder.readyNotificationSent
+                                  ? `Delivered to ${ord.phone} at ${targetOrder.readyNotificationSentAt ? new Date(targetOrder.readyNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)`
+                                  : `Send JB GROUP WhatsApp Ready notification to ${ord.phone}`
+                              }
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                                 padding: '4px 8px', borderRadius: '6px',
-                                backgroundColor: '#22C55E', color: '#fff',
-                                fontSize: '0.75rem', fontWeight: 700,
+                                backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#22C55E',
+                                color: '#fff',
+                                fontSize: '0.72rem', fontWeight: 700,
                                 textDecoration: 'none'
                               }}
                             >
-                              <MessageCircle size={13} /> WhatsApp
+                              <MessageCircle size={12} />
+                              {targetOrder.readyNotificationSent ? '✓ WA Delivered' : 'WA Ready'}
                             </a>
                           )}
                         </div>
@@ -3831,8 +3934,6 @@ export const SalesERP = () => {
                         <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Pending Approval</span>
                       ) : isRejected ? (
                         <span style={{ color: '#ef4444', fontWeight: 700 }}>Order Rejected</span>
-                      ) : !targetOrder.priceAcceptedByCustomer ? (
-                        <span style={{ color: '#b45309', fontWeight: 700 }}>⏳ Price Pending</span>
                       ) : isMyAssignedPending ? (
                         <span style={{ color: '#b45309', fontWeight: 800 }}>⏳ Waiting Your Acceptance</span>
                       ) : targetOrder.assignedTailor ? (
@@ -3845,7 +3946,7 @@ export const SalesERP = () => {
                     </div>
 
                     {/* Tailor Assign Controls for Privileged Roles if needed */}
-                    {canAssign && !isPending && !isRejected && targetOrder.priceAcceptedByCustomer && (
+                    {canAssign && !isPending && !isRejected && (
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
                         <select
                           value={selectedTailorForOrder[ord.id] || ''}
@@ -4131,22 +4232,40 @@ export const SalesERP = () => {
                       </button>
                     )}
 
-                    {(ord.status === 'READY' || ord.status === 'DELIVERED') && ord.phone && (
+                    {ord.status === 'READY' && ord.phone && (
                       <a
                         href={`https://wa.me/${normalizePhoneForWhatsApp(ord.phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrder))}`}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={async () => {
+                          try {
+                            await fetch(`${API_URL}/api/orders/${targetOrder.id}/notify-ready`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+                              },
+                              body: JSON.stringify({ force: false })
+                            });
+                            setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
+                          } catch (e) {
+                            console.error(e);
+                          }
+                        }}
                         className="touch-target-btn"
                         style={{
-                          backgroundColor: '#22C55E',
+                          backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#22C55E',
                           color: '#fff',
                           fontSize: '0.78rem',
                           padding: '6px 10px',
                           textDecoration: 'none',
-                          minHeight: '38px'
+                          minHeight: '38px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
                         }}
                       >
-                        <MessageCircle size={14} /> WA
+                        <MessageCircle size={14} /> {targetOrder.readyNotificationSent ? '✓ WA Delivered' : 'WA Ready'}
                       </a>
                     )}
                   </div>

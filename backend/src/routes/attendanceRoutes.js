@@ -8,6 +8,7 @@ router.use(authenticateToken);
 
 // --- Self Attendance (Manager, Staff, Tailor) ---
 router.get('/my-today', attendanceController.getMyTodayAttendance);
+router.get('/my-history', attendanceController.getMyAttendanceHistory);
 router.post('/clock-in', attendanceController.clockIn);
 router.post('/clock-out', attendanceController.clockOut);
 

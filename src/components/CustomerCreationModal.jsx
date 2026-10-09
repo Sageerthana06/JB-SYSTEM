@@ -69,7 +69,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '24px' }} autoComplete="off">
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '8px', fontSize: '0.875rem', marginBottom: '20px', fontWeight: 600 }}>
               {error}
@@ -106,7 +106,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Email Address (Optional)</label>
               <div style={{ position: 'relative' }}>
                 <Mail size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8' }} />
-                <input type="email" name="email" value={formData.email} onChange={handleChange} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} placeholder="customer@example.com" />
+                <input type="email" name="email" autoComplete="new-email" value={formData.email} onChange={handleChange} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} placeholder="customer@example.com" />
               </div>
             </div>
 
@@ -114,7 +114,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Portal Password *</label>
               <div style={{ position: 'relative' }}>
                 <Key size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8' }} />
-                <input type="password" name="password" value={formData.password} onChange={handleChange} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} placeholder="Create a temporary password" required />
+                <input type="password" name="password" autoComplete="new-password" value={formData.password} onChange={handleChange} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} placeholder="Create a temporary password" required />
               </div>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Provide this password to the customer to log into the portal.</p>
             </div>
