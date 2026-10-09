@@ -33,3 +33,6 @@ backend/node_modules/
 
 # Build output
 backend/dist/
+
+# Private customer uploads
+backend/uploads/
