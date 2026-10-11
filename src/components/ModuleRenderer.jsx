@@ -6,6 +6,7 @@ import { TailorERP } from './TailorERP';
 import { CustomerVaultERP } from './CustomerVaultERP';
 import { CeoAttendanceCenter } from './CeoAttendanceCenter';
 import { TailorDashboard } from './TailorDashboard';
+import { InventoryERP } from './InventoryERP';
 import { LayoutDashboard, ShoppingCart, Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
 
 export const ModuleRenderer = () => {
@@ -31,6 +32,10 @@ export const ModuleRenderer = () => {
 
   if (activeTab === 'customers') {
     return <CustomerVaultERP />;
+  }
+
+  if (activeTab === 'inventory') {
+    return <InventoryERP />;
   }
 
   if (activeTab === 'staff') {

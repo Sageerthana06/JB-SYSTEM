@@ -43,6 +43,7 @@ const ROLE_PERMISSIONS = {
     'orders.view', 'orders.update',
     'customers.view',
     'production.view', 'production.update',
+    'inventory.view', 'inventory.manage',
     'reports.view',
     'staff.view',
     'pdf.generate',
@@ -71,6 +72,7 @@ const ROLE_PERMISSIONS = {
     'orders.view',
     'customers.view',
     'finance.view',
+    'inventory.view', 'inventory.manage',
     'pdf.generate'
   ]
 };

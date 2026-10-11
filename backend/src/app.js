@@ -9,6 +9,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const userRoutes = require('./routes/userRoutes');
 const customerPortalRoutes = require('./routes/customerPortalRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customer-portal', customerPortalRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 app.use(errorHandler);
 

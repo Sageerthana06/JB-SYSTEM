@@ -69,6 +69,8 @@ model User {
   productionHistory ProductionHistory[]
   assignedOrders Order[] @relation("TailorAssignedOrders")
   attendances Attendance[]
+  stockMovements StockMovement[]
+  materialRequestsAsTailor OrderMaterialRequest[] @relation("TailorMaterialRequests")
 }
 
 model Branch {
@@ -82,6 +84,8 @@ model Branch {
   updatedAt DateTime @updatedAt
   users     User[]
   orders    Order[]
+  inventoryItems InventoryItem[]
+  purchaseOrders PurchaseOrder[]
 }
 
 model Customer {
@@ -180,6 +184,8 @@ model Order {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   productionHistory ProductionHistory[]
+  materialRequests  OrderMaterialRequest[]
+  stockMovements    StockMovement[]
 }
 
 model GarmentDetails {
@@ -281,5 +287,215 @@ model Attendance {
   @@index([userId])
   @@index([tailorId])
   @@index([date])
+}
+
+model CustomerOtp {
+  id          Int      @id @default(autoincrement())
+  identifier  String   @unique
+  otpHash     String
+  attempts    Int      @default(0)
+  lastSentAt  DateTime @default(now())
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// =====================================================================
+// INVENTORY & MATERIAL MANAGEMENT (created by scripts/apply_inventory_schema.js)
+// Stock is valued with the Weighted Average Cost (WAC) method.
+// DB-level CHECK constraints (non-negative stock, valid quantities) are
+// defined in the migration script; Prisma does not model CHECK constraints.
+// =====================================================================
+
+model Supplier {
+  id             Int             @id @default(autoincrement())
+  code           String          @unique
+  name           String
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        String?
+  category       String?
+  paymentTerms   String?
+  taxId          String?
+  notes          String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
+  items          InventoryItem[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model InventoryItem {
+  id               Int                    @id @default(autoincrement())
+  sku              String                 @unique
+  name             String
+  category         String
+  description      String?
+  unit             String
+  colour           String?
+  openingStock     Float                  @default(0)
+  currentStock     Float                  @default(0)
+  minStockLevel    Float                  @default(0)
+  reorderLevel     Float                  @default(0)
+  unitCost         Float                  @default(0)
+  storageLocation  String?
+  supplierId       Int?
+  supplier         Supplier?              @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  branchId         Int?
+  branch           Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  isActive         Boolean                @default(true)
+  createdById      Int?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @default(now()) @updatedAt
+  movements        StockMovement[]
+  materialRequests OrderMaterialRequest[]
+  poItems          PurchaseOrderItem[]
+
+  @@index([category])
+  @@index([branchId])
+  @@index([supplierId])
+}
+
+model OrderMaterialRequest {
+  id              Int           @id @default(autoincrement())
+  requestNo       String        @unique
+  orderId         Int
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderNumber     String
+  itemId          Int
+  item            InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  requestedQty    Float
+  issuedQty       Float         @default(0)
+  returnedQty     Float         @default(0)
+  wastageQty      Float         @default(0)
+  consumedQty     Float         @default(0)
+  status          String        @default("REQUESTED") // REQUESTED, PARTIALLY_ISSUED, ISSUED, COMPLETED, REJECTED, CANCELLED
+  requestedById   Int?
+  requestedByName String?
+  issuedById      Int?
+  issuedByName    String?
+  issuedAt        DateTime?
+  branchId        Int?
+  tailorId        Int?
+  tailor          User?         @relation("TailorMaterialRequests", fields: [tailorId], references: [id], onDelete: SetNull)
+  tailorName      String?
+  damagedQty      Float         @default(0)
+  notes           String?
+  rejectionReason String?
+  clientKey       String?       @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([itemId])
+  @@index([tailorId])
+  @@index([status])
+}
+
+model PurchaseOrder {
+  id              Int                 @id @default(autoincrement())
+  poNumber        String              @unique
+  supplierId      Int
+  supplier        Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  branchId        Int?
+  branch          Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  status          String              @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, PARTIALLY_RECEIVED, RECEIVED, REJECTED, CANCELLED
+  totalAmount     Float               @default(0)
+  expectedDate    DateTime?
+  notes           String?
+  requestedById   Int?
+  requestedByName String?
+  approvedById    Int?
+  approvedByName  String?
+  approvedAt      DateTime?
+  rejectedByName  String?
+  rejectionReason String?
+  clientKey       String?             @unique
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @default(now()) @updatedAt
+  items           PurchaseOrderItem[]
+  receipts        GoodsReceipt[]
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id               Int           @id @default(autoincrement())
+  purchaseOrderId  Int
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  itemId           Int
+  item             InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantityOrdered  Float
+  quantityReceived Float         @default(0)
+  unitCost         Float         @default(0)
+
+  @@index([purchaseOrderId])
+  @@index([itemId])
+}
+
+model GoodsReceipt {
+  id                Int           @id @default(autoincrement())
+  grnNumber         String        @unique
+  purchaseOrderId   Int
+  purchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  supplierInvoiceNo String?
+  invoiceAmount     Float?
+  lines             Json
+  notes             String?
+  receivedById      Int?
+  receivedByName    String?
+  clientKey         String?       @unique
+  createdAt         DateTime      @default(now())
+
+  @@index([purchaseOrderId])
+}
+
+model StockMovement {
+  id                Int           @id @default(autoincrement())
+  itemId            Int
+  item              InventoryItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  type              String        // OPENING, STOCK_IN, GRN_RECEIPT, ISSUE, ORDER_ISSUE, ORDER_RETURN, RETURN, WASTAGE, DAMAGED, ADJUSTMENT
+  quantity          Float         // signed: + into stock, - out of stock
+  unitCost          Float         @default(0)
+  previousStock     Float
+  newStock          Float
+  referenceNo       String?
+  reason            String?
+  orderId           Int?
+  order             Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderNumber       String?
+  materialRequestId Int?
+  purchaseOrderId   Int?
+  branchId          Int?
+  performedById     Int?
+  performedBy       User?         @relation(fields: [performedById], references: [id], onDelete: SetNull)
+  performedByName   String?
+  idempotencyKey    String?       @unique
+  createdAt         DateTime      @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([type])
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model InventoryAuditLog {
+  id         Int      @id @default(autoincrement())
+  action     String
+  entityType String
+  entityId   Int?
+  userId     Int?
+  userName   String?
+  userRole   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 

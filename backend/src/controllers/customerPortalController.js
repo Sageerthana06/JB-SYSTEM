@@ -4,9 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-
-// In-memory OTP store (identifier -> { otp, expiresAt })
-const otpStore = new Map();
+const crypto = require('crypto');
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -334,70 +332,88 @@ exports.sendOtp = async (req, res, next) => {
     const { identifier } = req.body;
 
     if (!identifier) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email / Phone is required.'
-      });
+      return res.status(400).json({ success: false, message: 'Email / Phone is required.' });
     }
 
-    const cleanIdentifier = identifier.trim();
+    const cleanIdentifier = identifier.trim().toLowerCase();
 
+    // Check if customer exists (but DO NOT reveal to user if they don't)
     const customer = await prisma.customer.findFirst({
       where: {
         OR: [
-          { email: cleanIdentifier.toLowerCase() },
+          { email: cleanIdentifier },
           { primaryPhone: cleanIdentifier }
         ]
       }
     });
 
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'No account found with this email or phone number.'
-      });
+    // Check rate limit using Prisma CustomerOtp
+    const existingOtp = await prisma.customerOtp.findUnique({
+      where: { identifier: cleanIdentifier }
+    });
+
+    if (existingOtp) {
+      const timeSinceLastSent = Date.now() - new Date(existingOtp.lastSentAt).getTime();
+      if (timeSinceLastSent < 60000) { // 60 seconds cooldown
+        return res.status(429).json({ success: false, message: 'Please wait 60 seconds before requesting another OTP.' });
+      }
     }
 
-    // Generate a 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // Always respond with success to prevent enumeration
+    if (!customer) {
+      // Simulate fake processing time to deter timing attacks
+      await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 500));
+      return res.status(200).json({ success: true, message: 'If an account exists with this email, an OTP has been sent.' });
+    }
 
-    otpStore.set(cleanIdentifier.toLowerCase(), { otp, expiresAt });
+    // Generate a secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    const otpHash = await bcrypt.hash(otp, 10);
 
-    // Setup Nodemailer transporter (requires EMAIL_USER and EMAIL_PASS in .env)
+    // Upsert into DB
+    await prisma.customerOtp.upsert({
+      where: { identifier: cleanIdentifier },
+      update: {
+        otpHash,
+        attempts: 0,
+        lastSentAt: new Date(),
+        expiresAt
+      },
+      create: {
+        identifier: cleanIdentifier,
+        otpHash,
+        expiresAt
+      }
+    });
+
+    // Brevo SMTP configuration
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: process.env.SMTP_PORT || 587,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
       }
     });
 
     try {
-      // Send the OTP email
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: cleanIdentifier.toLowerCase(),
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: cleanIdentifier,
         subject: 'Bella Design - Password Reset OTP',
-        text: `Your OTP for password reset is: ${otp}\n\nThis OTP is valid for 10 minutes.`
+        text: `Your OTP for password reset is: ${otp}\n\nThis OTP is valid for 5 minutes. Do not share this with anyone.`
       });
-      console.log(`[OTP] Sent OTP to ${cleanIdentifier} via Email`);
-      
-      return res.status(200).json({
-        success: true,
-        message: `OTP sent successfully to ${cleanIdentifier}`
-      });
+      return res.status(200).json({ success: true, message: 'If an account exists with this email, an OTP has been sent.' });
     } catch (mailErr) {
-      console.error('Failed to send email:', mailErr);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Failed to send OTP email. Please check server email configuration.' 
-      });
+      // Intentionally not logging the exact error to stdout in prod, just a generic one
+      console.error('SMTP Delivery Error');
+      return res.status(500).json({ success: false, message: 'Error sending email. Please try again later.' });
     }
 
   } catch (error) {
-    console.error('Customer sendOtp error:', error);
-    return res.status(500).json({ success: false, message: 'Server error sending OTP.' });
+    console.error('Customer sendOtp error');
+    return res.status(500).json({ success: false, message: 'Server error processing request.' });
   }
 };
 
@@ -409,38 +425,43 @@ exports.forgotPassword = async (req, res, next) => {
     const { identifier, otp, newPassword } = req.body;
 
     if (!identifier || !otp || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email / Phone, OTP, and New Password are required.'
-      });
+      return res.status(400).json({ success: false, message: 'Email / Phone, OTP, and New Password are required.' });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters long.'
-      });
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
     }
 
     const cleanIdentifier = identifier.trim().toLowerCase();
 
-    // Verify OTP
-    const storedOtpData = otpStore.get(cleanIdentifier);
-    if (!storedOtpData || storedOtpData.otp !== otp) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid OTP.'
-      });
+    const otpRecord = await prisma.customerOtp.findUnique({
+      where: { identifier: cleanIdentifier }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP.' });
     }
 
-    if (Date.now() > storedOtpData.expiresAt) {
-      otpStore.delete(cleanIdentifier);
-      return res.status(400).json({
-        success: false,
-        message: 'OTP has expired. Please request a new one.'
-      });
+    if (otpRecord.attempts >= 3) {
+      await prisma.customerOtp.delete({ where: { identifier: cleanIdentifier } });
+      return res.status(400).json({ success: false, message: 'Too many failed attempts. Please request a new OTP.' });
     }
 
+    if (Date.now() > new Date(otpRecord.expiresAt).getTime()) {
+      await prisma.customerOtp.delete({ where: { identifier: cleanIdentifier } });
+      return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+    }
+
+    const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
+    if (!isMatch) {
+      await prisma.customerOtp.update({
+        where: { identifier: cleanIdentifier },
+        data: { attempts: { increment: 1 } }
+      });
+      return res.status(400).json({ success: false, message: 'Invalid OTP.' });
+    }
+
+    // OTP Verified! Now update password.
     const customer = await prisma.customer.findFirst({
       where: {
         OR: [
@@ -451,10 +472,7 @@ exports.forgotPassword = async (req, res, next) => {
     });
 
     if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: 'No account found with this email or phone number.'
-      });
+      return res.status(400).json({ success: false, message: 'Account not found.' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -464,16 +482,13 @@ exports.forgotPassword = async (req, res, next) => {
       data: { password: hashedPassword }
     });
 
-    // Clear OTP after successful reset
-    otpStore.delete(cleanIdentifier);
+    // Delete OTP securely after successful reset
+    await prisma.customerOtp.delete({ where: { identifier: cleanIdentifier } });
 
-    return res.status(200).json({
-      success: true,
-      message: 'Password reset successfully. You can now log in with your new password.'
-    });
+    return res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in with your new password.' });
 
   } catch (error) {
-    console.error('Customer forgotPassword error:', error);
+    console.error('Customer forgotPassword error');
     return res.status(500).json({ success: false, message: 'Server error resetting password.' });
   }
 };

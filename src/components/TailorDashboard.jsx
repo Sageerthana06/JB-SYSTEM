@@ -181,7 +181,7 @@ export const TailorDashboard = () => {
       setActionLoading(true);
       setAttendanceFeedback(null);
       const token = localStorage.getItem('jb_token');
-      const res = await fetch(`${API_URL}/api/attendance/check-out`, {
+      const res = await fetch(`${API_URL}/api/attendance/clock-out`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

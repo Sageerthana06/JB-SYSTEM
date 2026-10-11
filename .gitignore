@@ -36,3 +36,6 @@ backend/dist/
 
 # Private customer uploads
 backend/uploads/
+
+# Local database and inventory backups
+backend/backups/
