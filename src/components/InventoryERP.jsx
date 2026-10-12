@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../config/api';
 import {
@@ -27,7 +27,11 @@ import {
   Building,
   RotateCcw,
   Sparkles,
-  Inbox
+  Inbox,
+  Eye,
+  LayoutGrid,
+  List,
+  Info
 } from 'lucide-react';
 
 export const InventoryERP = () => {
@@ -86,8 +90,12 @@ export const InventoryERP = () => {
   // Modals & Requisition State
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [viewingItem, setViewingItem] = useState(null);
+  const [isSubmittingItem, setIsSubmittingItem] = useState(false);
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
   const [movementItem, setMovementItem] = useState(null);
+  const [isSubmittingMovement, setIsSubmittingMovement] = useState(false);
+  const [viewMode, setViewMode] = useState('auto'); // 'auto' | 'grid' | 'table'
 
   // Material Requisition Creation State
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
@@ -323,11 +331,13 @@ export const InventoryERP = () => {
   // Save Item (Create or Update)
   const handleSaveItem = async (e) => {
     e.preventDefault();
+    if (isSubmittingItem) return;
     try {
       if (!itemForm.sku.trim() || !itemForm.name.trim()) {
         alert('SKU and Material Name are required.');
         return;
       }
+      setIsSubmittingItem(true);
 
       const method = editingItem ? 'PUT' : 'POST';
       const url = editingItem
@@ -351,14 +361,17 @@ export const InventoryERP = () => {
       }
     } catch (err) {
       alert('Network error while saving material.');
+    } finally {
+      setIsSubmittingItem(false);
     }
   };
 
   // Submit Stock Movement
   const handleSaveMovement = async (e) => {
     e.preventDefault();
+    if (!movementItem || isSubmittingMovement) return;
     try {
-      if (!movementItem) return;
+      setIsSubmittingMovement(true);
 
       const idempotencyKey = `mov-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       const payload = {
@@ -375,6 +388,7 @@ export const InventoryERP = () => {
         payload.quantity = Number(movementForm.quantity);
         if (!payload.quantity || payload.quantity <= 0) {
           alert('Please enter a valid quantity greater than 0.');
+          setIsSubmittingMovement(false);
           return;
         }
       }
@@ -401,6 +415,8 @@ export const InventoryERP = () => {
       }
     } catch (err) {
       alert('Network error recording movement.');
+    } finally {
+      setIsSubmittingMovement(false);
     }
   };
 
@@ -1048,6 +1064,65 @@ export const InventoryERP = () => {
                 </button>
               </div>
 
+              {/* View Mode Toggle (Grid vs Table) */}
+              <div className="inv-filter-view-toggle" style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '2px', backgroundColor: 'var(--bg-main)' }}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('auto')}
+                  className="btn-secondary"
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    fontSize: '0.72rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: viewMode === 'auto' ? 'var(--bg-card)' : 'transparent',
+                    color: viewMode === 'auto' ? 'var(--jb-crimson)' : 'var(--text-muted)',
+                    fontWeight: viewMode === 'auto' ? 800 : 600,
+                    boxShadow: viewMode === 'auto' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                  title="Auto (Desktop Table, Mobile 2-Col Cards)"
+                >
+                  Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className="btn-secondary"
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: viewMode === 'grid' ? 'var(--bg-card)' : 'transparent',
+                    color: viewMode === 'grid' ? 'var(--jb-crimson)' : 'var(--text-muted)',
+                    fontWeight: viewMode === 'grid' ? 800 : 600,
+                    boxShadow: viewMode === 'grid' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                  title="Force Card Grid"
+                >
+                  <LayoutGrid size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className="btn-secondary"
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: viewMode === 'table' ? 'var(--bg-card)' : 'transparent',
+                    color: viewMode === 'table' ? 'var(--jb-crimson)' : 'var(--text-muted)',
+                    fontWeight: viewMode === 'table' ? 800 : 600,
+                    boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                  title="Force Table View"
+                >
+                  <List size={15} />
+                </button>
+              </div>
+
             </div>
           </div>
 
@@ -1114,169 +1189,294 @@ export const InventoryERP = () => {
               )}
             </div>
           ) : (
-            /* MATERIALS TABLE */
-            <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>SKU / CODE</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>MATERIAL NAME</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>CATEGORY</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>CURRENT STOCK</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'center' }}>HEALTH</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>UNIT COST (WAC)</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>VALUATION</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>LOCATION</th>
-                      <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'center' }}>ACTIONS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => {
-                      const isLow = item.currentStock <= item.minStockLevel && item.currentStock > 0;
-                      const isOut = item.currentStock <= 0;
-                      const isReorder = item.currentStock <= item.reorderLevel && !isLow && !isOut;
-
-                      return (
-                        <tr
-                          key={item.id}
-                          style={{
-                            borderBottom: '1px solid var(--border-color)',
-                            transition: 'background 0.1s ease',
-                            backgroundColor: isOut ? 'rgba(239,68,68,0.03)' : 'transparent'
-                          }}
-                        >
-                          {/* SKU */}
-                          <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--jb-navy)' }}>
-                            <span style={{
-                              fontFamily: 'monospace',
-                              backgroundColor: 'var(--bg-main)',
-                              padding: '3px 7px',
-                              borderRadius: '5px',
-                              border: '1px solid var(--border-color)',
-                              fontSize: '0.8rem'
-                            }}>
-                              {item.sku}
-                            </span>
-                          </td>
-
-                          {/* Material Name */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{item.name}</div>
-                            {item.description && (
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                {item.description}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Category */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <span className="badge badge-navy" style={{ fontSize: '0.74rem' }}>
-                              {item.category}
-                            </span>
-                          </td>
-
-                          {/* Current Stock */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                            <div style={{ fontWeight: 900, fontSize: '0.95rem', color: isOut ? '#dc2626' : 'var(--text-main)' }}>
-                              {item.currentStock} {item.unit}
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                              Min: {item.minStockLevel} | Reorder: {item.reorderLevel}
-                            </div>
-                          </td>
-
-                          {/* Health Status */}
-                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            {isOut ? (
-                              <span style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                                OUT OF STOCK
-                              </span>
-                            ) : isLow ? (
-                              <span style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                                LOW STOCK
-                              </span>
-                            ) : isReorder ? (
-                              <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                                REORDER DUE
-                              </span>
-                            ) : (
-                              <span style={{ backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
-                                HEALTHY
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Unit Cost */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>
-                            LKR {Number(item.unitCost || 0).toFixed(2)}
-                          </td>
-
-                          {/* Valuation */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>
-                            LKR {(Number(item.currentStock || 0) * Number(item.unitCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-
-                          {/* Storage Location */}
-                          <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
-                            {item.storageLocation || 'â€”'}
-                          </td>
-
-                          {/* Actions */}
-                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              {/* Stock In */}
-                              <button
-                                onClick={() => handleOpenMovementModal(item, 'STOCK_IN')}
-                                className="btn-secondary"
-                                style={{ padding: '5px 9px', fontSize: '0.75rem', fontWeight: 700, color: '#15803d' }}
-                                title="Stock Receipt / Restock"
-                              >
-                                + Stock In
-                              </button>
-
-                              {/* Issue / Wastage */}
-                              <button
-                                onClick={() => handleOpenMovementModal(item, 'ISSUE')}
-                                className="btn-secondary"
-                                style={{ padding: '5px 9px', fontSize: '0.75rem', fontWeight: 700, color: '#ea580c' }}
-                                title="Issue / Deduct Stock"
-                              >
-                                - Issue
-                              </button>
-
-                              {/* Edit */}
-                              <button
-                                onClick={() => handleOpenEditModal(item)}
-                                className="btn-secondary"
-                                style={{ padding: '5px 7px', color: 'var(--text-muted)' }}
-                                title="Edit Material Details"
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                            </div>
-                          </td>
+            <div>
+              {/* DESKTOP TABLE VIEW (Visible on tablet/desktop, hidden on mobile unless forced) */}
+              <div className={viewMode === 'grid' ? 'hidden-force' : viewMode === 'table' ? 'inv-desktop-view-forced' : 'inv-desktop-view'}>
+                <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>SKU / CODE</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>MATERIAL NAME</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>CATEGORY</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>CURRENT STOCK</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'center' }}>HEALTH</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>UNIT COST (WAC)</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>VALUATION</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)' }}>LOCATION</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'center' }}>ACTIONS</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {items.map((item) => {
+                          const isLow = item.currentStock <= item.minStockLevel && item.currentStock > 0;
+                          const isOut = item.currentStock <= 0;
+                          const isReorder = item.currentStock <= item.reorderLevel && !isLow && !isOut;
+
+                          return (
+                            <tr
+                              key={item.id}
+                              style={{
+                                borderBottom: '1px solid var(--border-color)',
+                                transition: 'background 0.1s ease',
+                                backgroundColor: isOut ? 'rgba(239,68,68,0.03)' : 'transparent'
+                              }}
+                            >
+                              {/* SKU */}
+                              <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--jb-navy)' }}>
+                                <span style={{
+                                  fontFamily: 'monospace',
+                                  backgroundColor: 'var(--bg-main)',
+                                  padding: '3px 7px',
+                                  borderRadius: '5px',
+                                  border: '1px solid var(--border-color)',
+                                  fontSize: '0.8rem'
+                                }}>
+                                  {item.sku}
+                                </span>
+                              </td>
+
+                              {/* Material Name */}
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{item.name}</div>
+                                {item.description && (
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                    {item.description}
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* Category */}
+                              <td style={{ padding: '14px 16px' }}>
+                                <span className="badge badge-navy" style={{ fontSize: '0.74rem' }}>
+                                  {item.category}
+                                </span>
+                              </td>
+
+                              {/* Current Stock */}
+                              <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                                <div style={{ fontWeight: 900, fontSize: '0.95rem', color: isOut ? '#dc2626' : 'var(--text-main)' }}>
+                                  {item.currentStock} {item.unit}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                  Min: {item.minStockLevel} | Reorder: {item.reorderLevel}
+                                </div>
+                              </td>
+
+                              {/* Health Status */}
+                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                {isOut ? (
+                                  <span style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                    OUT OF STOCK
+                                  </span>
+                                ) : isLow ? (
+                                  <span style={{ backgroundColor: '#fef3c7', color: '#d97706', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                    LOW STOCK
+                                  </span>
+                                ) : isReorder ? (
+                                  <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                    REORDER DUE
+                                  </span>
+                                ) : (
+                                  <span style={{ backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', padding: '3px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800 }}>
+                                    HEALTHY
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Unit Cost */}
+                              <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>
+                                LKR {Number(item.unitCost || 0).toFixed(2)}
+                              </td>
+
+                              {/* Valuation */}
+                              <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 800, color: '#10b981' }}>
+                                LKR {(Number(item.currentStock || 0) * Number(item.unitCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+
+                              {/* Storage Location */}
+                              <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
+                                {item.storageLocation || '—'}
+                              </td>
+
+                              {/* Actions */}
+                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                  {/* View Details */}
+                                  <button
+                                    onClick={() => setViewingItem(item)}
+                                    className="btn-secondary"
+                                    style={{ padding: '5px 7px', color: 'var(--jb-navy)' }}
+                                    title="View Full Material Specs"
+                                  >
+                                    <Eye size={13} />
+                                  </button>
+
+                                  {/* Stock In */}
+                                  <button
+                                    onClick={() => handleOpenMovementModal(item, 'STOCK_IN')}
+                                    className="btn-secondary"
+                                    style={{ padding: '5px 9px', fontSize: '0.75rem', fontWeight: 700, color: '#15803d' }}
+                                    title="Stock Receipt / Restock"
+                                  >
+                                    + Stock In
+                                  </button>
+
+                                  {/* Issue / Wastage */}
+                                  <button
+                                    onClick={() => handleOpenMovementModal(item, 'ISSUE')}
+                                    className="btn-secondary"
+                                    style={{ padding: '5px 9px', fontSize: '0.75rem', fontWeight: 700, color: '#ea580c' }}
+                                    title="Issue / Deduct Stock"
+                                  >
+                                    - Issue
+                                  </button>
+
+                                  {/* Edit */}
+                                  <button
+                                    onClick={() => handleOpenEditModal(item)}
+                                    className="btn-secondary"
+                                    style={{ padding: '5px 7px', color: 'var(--text-muted)' }}
+                                    title="Edit Material Details"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
 
-              {/* Table Footer Pagination */}
+              {/* MOBILE 2-COLUMN SHOPPING-APP GRID (Visible on screens <= 860px or when grid forced) */}
+              <div className={viewMode === 'table' ? 'hidden-force' : viewMode === 'grid' ? 'inv-mobile-view-forced' : 'inv-mobile-view'}>
+                <div className="inv-material-grid">
+                  {items.map((item) => {
+                    const isLow = item.currentStock <= item.minStockLevel && item.currentStock > 0;
+                    const isOut = item.currentStock <= 0;
+                    const isReorder = item.currentStock <= item.reorderLevel && !isLow && !isOut;
+                    const statusClass = isOut ? 'status-out' : isLow ? 'status-low' : isReorder ? 'status-reorder' : 'status-healthy';
+                    const valuationNum = (Number(item.currentStock || 0) * Number(item.unitCost || 0));
+
+                    return (
+                      <div key={item.id} className={`inv-mat-card ${statusClass}`}>
+                        {/* Top: Category & Health Status */}
+                        <div className="inv-mat-card-header">
+                          <span className="inv-mat-cat-badge" title={item.category}>
+                            {item.category}
+                          </span>
+                          {isOut ? (
+                            <span className="inv-mat-status-pill" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
+                              OUT
+                            </span>
+                          ) : isLow ? (
+                            <span className="inv-mat-status-pill" style={{ backgroundColor: '#fef3c7', color: '#b45309' }}>
+                              LOW
+                            </span>
+                          ) : isReorder ? (
+                            <span className="inv-mat-status-pill" style={{ backgroundColor: '#e0f2fe', color: '#0369a1' }}>
+                              REORDER
+                            </span>
+                          ) : (
+                            <span className="inv-mat-status-pill" style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+                              OK
+                            </span>
+                          )}
+                        </div>
+
+                        {/* SKU & Name */}
+                        <div>
+                          <div className="inv-mat-sku">{item.sku}</div>
+                          <div className="inv-mat-name" title={item.name}>{item.name}</div>
+                        </div>
+
+                        {/* Stock Balance Box */}
+                        <div className="inv-mat-stock-box">
+                          <div className="inv-mat-stock-qty" style={{ color: isOut ? '#dc2626' : isLow ? '#d97706' : 'var(--text-main)' }}>
+                            {item.currentStock} <span style={{ fontSize: '0.74rem', fontWeight: 600 }}>{item.unit}</span>
+                          </div>
+                          <div className="inv-mat-stock-limits" title={`Min: ${item.minStockLevel} | Reorder: ${item.reorderLevel}`}>
+                            Min: {item.minStockLevel} | Reorder: {item.reorderLevel}
+                          </div>
+                        </div>
+
+                        {/* Financials (Cost & Valuation) */}
+                        <div className="inv-mat-financials">
+                          <div>
+                            <div className="inv-mat-fin-label">Unit Cost:</div>
+                            <div className="inv-mat-fin-val" title={`LKR ${Number(item.unitCost || 0).toFixed(2)}`}>
+                              LKR {Number(item.unitCost || 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div className="inv-mat-fin-label">WAC Value:</div>
+                            <div className="inv-mat-valuation-val" title={`LKR ${valuationNum.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}>
+                              LKR {valuationNum.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 4 Action Buttons in 2x2 compact grid */}
+                        <div className="inv-mat-actions-grid">
+                          <button
+                            onClick={() => handleOpenMovementModal(item, 'STOCK_IN')}
+                            className="inv-mat-btn inv-mat-btn-in"
+                            title="Receive Stock"
+                          >
+                            <TrendingUp size={11} />
+                            <span>+ In</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenMovementModal(item, 'ISSUE')}
+                            className="inv-mat-btn inv-mat-btn-out"
+                            title="Issue Stock"
+                          >
+                            <TrendingDown size={11} />
+                            <span>- Out</span>
+                          </button>
+                          <button
+                            onClick={() => setViewingItem(item)}
+                            className="inv-mat-btn inv-mat-btn-view"
+                            title="View Details"
+                          >
+                            <Eye size={11} />
+                            <span>View</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditModal(item)}
+                            className="inv-mat-btn inv-mat-btn-edit"
+                            title="Edit Material"
+                          >
+                            <Edit2 size={11} />
+                            <span>Edit</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pagination Controls */}
               <div style={{
-                padding: '12px 18px',
-                borderTop: '1px solid var(--border-color)',
+                marginTop: '14px',
+                padding: '12px 14px',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '10px',
-                backgroundColor: 'var(--bg-main)'
+                gap: '8px',
+                backgroundColor: 'var(--bg-card)'
               }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Showing <strong>{items.length}</strong> of <strong>{pagination.total}</strong> materials in inventory
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Showing <strong>{items.length}</strong> of <strong>{pagination.total}</strong> materials
                 </div>
 
                 {pagination.pages > 1 && (
@@ -1289,8 +1489,8 @@ export const InventoryERP = () => {
                     >
                       Prev
                     </button>
-                    <span style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700 }}>
-                      Page {pagination.page} of {pagination.pages}
+                    <span style={{ padding: '6px 10px', fontSize: '0.78rem', fontWeight: 700 }}>
+                      {pagination.page} / {pagination.pages}
                     </span>
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
@@ -1341,7 +1541,7 @@ export const InventoryERP = () => {
                     <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)' }}>TYPE</th>
                     <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)' }}>MATERIAL</th>
                     <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>DELTA</th>
-                    <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>BEFORE â†’ AFTER</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right' }}>BEFORE --  AFTER</th>
                     <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)' }}>REF / ORDER NO</th>
                     <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)' }}>REASON / NOTES</th>
                     <th style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--text-muted)' }}>PERFORMED BY</th>
@@ -1374,7 +1574,7 @@ export const InventoryERP = () => {
                           {isPositive ? `+${m.quantity}` : m.quantity} {m.unit}
                         </td>
                         <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-muted)' }}>
-                          {m.previousStock} â†’ <strong>{m.newStock}</strong>
+                          {m.previousStock} --- <strong>{m.newStock}</strong>
                         </td>
                         <td style={{ padding: '10px 14px', fontWeight: 700 }}>
                           {m.orderNumber || m.referenceNo || 'â€”'}
@@ -1532,12 +1732,11 @@ export const InventoryERP = () => {
 
                         {/* 11. STATUS */}
                         <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          <span className={`badge ${
-                            r.status === 'COMPLETED' ? 'badge-success' :
+                          <span className={`badge ${r.status === 'COMPLETED' ? 'badge-success' :
                             r.status === 'ISSUED' ? 'badge-success' :
-                            r.status === 'PARTIALLY_ISSUED' ? 'badge-navy' :
-                            r.status === 'REQUESTED' ? 'badge-warning' : 'badge-navy'
-                          }`}>
+                              r.status === 'PARTIALLY_ISSUED' ? 'badge-navy' :
+                                r.status === 'REQUESTED' ? 'badge-warning' : 'badge-navy'
+                            }`}>
                             {r.status}
                           </span>
                         </td>
@@ -1624,20 +1823,8 @@ export const InventoryERP = () => {
           MODAL: ADD / EDIT MATERIAL
       ======================================================== */}
       {isItemModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '16px'
-        }}>
-          <div className="card" style={{ width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
+        <div className="inv-modal-overlay">
+          <div className="inv-modal-card" style={{ maxWidth: '640px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'var(--jb-crimson-light)', color: 'var(--jb-crimson)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1653,7 +1840,7 @@ export const InventoryERP = () => {
             </div>
 
             <form onSubmit={handleSaveItem}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+              <div className="inv-form-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                 {/* SKU Code */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -1720,7 +1907,7 @@ export const InventoryERP = () => {
               </div>
 
               {/* Unit, Opening Stock, Unit Cost, and Auto-calculated Total Stock Value */}
-              <div style={{ display: 'grid', gridTemplateColumns: !editingItem ? '1fr 1fr' : '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              <div className="inv-form-grid-2col" style={{ display: 'grid', gridTemplateColumns: !editingItem ? '1fr 1fr' : '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>Unit of Measure *</label>
                   <select
@@ -1794,7 +1981,7 @@ export const InventoryERP = () => {
               </div>
 
               {/* Thresholds & Location */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div className="inv-form-grid-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>Min Stock Level</label>
                   <input
@@ -1833,7 +2020,7 @@ export const InventoryERP = () => {
               </div>
 
               {/* Modal Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="inv-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setIsItemModalOpen(false)}
@@ -1844,10 +2031,18 @@ export const InventoryERP = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmittingItem}
                   className="btn-primary"
-                  style={{ padding: '9px 22px', backgroundColor: 'var(--jb-crimson)', color: '#ffffff', fontWeight: 700 }}
+                  style={{
+                    padding: '9px 22px',
+                    backgroundColor: 'var(--jb-crimson)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    opacity: isSubmittingItem ? 0.7 : 1,
+                    cursor: isSubmittingItem ? 'not-allowed' : 'pointer'
+                  }}
                 >
-                  {editingItem ? 'Save Changes' : 'Create Material'}
+                  {isSubmittingItem ? (editingItem ? 'Saving Changes...' : 'Creating Material...') : (editingItem ? 'Save Changes' : 'Create Material')}
                 </button>
               </div>
             </form>
@@ -1859,25 +2054,13 @@ export const InventoryERP = () => {
           MODAL: QUICK STOCK MOVEMENT (STOCK IN / ISSUE)
       ======================================================== */}
       {isMovementModalOpen && movementItem && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '16px'
-        }}>
-          <div className="card" style={{ width: '100%', maxWidth: '520px', padding: '24px' }}>
+        <div className="inv-modal-overlay">
+          <div className="inv-modal-card" style={{ maxWidth: '520px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>Record Stock Movement</h3>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {movementItem.sku} â€” <strong>{movementItem.name}</strong> (Available: {movementItem.currentStock} {movementItem.unit})
+                  {movementItem.sku} — <strong>{movementItem.name}</strong> (Available: {movementItem.currentStock} {movementItem.unit})
                 </div>
               </div>
               <button onClick={() => setIsMovementModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -1988,19 +2171,128 @@ export const InventoryERP = () => {
               </div>
 
               {/* Actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="inv-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button type="button" onClick={() => setIsMovementModalOpen(false)} className="btn-secondary" style={{ padding: '9px 18px' }}>
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmittingMovement}
                   className="btn-primary"
-                  style={{ padding: '9px 22px', backgroundColor: movementForm.type === 'STOCK_IN' ? '#15803d' : 'var(--jb-crimson)', color: '#ffffff', fontWeight: 700 }}
+                  style={{
+                    padding: '9px 22px',
+                    backgroundColor: movementForm.type === 'STOCK_IN' ? '#15803d' : 'var(--jb-crimson)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    opacity: isSubmittingMovement ? 0.7 : 1,
+                    cursor: isSubmittingMovement ? 'not-allowed' : 'pointer'
+                  }}
                 >
-                  Confirm Stock Movement
+                  {isSubmittingMovement ? 'Processing Movement...' : 'Confirm Stock Movement'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: VIEW MATERIAL SPECIFICATIONS & AUDIT
+      ======================================================== */}
+      {viewingItem && (
+        <div className="inv-modal-overlay">
+          <div className="inv-modal-card" style={{ maxWidth: '560px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--jb-navy)' }}>
+                  <Package size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>{viewingItem.name}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--jb-navy)', fontSize: '0.8rem' }}>{viewingItem.sku}</span>
+                    <span className="badge badge-navy" style={{ fontSize: '0.68rem' }}>{viewingItem.category}</span>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setViewingItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ padding: '12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>AVAILABLE STOCK</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: viewingItem.currentStock <= 0 ? '#dc2626' : viewingItem.currentStock <= viewingItem.minStockLevel ? '#d97706' : '#15803d', marginTop: '2px' }}>
+                  {viewingItem.currentStock} {viewingItem.unit}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Min: {viewingItem.minStockLevel} | Reorder: {viewingItem.reorderLevel}
+                </div>
+              </div>
+
+              <div style={{ padding: '12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>VALUATION & COST</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#10b981', marginTop: '2px' }}>
+                  LKR {(Number(viewingItem.currentStock || 0) * Number(viewingItem.unitCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Unit WAC: LKR {Number(viewingItem.unitCost || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.82rem', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {viewingItem.description && (
+                <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <strong style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Description / Specs:</strong>
+                  <div>{viewingItem.description}</div>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 4px', borderBottom: '1px dashed var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Storage Location:</span>
+                <strong>{viewingItem.storageLocation || 'Not Assigned'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 4px', borderBottom: '1px dashed var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Stock Status:</span>
+                <strong>{viewingItem.currentStock <= 0 ? 'Out of Stock' : viewingItem.currentStock <= viewingItem.minStockLevel ? 'Low Stock' : viewingItem.currentStock <= viewingItem.reorderLevel ? 'Reorder Due' : 'Healthy'}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '14px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => { const it = viewingItem; setViewingItem(null); handleOpenMovementModal(it, 'STOCK_IN'); }}
+                className="btn-secondary"
+                style={{ color: '#15803d', borderColor: '#a7f3d0', backgroundColor: '#ecfdf5', fontWeight: 700, padding: '7px 12px', fontSize: '0.8rem' }}
+              >
+                + Receive Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => { const it = viewingItem; setViewingItem(null); handleOpenMovementModal(it, 'ISSUE'); }}
+                className="btn-secondary"
+                style={{ color: '#ea580c', borderColor: '#fed7aa', backgroundColor: '#fff7ed', fontWeight: 700, padding: '7px 12px', fontSize: '0.8rem' }}
+              >
+                - Issue Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => { const it = viewingItem; setViewingItem(null); handleOpenEditModal(it); }}
+                className="btn-secondary"
+                style={{ fontWeight: 700, padding: '7px 14px', fontSize: '0.8rem' }}
+              >
+                Edit Material
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewingItem(null)}
+                className="btn-secondary"
+                style={{ padding: '7px 14px', fontSize: '0.8rem' }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2211,7 +2503,7 @@ export const InventoryERP = () => {
                             <option value="">-- Choose Material --</option>
                             {catalogueItems.map(item => (
                               <option key={item.id} value={item.id}>
-                                {item.sku} â€” {item.name} ({item.currentStock} {item.unit} in stock)
+                                {item.sku}  {item.name} ({item.currentStock} {item.unit} in stock)
                               </option>
                             ))}
                           </select>
@@ -2317,7 +2609,7 @@ export const InventoryERP = () => {
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>Confirm Material Issue</h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Req: <strong>{issueModalReq.requestNo}</strong> â€¢ Order: <strong>{issueModalReq.orderNumber}</strong>
+                  Req: <strong>{issueModalReq.requestNo}</strong>  Order: <strong>{issueModalReq.orderNumber}</strong>
                 </div>
               </div>
               <button onClick={() => setIssueModalReq(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -2442,7 +2734,7 @@ export const InventoryERP = () => {
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>Record Material Return / Wastage</h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Req: <strong>{returnModalReq.requestNo}</strong> â€¢ Order: <strong>{returnModalReq.orderNumber}</strong>
+                  Req: <strong>{returnModalReq.requestNo}</strong> Order: <strong>{returnModalReq.orderNumber}</strong>
                 </div>
               </div>
               <button onClick={() => setReturnModalReq(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
@@ -2499,7 +2791,7 @@ export const InventoryERP = () => {
                     />
                     <div>
                       <div style={{ fontWeight: 800, color: '#15803d', fontSize: '0.85rem' }}>
-                        ðŸŸ¢ Reusable Material Return (Restores Warehouse Stock)
+                        Reusable Material Return (Restores Warehouse Stock)
                       </div>
                       <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                         Uncut or clean fabric roll / trims returned in good condition. Increases warehouse inventory balance.
@@ -2528,7 +2820,7 @@ export const InventoryERP = () => {
                     />
                     <div>
                       <div style={{ fontWeight: 800, color: '#dc2626', fontSize: '0.85rem' }}>
-                        ðŸ”´ Damaged Stock Return (Unusable - No Stock Restoration)
+                        Damaged Stock Return (Unusable - No Stock Restoration)
                       </div>
                       <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                         Damaged during tailoring or defective. Stock is NOT restored to warehouse; logged for quality control.
@@ -2557,7 +2849,7 @@ export const InventoryERP = () => {
                     />
                     <div>
                       <div style={{ fontWeight: 800, color: '#ca8a04', fontSize: '0.85rem' }}>
-                        ðŸŸ¡ Cutting Wastage / Scrap Trimmings (Production Loss)
+                        Cutting Wastage / Scrap Trimmings (Production Loss)
                       </div>
                       <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                         Normal scrap / off-cuts from cutting. Stock is NOT restored; recorded to monitor pattern efficiency.

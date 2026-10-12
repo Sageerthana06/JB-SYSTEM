@@ -59,6 +59,7 @@ router.post('/purchase-orders/:id/cancel', requireInv('PO_CREATE'), inv.cancelPu
 router.post('/purchase-orders/:id/receive', requireInv('PO_RECEIVE'), inv.receivePurchaseOrder);
 
 // Reports & audit
+router.get('/purchase-spend', requireInv('VIEW_COSTS'), inv.getPurchaseSpendReport);
 router.get('/reports/:type', requireInv('VIEW_REPORTS'), inv.getReport);
 router.get('/audit-logs', requireInv('VIEW_AUDIT'), inv.listAuditLogs);
 

@@ -43,7 +43,23 @@ const handle = (fn) => async (req, res) => {
     await fn(req, res);
   } catch (e) {
     if (e.status) return res.status(e.status).json({ success: false, message: e.message });
-    if (e.code === '23505') return res.status(409).json({ success: false, message: 'Duplicate record or request already processed.', detail: e.detail });
+    if (e.code === '23505') {
+      let message = 'A duplicate record or already-processed request was detected.';
+      if (e.constraint === 'InventoryItem_sku_key' || (e.detail && e.detail.toLowerCase().includes('sku'))) {
+        message = 'A material with this SKU code already exists. Please choose a unique SKU.';
+      } else if (e.constraint === 'Supplier_code_key' || (e.detail && e.detail.toLowerCase().includes('code'))) {
+        message = 'A supplier with this code already exists. Please use a unique supplier code.';
+      } else if (e.constraint === 'StockMovement_idempotencyKey_key' || (e.detail && e.detail.toLowerCase().includes('idempotencykey'))) {
+        message = 'This stock movement request has already been processed.';
+      } else if (e.constraint === 'OrderMaterialRequest_clientKey_key' || e.constraint === 'OrderMaterialRequest_requestNo_key') {
+        message = 'This material request has already been submitted.';
+      } else if (e.constraint === 'PurchaseOrder_clientKey_key' || e.constraint === 'PurchaseOrder_poNumber_key') {
+        message = 'This purchase order has already been created.';
+      } else if (e.constraint === 'GoodsReceipt_clientKey_key' || e.constraint === 'GoodsReceipt_grnNumber_key') {
+        message = 'This goods receipt has already been recorded.';
+      }
+      return res.status(409).json({ success: false, message, detail: e.detail });
+    }
     if (e.code === '23514') return res.status(409).json({ success: false, message: 'Rejected by stock safety rule (stock cannot go negative / quantities invalid).' });
     if (e.code === '23503') return res.status(409).json({ success: false, message: 'Record is referenced by other inventory records and cannot be changed this way.' });
     if (e.code === '42P01') return res.status(503).json({ success: false, message: 'Inventory module is not initialised yet. Run the inventory migration first.' });
@@ -287,6 +303,10 @@ exports.getDashboard = handle(async (req, res) => {
   branchFilter(f, 'i', req.query.branchId);
   const where = f.where();
 
+  const spendF = filters();
+  branchFilter(spendF, 'm', req.query.branchId);
+  const spendWhere = spendF.where();
+
   const [totals, cats, pos, reqs, usage, trend, recent, spend] = await Promise.all([
     pool.query(`SELECT
         COUNT(*)::int AS "totalItems",
@@ -324,16 +344,41 @@ exports.getDashboard = handle(async (req, res) => {
     pool.query(`SELECT m.id, m.type, m.quantity, m."newStock", m."referenceNo", m."orderNumber", m."performedByName", m."createdAt",
         i.sku, i.name, i.unit FROM "StockMovement" m JOIN "InventoryItem" i ON i.id = m."itemId"
       ORDER BY m."createdAt" DESC LIMIT 8`),
-    // Confirmed purchase spend: only GRN_RECEIPT movements backed by a GoodsReceipt row with a valid actual cost.
-    // OPENING and generic STOCK_IN movements are never counted.
-    pool.query(`SELECT COUNT(DISTINCT g.id)::int AS "receiptCount",
-        COALESCE(SUM(m.quantity * m."unitCost"), 0) AS "total"
-      FROM "StockMovement" m
-      JOIN "GoodsReceipt" g ON g."grnNumber" = m."referenceNo"
-      WHERE m.type = 'GRN_RECEIPT' AND m.quantity > 0 AND m."unitCost" IS NOT NULL AND m."unitCost" > 0`)
+    // Verified purchase spend: confirmed GRN receipts + direct stock-ins with purchase prices (branch-filtered, duplicate-safe)
+    pool.query(`
+      WITH verified_purchases AS (
+        SELECT m.id, m.quantity, m."unitCost",
+          ROUND((m.quantity * m."unitCost")::numeric, 2)::float AS "totalCost",
+          m."createdAt", m."referenceNo" AS "grnNumber"
+        FROM "StockMovement" m
+        ${spendWhere ? spendWhere + ' AND' : 'WHERE'}
+          m.type = 'GRN_RECEIPT' AND m.quantity > 0 AND m."unitCost" > 0
+
+        UNION ALL
+
+        SELECT m.id, m.quantity, m."unitCost",
+          ROUND((m.quantity * m."unitCost")::numeric, 2)::float AS "totalCost",
+          m."createdAt", COALESCE(m."referenceNo", 'Direct Receipt') AS "grnNumber"
+        FROM "StockMovement" m
+        ${spendWhere ? spendWhere + ' AND' : 'WHERE'}
+          m.type IN ('STOCK_IN', 'PURCHASE') AND m.quantity > 0 AND m."unitCost" > 0
+          AND NOT EXISTS (
+            SELECT 1 FROM "GoodsReceipt" g
+            WHERE g."grnNumber" = m."referenceNo"
+               OR (m."purchaseOrderId" IS NOT NULL AND g."purchaseOrderId" = m."purchaseOrderId")
+          )
+      )
+      SELECT
+        COALESCE(SUM("totalCost"), 0)::float AS "total",
+        COUNT(DISTINCT "grnNumber")::int AS "receiptCount",
+        COUNT(*)::int AS "itemCount",
+        COALESCE(SUM("totalCost") FILTER (WHERE "createdAt" >= date_trunc('month', NOW())), 0)::float AS "selectedMonthSpend",
+        COUNT(DISTINCT "grnNumber") FILTER (WHERE "createdAt" >= date_trunc('month', NOW()))::int AS "selectedMonthReceiptCount"
+      FROM verified_purchases`, spendF.vals)
   ]);
 
   const t = totals.rows[0];
+  const spendRow = spend.rows[0] || {};
   const data = {
     ...t,
     ...pos.rows[0],
@@ -342,9 +387,14 @@ exports.getDashboard = handle(async (req, res) => {
     categories: cats.rows,
     trend: trend.rows,
     recentMovements: recent.rows,
-    purchaseSpend: spend.rows[0].receiptCount > 0
-      ? { available: true, total: Number(spend.rows[0].total), receiptCount: spend.rows[0].receiptCount }
-      : { available: false, total: null, receiptCount: 0 }
+    purchaseSpend: {
+      available: true,
+      total: Number(spendRow.total || 0),
+      receiptCount: Number(spendRow.receiptCount || 0),
+      itemCount: Number(spendRow.itemCount || 0),
+      currentMonthSpend: Number(spendRow.selectedMonthSpend || 0),
+      currentMonthReceiptCount: Number(spendRow.selectedMonthReceiptCount || 0)
+    }
   };
   if (!showCost) {
     delete data.stockValue; delete data.openValue; delete data.purchaseSpend;
@@ -495,6 +545,19 @@ exports.createItem = handle(async (req, res) => {
   const cost = money(b.unitCost) ?? 0;
 
   const result = await withTx(async (c) => {
+    // 1. Idempotency & Unique check: Check if an item with this SKU already exists
+    const existing = (await c.query('SELECT * FROM "InventoryItem" WHERE UPPER(sku) = UPPER($1)', [data.sku])).rows[0];
+    if (existing) {
+      // If the exact same material was already created (repeated submission / double-click retry)
+      if (existing.name.trim().toLowerCase() === data.name.trim().toLowerCase() &&
+          existing.category === data.category &&
+          existing.createdById === req.user.id) {
+        return { item: existing, duplicate: true };
+      }
+      // Genuine duplicate SKU entered by user
+      throw new InvError(409, `A material with SKU "${data.sku}" already exists (${existing.name}). Please use a unique SKU.`);
+    }
+
     const ins = await c.query(
       `INSERT INTO "InventoryItem" ("sku","name","category","description","unit","colour","openingStock","currentStock",
          "minStockLevel","reorderLevel","unitCost","storageLocation","supplierId","branchId","createdById")
@@ -512,9 +575,15 @@ exports.createItem = handle(async (req, res) => {
       item = mv.item;
     }
     await audit(c, req, 'ITEM_CREATED', 'InventoryItem', item.id, { sku: item.sku, openingStock: opening, unitCost: cost });
-    return item;
+    return { item, duplicate: false };
   });
-  res.status(201).json({ success: true, message: 'Material created.', data: shapeItem(result, true) });
+
+  res.status(result.duplicate ? 200 : 201).json({
+    success: true,
+    duplicate: result.duplicate,
+    message: result.duplicate ? 'This material was already created.' : 'Material created.',
+    data: shapeItem(result.item, true)
+  });
 });
 
 exports.updateItem = handle(async (req, res) => {
@@ -533,6 +602,15 @@ exports.updateItem = handle(async (req, res) => {
   const item = await withTx(async (c) => {
     const before = (await c.query('SELECT * FROM "InventoryItem" WHERE id = $1 FOR UPDATE', [id])).rows[0];
     if (!before) throw new InvError(404, 'Material not found.');
+
+    // Check SKU collision if SKU changed
+    if (data.sku && data.sku.toUpperCase() !== before.sku.toUpperCase()) {
+      const existingSku = (await c.query('SELECT id, name FROM "InventoryItem" WHERE UPPER(sku) = UPPER($1) AND id <> $2', [data.sku, id])).rows[0];
+      if (existingSku) {
+        throw new InvError(409, `A material with SKU "${data.sku}" already exists (${existingSku.name}). Please use a unique SKU.`);
+      }
+    }
+
     const sets = keys.map((k, idx) => `"${k}" = $${idx + 1}`).join(', ');
     const upd = await c.query(`UPDATE "InventoryItem" SET ${sets}, "updatedAt" = NOW() WHERE id = $${keys.length + 1} RETURNING *`,
       [...keys.map(k => data[k]), id]);
@@ -1302,6 +1380,8 @@ exports.getReport = handle(async (req, res) => {
         r."returnedQty", r."damagedQty", r."wastageQty", r."consumedQty", r.status, r."requestedByName", r."issuedByName"
       FROM "OrderMaterialRequest" r JOIN "InventoryItem" i ON i.id = r."itemId" ${f.where()} ORDER BY r."createdAt" DESC LIMIT 5000`, f.vals)).rows;
     summary = { entries: rows.length };
+  } else if (type === 'purchase-spend') {
+    return exports.getPurchaseSpendReport(req, res);
   } else {
     throw new InvError(400, 'Unknown report type.');
   }
@@ -1324,6 +1404,208 @@ exports.listAuditLogs = handle(async (req, res) => {
     pool.query(`SELECT COUNT(*)::int AS total FROM "InventoryAuditLog" a ${where}`, f.vals)
   ]);
   res.json({ success: true, data: rows.rows, pagination: { page, pageSize, total: count.rows[0].total, pages: Math.ceil(count.rows[0].total / pageSize) } });
+});
+
+// =================================================================== PURCHASE SPEND REPORT
+exports.getPurchaseSpendReport = handle(async (req, res) => {
+  deny(req, 'VIEW_COSTS');
+  const branchId = req.query.branchId;
+  const monthParam = req.query.month;
+
+  const f = filters();
+  branchFilter(f, 'm', branchId);
+  const branchWhere = f.where();
+
+  const cte = `
+    WITH verified_purchases AS (
+      SELECT
+        m.id AS "movementId",
+        m."itemId",
+        i.sku,
+        i.name AS "itemName",
+        i.unit,
+        i.category,
+        m.type AS "sourceType",
+        m.quantity,
+        m."unitCost",
+        ROUND((m.quantity * m."unitCost")::numeric, 2)::float AS "totalCost",
+        m."createdAt",
+        m."branchId",
+        b.name AS "branchName",
+        m."referenceNo" AS "grnNumber",
+        COALESCE(g."supplierInvoiceNo", '') AS "supplierInvoiceNo",
+        COALESCE(s.name, sup.name, '') AS "supplierName",
+        COALESCE(po."poNumber", '') AS "poNumber",
+        COALESCE(m."performedByName", g."receivedByName", 'Staff') AS "receivedByName"
+      FROM "StockMovement" m
+      JOIN "InventoryItem" i ON i.id = m."itemId"
+      LEFT JOIN "GoodsReceipt" g ON g."grnNumber" = m."referenceNo" OR (m."purchaseOrderId" IS NOT NULL AND g."purchaseOrderId" = m."purchaseOrderId")
+      LEFT JOIN "PurchaseOrder" po ON po.id = m."purchaseOrderId"
+      LEFT JOIN "Supplier" s ON s.id = po."supplierId"
+      LEFT JOIN "Supplier" sup ON sup.id = m."supplierId"
+      LEFT JOIN "Branch" b ON b.id = m."branchId"
+      ${branchWhere ? branchWhere + ' AND' : 'WHERE'}
+        m.type = 'GRN_RECEIPT'
+        AND m.quantity > 0
+        AND m."unitCost" > 0
+
+      UNION ALL
+
+      SELECT
+        m.id AS "movementId",
+        m."itemId",
+        i.sku,
+        i.name AS "itemName",
+        i.unit,
+        i.category,
+        m.type AS "sourceType",
+        m.quantity,
+        m."unitCost",
+        ROUND((m.quantity * m."unitCost")::numeric, 2)::float AS "totalCost",
+        m."createdAt",
+        m."branchId",
+        b.name AS "branchName",
+        COALESCE(m."referenceNo", 'Direct Receipt') AS "grnNumber",
+        COALESCE(m."referenceNo", '') AS "supplierInvoiceNo",
+        COALESCE(sup.name, s.name, '') AS "supplierName",
+        '' AS "poNumber",
+        COALESCE(m."performedByName", 'Staff') AS "receivedByName"
+      FROM "StockMovement" m
+      JOIN "InventoryItem" i ON i.id = m."itemId"
+      LEFT JOIN "Supplier" sup ON sup.id = m."supplierId"
+      LEFT JOIN "Supplier" s ON s.id = i."supplierId"
+      LEFT JOIN "Branch" b ON b.id = m."branchId"
+      ${branchWhere ? branchWhere + ' AND' : 'WHERE'}
+        m.type IN ('STOCK_IN', 'PURCHASE')
+        AND m.quantity > 0
+        AND m."unitCost" > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM "GoodsReceipt" g
+          WHERE g."grnNumber" = m."referenceNo"
+             OR (m."purchaseOrderId" IS NOT NULL AND g."purchaseOrderId" = m."purchaseOrderId")
+        )
+    )
+  `;
+
+  const [allTimeRes, monthlyRes] = await Promise.all([
+    pool.query(`${cte}
+      SELECT
+        COALESCE(SUM("totalCost"), 0)::float AS "allTimeSpend",
+        COUNT(DISTINCT "grnNumber")::int AS "allTimeReceiptCount",
+        COUNT(*)::int AS "allTimeItemCount",
+        MIN("createdAt") AS "earliestDate",
+        MAX("createdAt") AS "latestDate"
+      FROM verified_purchases`, f.vals),
+    pool.query(`${cte}
+      SELECT
+        to_char(date_trunc('month', "createdAt"), 'YYYY-MM') AS "month",
+        COALESCE(SUM("totalCost"), 0)::float AS "spend",
+        COUNT(DISTINCT "grnNumber")::int AS "receiptCount",
+        COUNT(*)::int AS "itemCount"
+      FROM verified_purchases
+      GROUP BY 1
+      ORDER BY 1 DESC`, f.vals)
+  ]);
+
+  const allTime = allTimeRes.rows[0] || {};
+  const rawMonths = monthlyRes.rows || [];
+
+  const chronological = [...rawMonths].sort((a, b) => a.month.localeCompare(b.month));
+  const monthMap = new Map();
+  for (let idx = 0; idx < chronological.length; idx++) {
+    const curr = chronological[idx];
+    const prev = idx > 0 ? chronological[idx - 1] : null;
+    const prevSpend = prev ? Number(prev.spend) : null;
+    const diff = prevSpend !== null ? Number((curr.spend - prevSpend).toFixed(2)) : null;
+    const pct = (prevSpend && prevSpend > 0) ? Number((((curr.spend - prevSpend) / prevSpend) * 100).toFixed(1)) : null;
+
+    const [y, m] = curr.month.split('-');
+    const dateObj = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+    const label = dateObj.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+
+    monthMap.set(curr.month, {
+      month: curr.month,
+      year: parseInt(y, 10),
+      monthNum: parseInt(m, 10),
+      label,
+      spend: Number(curr.spend),
+      receiptCount: Number(curr.receiptCount),
+      itemCount: Number(curr.itemCount),
+      previousMonthSpend: prevSpend,
+      changeAmount: diff,
+      changePercentage: pct
+    });
+  }
+
+  const monthlyBreakdown = Array.from(monthMap.values()).reverse();
+  const availableMonths = monthlyBreakdown.map(m => m.month);
+
+  const nowMonth = new Date().toISOString().slice(0, 7);
+  let selectedMonth = monthParam || (availableMonths.includes(nowMonth) ? nowMonth : (availableMonths[0] || nowMonth));
+
+  let selectedMonthData = monthMap.get(selectedMonth) || {
+    month: selectedMonth,
+    spend: 0,
+    receiptCount: 0,
+    itemCount: 0,
+    changeAmount: null,
+    changePercentage: null
+  };
+
+  let txQuery = '';
+  let txVals = [...f.vals];
+  if (selectedMonth && selectedMonth !== 'ALL') {
+    txQuery = `${cte}
+      SELECT * FROM verified_purchases
+      WHERE to_char(date_trunc('month', "createdAt"), 'YYYY-MM') = $${txVals.length + 1}
+      ORDER BY "createdAt" DESC, "movementId" DESC`;
+    txVals.push(selectedMonth);
+  } else {
+    txQuery = `${cte}
+      SELECT * FROM verified_purchases
+      ORDER BY "createdAt" DESC, "movementId" DESC LIMIT 1000`;
+  }
+
+  const txRes = await pool.query(txQuery, txVals);
+
+  const uncostedRes = await pool.query(`
+    SELECT COUNT(*)::int AS count FROM "InventoryItem"
+    WHERE "isActive" = true AND ("costStatus" = 'PENDING_VALUATION' OR "unitCost" = 0)
+  `);
+  const openingMovementsRes = await pool.query(`
+    SELECT COUNT(*)::int AS count, COALESCE(SUM(quantity), 0)::float AS qty FROM "StockMovement"
+    WHERE type = 'OPENING'
+  `);
+
+  res.json({
+    success: true,
+    data: {
+      allTimeSpend: Number(allTime.allTimeSpend || 0),
+      allTimeReceiptCount: Number(allTime.allTimeReceiptCount || 0),
+      allTimeItemCount: Number(allTime.allTimeItemCount || 0),
+      earliestDate: allTime.earliestDate,
+      latestDate: allTime.latestDate,
+      selectedMonth,
+      selectedMonthSpend: selectedMonthData.spend,
+      selectedMonthReceiptCount: selectedMonthData.receiptCount,
+      selectedMonthItemCount: selectedMonthData.itemCount,
+      selectedMonthComparison: {
+        previousMonthSpend: selectedMonthData.previousMonthSpend,
+        changeAmount: selectedMonthData.changeAmount,
+        changePercentage: selectedMonthData.changePercentage
+      },
+      monthlyBreakdown,
+      availableMonths,
+      transactions: txRes.rows,
+      hasHistoricalData: availableMonths.length > 0,
+      missingHistoricalAudit: {
+        uncostedItemsCount: uncostedRes.rows[0].count,
+        openingStockMovementsCount: openingMovementsRes.rows[0].count,
+        openingStockQuantity: openingMovementsRes.rows[0].qty,
+        explanation: 'Historical purchases made prior to ERP system deployment do not possess digital purchase orders, supplier invoices, or Goods Receipts in the database. Initial inventory was registered as Opening Stock. Opening balances are excluded from purchase spend to preserve strict accounting integrity.'
+      }
+    }
+  });
 });
 
 // =================================================================== REPEAT STOCK PURCHASE / REORDER

@@ -1,5 +1,8 @@
+const path = require('path');
 const dotenv = require('dotenv');
-dotenv.config();
+// Explicitly load backend/.env whether launched from root or backend folder
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config(); // fallback to current working directory if needed
 const app = require('./src/app');
 
 const PORT = process.env.PORT || 5000;

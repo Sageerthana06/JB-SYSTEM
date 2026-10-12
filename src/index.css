@@ -917,3 +917,596 @@ img, video {
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
   }
 }
+
+/* ==========================================================================
+   9. MATERIAL & INVENTORY MANAGEMENT ERP - RESPONSIVE MOBILE-FIRST STYLING
+   ========================================================================== */
+
+/* Main ERP Layout Container */
+.inv-erp-container {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 28px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .inv-erp-container {
+    padding: 18px 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .inv-erp-container {
+    padding: 12px 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .inv-erp-container {
+    padding: 8px 6px;
+  }
+}
+
+/* Header & Actions Bar */
+.inv-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.inv-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inv-header-icon-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background-color: var(--jb-crimson-light);
+  color: var(--jb-crimson);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
+  flex-shrink: 0;
+}
+
+.inv-header-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.inv-header-subtitle {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  margin: 3px 0 0 0;
+}
+
+.inv-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .inv-header-bar {
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+  .inv-header-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .inv-header-title {
+    font-size: 1.25rem;
+  }
+  .inv-header-subtitle {
+    font-size: 0.76rem;
+  }
+  .inv-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .inv-header-actions .btn-primary,
+  .inv-header-actions .btn-secondary {
+    padding: 8px 6px !important;
+    font-size: 0.78rem !important;
+    justify-content: center !important;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .inv-header-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .inv-header-actions .inv-btn-add-material {
+    grid-column: span 2;
+  }
+}
+
+/* KPI Summary Cards Grid */
+.inv-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.inv-kpi-card {
+  padding: 14px 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (max-width: 900px) {
+  .inv-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .inv-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .inv-kpi-card {
+    padding: 10px 10px !important;
+    border-radius: 10px !important;
+  }
+  .inv-kpi-card-header {
+    font-size: 0.68rem !important;
+  }
+  .inv-kpi-card-value {
+    font-size: 1.22rem !important;
+    margin-top: 3px !important;
+  }
+  .inv-kpi-card-sub {
+    font-size: 0.65rem !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .inv-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tabs Bar */
+.inv-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.inv-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.inv-tab-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 8px 8px 0 0;
+  border: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+@media (max-width: 640px) {
+  .inv-tab-button {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+}
+
+/* Filters Bar */
+.inv-filter-card {
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.inv-filter-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.inv-search-box {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.inv-filter-dropdowns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .inv-filter-card {
+    padding: 10px 10px;
+  }
+  .inv-filter-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .inv-search-box {
+    width: 100%;
+    min-width: 100%;
+  }
+  .inv-filter-dropdowns {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .inv-filter-dropdowns .inv-filter-group {
+    width: 100%;
+  }
+  .inv-filter-dropdowns select {
+    width: 100%;
+  }
+  .inv-filter-view-toggle {
+    display: none !important;
+  }
+}
+
+/* Desktop Table vs Mobile 2-Column Cards Visibility */
+.inv-desktop-view {
+  display: block;
+}
+
+.inv-mobile-view {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .inv-desktop-view {
+    display: none !important;
+  }
+  .inv-mobile-view {
+    display: block !important;
+  }
+}
+
+/* 2-Column Mobile Shopping-App Grid for Materials */
+.inv-material-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 641px) and (max-width: 860px) {
+  .inv-material-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .inv-material-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+@media (max-width: 340px) {
+  .inv-material-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+/* Mobile Material Card */
+.inv-mat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 9px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.inv-mat-card:active {
+  transform: scale(0.99);
+}
+
+.inv-mat-card.status-out {
+  border-left: 4px solid #ef4444;
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.03) 0%, var(--bg-card) 100%);
+}
+
+.inv-mat-card.status-low {
+  border-left: 4px solid #f59e0b;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.03) 0%, var(--bg-card) 100%);
+}
+
+.inv-mat-card.status-reorder {
+  border-left: 4px solid #0284c7;
+}
+
+.inv-mat-card.status-healthy {
+  border-left: 4px solid #10b981;
+}
+
+/* Card Header (Category + Health Badge) */
+.inv-mat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.inv-mat-cat-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  white-space: nowrap;
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inv-mat-status-pill {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* Card SKU and Name */
+.inv-mat-sku {
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--jb-navy);
+  background: var(--bg-main);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.inv-mat-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 2.1em;
+}
+
+/* Stock Metric Block */
+.inv-mat-stock-box {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+}
+
+.inv-mat-stock-qty {
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.inv-mat-stock-limits {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Valuation & Cost Row */
+.inv-mat-financials {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  font-size: 0.66rem;
+  padding: 4px 0;
+  border-top: 1px dashed var(--border-color);
+  margin-bottom: 8px;
+}
+
+.inv-mat-fin-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.inv-mat-fin-val {
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inv-mat-valuation-val {
+  font-weight: 900;
+  color: #10b981;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Card Actions Grid (4 buttons: 2x2 compact grid) */
+.inv-mat-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.inv-mat-btn {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.inv-mat-btn-in {
+  background-color: #ecfdf5;
+  color: #15803d;
+  border-color: #a7f3d0;
+}
+.inv-mat-btn-in:active {
+  background-color: #d1fae5;
+}
+
+.inv-mat-btn-out {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+.inv-mat-btn-out:active {
+  background-color: #ffedd5;
+}
+
+.inv-mat-btn-view {
+  background-color: var(--bg-card);
+  color: var(--jb-navy);
+  border-color: var(--border-color);
+}
+.inv-mat-btn-view:active {
+  background-color: var(--bg-main);
+}
+
+.inv-mat-btn-edit {
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+}
+.inv-mat-btn-edit:active {
+  background-color: var(--bg-main);
+}
+
+/* Responsive Modal Styling for Inventory ERP */
+.inv-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.inv-modal-card {
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 14px;
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 640px) {
+  .inv-modal-overlay {
+    padding: 8px;
+    align-items: flex-end;
+  }
+  .inv-modal-card {
+    max-height: 94vh !important;
+    padding: 16px 14px !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+  }
+  .inv-form-grid-2col,
+  .inv-form-grid-3col {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .inv-modal-footer {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+  .inv-modal-footer button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Responsive Ledger & Requisitions Mobile Cards */
+.inv-ledger-card,
+.inv-req-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
+  box-sizing: border-box;
+}
