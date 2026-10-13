@@ -338,13 +338,13 @@ exports.getDashboard = handle(async (req, res) => {
       FROM "StockMovement" m WHERE m."createdAt" >= date_trunc('month', NOW())`, [CONSUMPTION_TYPES]),
     pool.query(`SELECT to_char(date_trunc('month', m."createdAt"), 'YYYY-MM') AS month,
         COALESCE(SUM(-m.quantity * m."unitCost") FILTER (WHERE m.type = ANY($1)), 0) AS "usageValue",
-        COALESCE(SUM(m.quantity * m."unitCost") FILTER (WHERE m.type IN ('GRN_RECEIPT','STOCK_IN')), 0) AS "receiptValue"
+        COALESCE(SUM(m.quantity * m."unitCost") FILTER (WHERE m.type IN ('GRN_RECEIPT','STOCK_IN','OPENING')), 0) AS "receiptValue"
       FROM "StockMovement" m WHERE m."createdAt" >= date_trunc('month', NOW()) - INTERVAL '5 months'
       GROUP BY 1 ORDER BY 1`, [CONSUMPTION_TYPES]),
     pool.query(`SELECT m.id, m.type, m.quantity, m."newStock", m."referenceNo", m."orderNumber", m."performedByName", m."createdAt",
         i.sku, i.name, i.unit FROM "StockMovement" m JOIN "InventoryItem" i ON i.id = m."itemId"
       ORDER BY m."createdAt" DESC LIMIT 8`),
-    // Verified purchase spend: confirmed GRN receipts + direct stock-ins with purchase prices (branch-filtered, duplicate-safe)
+    // Verified purchase spend: confirmed GRN receipts + direct stock-ins + new material opening stock with purchase prices (branch-filtered, duplicate-safe)
     pool.query(`
       WITH verified_purchases AS (
         SELECT m.id, m.quantity, m."unitCost",
@@ -361,7 +361,7 @@ exports.getDashboard = handle(async (req, res) => {
           m."createdAt", COALESCE(m."referenceNo", 'Direct Receipt') AS "grnNumber"
         FROM "StockMovement" m
         ${spendWhere ? spendWhere + ' AND' : 'WHERE'}
-          m.type IN ('STOCK_IN', 'PURCHASE') AND m.quantity > 0 AND m."unitCost" > 0
+          m.type IN ('STOCK_IN', 'PURCHASE', 'OPENING') AND m.quantity > 0 AND m."unitCost" > 0
           AND NOT EXISTS (
             SELECT 1 FROM "GoodsReceipt" g
             WHERE g."grnNumber" = m."referenceNo"
@@ -1476,7 +1476,7 @@ exports.getPurchaseSpendReport = handle(async (req, res) => {
       LEFT JOIN "Supplier" s ON s.id = i."supplierId"
       LEFT JOIN "Branch" b ON b.id = m."branchId"
       ${branchWhere ? branchWhere + ' AND' : 'WHERE'}
-        m.type IN ('STOCK_IN', 'PURCHASE')
+        m.type IN ('STOCK_IN', 'PURCHASE', 'OPENING')
         AND m.quantity > 0
         AND m."unitCost" > 0
         AND NOT EXISTS (

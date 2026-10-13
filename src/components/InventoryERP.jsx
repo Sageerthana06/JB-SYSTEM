@@ -862,7 +862,7 @@ export const InventoryERP = () => {
                   LKR {Number(dashboardStats.purchaseSpend.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  {dashboardStats.purchaseSpend.receiptCount} confirmed goods receipt{dashboardStats.purchaseSpend.receiptCount === 1 ? '' : 's'}
+                  {dashboardStats.purchaseSpend.receiptCount} confirmed receipt{dashboardStats.purchaseSpend.receiptCount === 1 ? '' : 's'} & stock entries
                 </div>
               </>
             ) : (
