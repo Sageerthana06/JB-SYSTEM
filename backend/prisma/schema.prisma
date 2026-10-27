@@ -64,6 +64,7 @@ model User {
   branchId  Int?
   branch    Branch?  @relation(fields: [branchId], references: [id])
   isActive  Boolean  @default(true)
+  lastLoginAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   productionHistory ProductionHistory[]
@@ -71,6 +72,12 @@ model User {
   attendances Attendance[]
   stockMovements StockMovement[]
   materialRequestsAsTailor OrderMaterialRequest[] @relation("TailorMaterialRequests")
+  employee   Employee?
+  resetTokens PasswordResetToken[]
+  assignedTasks OrderTask[] @relation("TailorTasks")
+  receivedCustomerFabrics CustomerFabric[] @relation("CustomerFabricReceiver")
+  tailorCustomerMovements CustomerFabricMovement[] @relation("CustomerFabricTailor")
+  performedCustomerMovements CustomerFabricMovement[] @relation("CustomerFabricPerformer")
 }
 
 model Branch {
@@ -83,9 +90,13 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
+  employees Employee[]
   orders    Order[]
   inventoryItems InventoryItem[]
   purchaseOrders PurchaseOrder[]
+  orderTasks OrderTask[]
+  customerFabrics CustomerFabric[]
+  customerFabricMovements CustomerFabricMovement[]
 }
 
 model Customer {
@@ -101,6 +112,7 @@ model Customer {
   updatedAt        DateTime @updatedAt
   orders           Order[]
   measurements     CustomerMeasurement[]
+  customerFabrics  CustomerFabric[]
 }
 
 model Order {
@@ -146,7 +158,7 @@ model Order {
   advanceRequired        Float?   @default(0)
   paymentStatus          String   @default("Unpaid")
   payments               Payment[]
-  
+
   // Approval workflow
   approvedBy          String?
   approvedAt          DateTime?
@@ -179,6 +191,7 @@ model Order {
   // Notification Tracking
   readyNotificationSent   Boolean?        @default(false)
   readyNotificationSentAt DateTime?
+  readyNotificationSentBy String?
   readyNotificationStatus String?
 
   createdAt       DateTime        @default(now())
@@ -186,6 +199,8 @@ model Order {
   productionHistory ProductionHistory[]
   materialRequests  OrderMaterialRequest[]
   stockMovements    StockMovement[]
+  tasks             OrderTask[]
+  customerFabrics   CustomerFabric[]
 }
 
 model GarmentDetails {
@@ -499,3 +514,161 @@ model InventoryAuditLog {
   @@index([createdAt])
 }
 
+model Employee {
+  id          Int       @id @default(autoincrement())
+  employeeId  String    @unique
+  name        String
+  email       String?
+  phone       String?
+  role        String
+  branchId    Int?
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  userId      Int?      @unique
+  user        User?     @relation(fields: [userId], references: [id])
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([branchId])
+  @@index([role])
+}
+
+model PasswordResetToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  isUsed      Boolean   @default(false)
+  requestedBy String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tokenHash])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         Int       @id @default(autoincrement())
+  action     String
+  entityType String
+  entityId   Int?
+  userId     Int?
+  userName   String?
+  userRole   String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model OrderTask {
+  id               Int       @id @default(autoincrement())
+  orderId          Int
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  taskType         String    // CUTTING, STITCHING, AARI_EMBROIDERY, FITTING_ALTERATION, FINISHING, QUALITY_CHECK
+  taskName         String    // "Cutting", "Stitching", "Aari Embroidery", "Fitting / Alteration", "Finishing", "Quality Check"
+  assignedTailorId Int?
+  assignedTailor   User?     @relation("TailorTasks", fields: [assignedTailorId], references: [id], onDelete: SetNull)
+  assignedById     Int?
+  assignedBy       String?
+  assignedAt       DateTime? @default(now())
+  status           String    @default("ASSIGNED") // ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED
+  startedAt        DateTime?
+  completedAt      DateTime?
+  notes            String?
+  sequence         Int       @default(1)
+  branchId         Int?
+  branch           Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([orderId])
+  @@index([assignedTailorId])
+  @@index([status])
+  @@index([branchId])
+}
+
+model CustomerFabric {
+  id                    Int                      @id @default(autoincrement())
+  code                  String                   @unique
+  customerId            Int
+  customer              Customer                 @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customerName          String
+  customerPhone         String?
+  orderId               Int
+  order                 Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderNumber           String
+  fabricType            String
+  fabricColour          String
+  fabricDescription     String?
+  receivedQty           Float
+  availableQty          Float
+  issuedQty             Float                    @default(0)
+  tailorBalanceQty      Float                    @default(0)
+  consumedQty           Float                    @default(0)
+  returnedToStoreQty    Float                    @default(0)
+  returnedToCustomerQty Float                    @default(0)
+  wasteQty              Float                    @default(0)
+  unit                  String                   @default("Meters")
+  dateReceived          DateTime                 @default(now())
+  conditionNotes        String?
+  branchId              Int?
+  branch                Branch?                  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branchName            String?
+  receivedById          Int?
+  receivedBy            User?                    @relation("CustomerFabricReceiver", fields: [receivedById], references: [id], onDelete: SetNull)
+  receivedByName        String?
+  status                String                   @default("AVAILABLE")
+  customerPurchasePrice      Float?
+  customerPurchaseCurrency   String?                  @default("LKR")
+  customerPurchasePriceType  String?                  @default("TOTAL") // "TOTAL" or "PER_UNIT"
+  customerPurchaseReceiptUrl String?
+  photoUrl                   String?
+  materialCategory           String?                  @default("Fabric")
+  materialName               String?
+  conditionOnReceipt         String?                  @default("Good")
+  notes                      String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @default(now()) @updatedAt
+  movements             CustomerFabricMovement[]
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([orderNumber])
+  @@index([branchId])
+  @@index([fabricType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CustomerFabricMovement {
+  id                   Int            @id @default(autoincrement())
+  customerFabricId     Int
+  customerFabric       CustomerFabric @relation(fields: [customerFabricId], references: [id], onDelete: Cascade)
+  movementType         String
+  quantity             Float
+  previousAvailableQty Float
+  newAvailableQty      Float
+  previousTailorQty    Float
+  newTailorQty         Float
+  tailorId             Int?
+  tailor               User?          @relation("CustomerFabricTailor", fields: [tailorId], references: [id], onDelete: SetNull)
+  tailorName           String?
+  notes                String?
+  branchId             Int?
+  branch               Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  performedById        Int?
+  performedBy          User?          @relation("CustomerFabricPerformer", fields: [performedById], references: [id], onDelete: SetNull)
+  performedByName      String?
+  performedByRole      String?
+  idempotencyKey       String?        @unique
+  createdAt            DateTime       @default(now())
+
+  @@index([customerFabricId])
+  @@index([movementType])
+  @@index([tailorId])
+  @@index([createdAt])
+}

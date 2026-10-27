@@ -8,18 +8,14 @@ import {
   AlertCircle,
   Calendar,
   ShieldCheck,
-  User,
-  Building,
-  RefreshCw,
-  Sparkles,
-  ArrowRight
+  RefreshCw
 } from 'lucide-react';
 
 export const StaffAttendanceDashboard = () => {
   const { user, logout } = useAuth();
   const [todayAttendance, setTodayAttendance] = useState(null);
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { CustomerPortalLayout } from './CustomerPortalLayout';
 import { API_URL, getImageUrl } from '../../config/api';
+import { ImageUploadCapture } from '../common/ImageUploadCapture';
+import { validateImageFileClient } from '../../utils/imageUploadHelper';
 import {
   User,
   Phone,
@@ -10,14 +12,13 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
-  Calendar,
-  Camera,
-  X
+  KeyRound,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export const CustomerProfile = () => {
-  const { user, getAuthHeaders } = useAuth();
+  const { getAuthHeaders } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -35,6 +36,18 @@ export const CustomerProfile = () => {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Password change state
+  const [pwdData, setPwdData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdSuccess, setPwdSuccess] = useState('');
+  const [pwdError, setPwdError] = useState('');
 
   useEffect(() => {
     fetch(`${API_URL}/api/customer-portal/me`, {
@@ -61,15 +74,12 @@ export const CustomerProfile = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handlePhotoSelect = (e) => {
-    const file = e.target.files?.[0];
+  const handlePhotoSelect = (fileOrEvent) => {
+    const file = fileOrEvent?.target ? fileOrEvent.target.files?.[0] : fileOrEvent;
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrorMsg('Photo must be 5MB or smaller.');
-        return;
-      }
-      if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
-        setErrorMsg('Invalid format. Only JPG, JPEG, PNG, and WEBP are supported.');
+      const validation = validateImageFileClient(file);
+      if (!validation.valid) {
+        setErrorMsg(validation.error);
         return;
       }
       setPhotoFile(file);
@@ -142,9 +152,50 @@ export const CustomerProfile = () => {
       } else {
         setErrorMsg(data.message || 'Failed to update profile.');
       }
-    } catch (err) {
+    } catch {
       setSaving(false);
       setErrorMsg('Network error updating profile.');
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!pwdData.newPassword) {
+      setPwdError('Please enter a new password.');
+      return;
+    }
+    if (pwdData.newPassword.length < 6) {
+      setPwdError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (pwdData.newPassword !== pwdData.confirmPassword) {
+      setPwdError('New password and confirm password do not match.');
+      return;
+    }
+
+    setPwdLoading(true);
+    setPwdSuccess('');
+    setPwdError('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/customer-portal/change-password`, {
+        method: 'PUT',
+        headers: getAuthHeaders(false),
+        body: JSON.stringify(pwdData)
+      });
+      const data = await res.json();
+      setPwdLoading(false);
+
+      if (data.success) {
+        setPwdSuccess(data.message || 'Password changed successfully!');
+        setPwdData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setTimeout(() => setPwdSuccess(''), 4000);
+      } else {
+        setPwdError(data.message || 'Failed to change password.');
+      }
+    } catch {
+      setPwdLoading(false);
+      setPwdError('Network error changing password. Please try again.');
     }
   };
 
@@ -179,103 +230,19 @@ export const CustomerProfile = () => {
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)'
           }}>
             {/* Customer Profile Photo */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              padding: '16px 20px',
-              backgroundColor: '#f8fafc',
-              borderRadius: '16px',
-              border: '1px solid #e2e8f0',
-              marginBottom: '24px'
-            }}>
-              <div style={{ position: 'relative', width: '76px', height: '76px', flexShrink: 0 }}>
-                {photoPreview ? (
-                  <img
-                    src={photoPreview}
-                    alt="Preview"
-                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid #3b82f6' }}
-                  />
-                ) : formData.profilePhoto ? (
-                  <img
-                    src={getImageUrl(formData.profilePhoto)}
-                    alt="Customer Photo"
-                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid #cbd5e1' }}
-                  />
-                ) : (
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
-                    backgroundColor: '#0a192f',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.8rem',
-                    fontWeight: 900
-                  }}>
-                    {formData.name?.charAt(0) || <User size={36} />}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', marginBottom: '4px' }}>
-                  Customer Profile Photo
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '10px' }}>
-                  Upload a clear portrait photo (JPG, JPEG, PNG, or WEBP up to 5MB).
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    backgroundColor: '#ffffff',
-                    border: '1.5px solid #cbd5e1',
-                    color: '#1e40af',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                  }}>
-                    <Camera size={14} />
-                    <span>{photoPreview ? 'Change Selection' : (formData.profilePhoto ? 'Replace Photo' : 'Upload Photo')}</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg, image/png, image/webp, image/jpg"
-                      onChange={handlePhotoSelect}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-
-                  {photoPreview && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveSelectedPhoto}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        backgroundColor: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        color: '#dc2626',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <X size={13} /> Cancel
-                    </button>
-                  )}
-                </div>
-              </div>
+            <div style={{ marginBottom: '24px' }}>
+              <ImageUploadCapture
+                label="Customer Profile Photo"
+                sublabel="Upload a clear portrait photo or take a photo with your device camera (Max 20 MB • JPG, PNG, WebP, GIF, BMP)"
+                currentImageUrl={formData.profilePhoto ? getImageUrl(formData.profilePhoto) : null}
+                previewUrl={photoPreview}
+                file={photoFile}
+                onFileSelected={handlePhotoSelect}
+                onFileRemoved={handleRemoveSelectedPhoto}
+                onError={(err) => setErrorMsg(err)}
+                cameraTitle="Take Customer Profile Photo"
+                compact={false}
+              />
             </div>
             {/* Full Name */}
             <div style={{ marginBottom: '18px' }}>
@@ -488,6 +455,225 @@ export const CustomerProfile = () => {
             </button>
           </form>
         )}
+
+        {/* Account Security & Password Change */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '20px',
+          padding: '32px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+          marginTop: '28px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              backgroundColor: '#eff6ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#0052cc'
+            }}>
+              <KeyRound size={20} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                Account Security & Password
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
+                Change your customer portal login password anytime.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handlePasswordSubmit} style={{ marginTop: '20px' }}>
+            {/* Current Password */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                Current Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showCurrentPwd ? 'text' : 'password'}
+                  value={pwdData.currentPassword}
+                  onChange={(e) => {
+                    setPwdData(prev => ({ ...prev, currentPassword: e.target.value }));
+                    setPwdError('');
+                  }}
+                  placeholder="Enter current password"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 44px 12px 14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.92rem',
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                >
+                  {showCurrentPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* New Password & Confirm Password */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  New Password (min 6 characters)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showNewPwd ? 'text' : 'password'}
+                    value={pwdData.newPassword}
+                    onChange={(e) => {
+                      setPwdData(prev => ({ ...prev, newPassword: e.target.value }));
+                      setPwdError('');
+                    }}
+                    placeholder="Enter new password"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 44px 12px 14px',
+                      borderRadius: '12px',
+                      border: '1.5px solid #cbd5e1',
+                      fontSize: '0.92rem',
+                      color: '#0f172a',
+                      fontWeight: 600,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPwd(!showNewPwd)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#64748b',
+                      cursor: 'pointer',
+                      padding: '4px'
+                    }}
+                  >
+                    {showNewPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={pwdData.confirmPassword}
+                  onChange={(e) => {
+                    setPwdData(prev => ({ ...prev, confirmPassword: e.target.value }));
+                    setPwdError('');
+                  }}
+                  placeholder="Re-enter new password"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.92rem',
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Password Feedback Alerts */}
+            {pwdError && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px 16px',
+                backgroundColor: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '10px',
+                color: '#dc2626',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <AlertCircle size={18} />
+                <span>{pwdError}</span>
+              </div>
+            )}
+
+            {pwdSuccess && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px 16px',
+                backgroundColor: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '10px',
+                color: '#065f46',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <CheckCircle2 size={18} />
+                <span>{pwdSuccess}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={pwdLoading}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '10px',
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                fontSize: '0.92rem',
+                fontWeight: 700,
+                border: 'none',
+                cursor: pwdLoading ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <KeyRound size={16} />
+              <span>{pwdLoading ? 'Updating Password...' : 'Update Password'}</span>
+            </button>
+          </form>
+        </div>
       </div>
     </CustomerPortalLayout>
   );

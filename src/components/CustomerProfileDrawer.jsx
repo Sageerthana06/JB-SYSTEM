@@ -7,23 +7,15 @@ import {
   MapPin,
   Building,
   Calendar,
-  Clock,
   Scissors,
   User,
-  CreditCard,
   FileText,
   AlertCircle,
   RefreshCw,
-  ExternalLink,
-  ShieldCheck,
-  CheckCircle,
-  Tag,
-  Package,
-  Layers,
-  Image as ImageIcon
+  Package
 } from 'lucide-react';
 import { API_URL, getImageUrl } from '../config/api';
-import { getStatusColors, getStatusLabel, getPriceStatusColors, getPriceStatusLabel } from '../utils/orderStatus';
+import { getStatusColors, getStatusLabel } from '../utils/orderStatus';
 
 export const CustomerProfileDrawer = ({
   customerId,

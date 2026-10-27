@@ -12,9 +12,6 @@ import {
   ArrowRight,
   Sparkles,
   Scissors,
-  Eye,
-  Calendar,
-  Layers,
   ChevronRight
 } from 'lucide-react';
 

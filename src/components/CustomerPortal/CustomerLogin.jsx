@@ -39,8 +39,8 @@ export const CustomerLogin = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!identifier || !password) {
-      setError('Please enter your email or mobile number and password.');
+    if (!identifier.trim() || !password) {
+      setError('Please enter your registered phone number or email, and password.');
       return;
     }
 
@@ -59,7 +59,7 @@ export const CustomerLogin = () => {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-    
+
     if (forgotStep === 1) {
       if (!forgotIdentifier) {
         setForgotErr('Please enter your email or mobile number.');
@@ -236,26 +236,40 @@ export const CustomerLogin = () => {
               color: '#334155',
               marginBottom: '6px'
             }}>
-              Email / Mobile Number
+              Registered Phone Number or Email Address
             </label>
             <div style={{ position: 'relative' }}>
-              <Mail
-                size={18}
-                color="#0052cc"
-                style={{
-                  position: 'absolute',
-                  left: '14px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none'
-                }}
-              />
+              {identifier && /^[0-9+]/.test(identifier.trim()) ? (
+                <Phone
+                  size={18}
+                  color="#0052cc"
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              ) : (
+                <Mail
+                  size={18}
+                  color="#0052cc"
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              )}
               <input
                 type="text"
                 id="customer-identifier-input"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="e.g. +9477XXXXXXX or name@email.com"
+                placeholder="e.g. 077XXXXXXX, +9477XXXXXXX, or email"
                 required
                 style={{
                   width: '100%',
@@ -512,8 +526,8 @@ export const CustomerLogin = () => {
               Reset Password
             </h3>
             <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: '#64748b' }}>
-              {forgotStep === 1 
-                ? 'Enter your registered phone or email to receive an OTP.' 
+              {forgotStep === 1
+                ? 'Enter your registered phone or email to receive an OTP.'
                 : 'Enter the OTP sent to you and set a new password.'}
             </p>
 
@@ -521,13 +535,13 @@ export const CustomerLogin = () => {
               {forgotStep === 1 ? (
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
-                    Email or Mobile Number
+                    Registered Phone Number or Email
                   </label>
                   <input
                     type="text"
                     value={forgotIdentifier}
                     onChange={(e) => setForgotIdentifier(e.target.value)}
-                    placeholder="Registered phone or email"
+                    placeholder="e.g. 077XXXXXXX or name@email.com"
                     required
                     style={{
                       width: '100%',
@@ -636,8 +650,8 @@ export const CustomerLogin = () => {
                     cursor: forgotLoading ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {forgotLoading 
-                    ? (forgotStep === 1 ? 'Sending...' : 'Updating...') 
+                  {forgotLoading
+                    ? (forgotStep === 1 ? 'Sending...' : 'Updating...')
                     : (forgotStep === 1 ? 'Send OTP' : 'Set Password')}
                 </button>
               </div>

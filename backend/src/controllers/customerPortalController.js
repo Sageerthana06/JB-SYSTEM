@@ -1,15 +1,19 @@
-const { Pool } = require('pg');
-const { PrismaPg } = require('@prisma/adapter-pg');
-const { PrismaClient } = require('@prisma/client');
+const { prisma, pool } = require('../prisma');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+const {
+  cleanPhoneRaw,
+  normalizePhoneNumber,
+  getPhoneSearchVariants,
+  validatePhoneNumber
+} = require('../utils/phoneUtils');
+const {
+  checkRateLimit,
+  recordFailedAttempt,
+  resetRateLimit
+} = require('../utils/rateLimiter');
 
 // Helper to generate the exact existing ERP order number (e.g., ORD-2026-0001)
 const generateOrderNumber = async () => {
@@ -43,30 +47,33 @@ exports.register = async (req, res, next) => {
   try {
     const { name, primaryPhone, email, password, address } = req.body;
 
-    if (!name || !primaryPhone || !email || !password) {
+    if (!name || !name.trim() || !primaryPhone || !primaryPhone.trim() || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Full Name, WhatsApp / Primary Contact, Email, and Password are required.'
+        message: 'Full Name, Phone Number, and Password are required.'
       });
     }
 
     const cleanPhone = primaryPhone.trim();
-    const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
-    }
-
     // Phone validation
-    const digitsOnly = cleanPhone.replace(/\D/g, '');
-    if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+    const phoneValidation = validatePhoneNumber(cleanPhone);
+    if (!phoneValidation.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter a valid phone number (7-15 digits).'
+        message: phoneValidation.error || 'Please enter a valid phone number.'
       });
+    }
+
+    // Email validation (optional)
+    let cleanEmail = null;
+    if (email && email.trim()) {
+      cleanEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+      }
     }
 
     if (password.length < 6) {
@@ -76,13 +83,20 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Check if customer already exists by phone or email
+    const normalizedPhone = normalizePhoneNumber(cleanPhone) || cleanPhone;
+    const phoneVariants = getPhoneSearchVariants(cleanPhone);
+
+    // Check if customer already exists by phone variants OR email
+    const duplicateChecks = [
+      { primaryPhone: { in: phoneVariants } }
+    ];
+    if (cleanEmail) {
+      duplicateChecks.push({ email: cleanEmail });
+    }
+
     const existing = await prisma.customer.findFirst({
       where: {
-        OR: [
-          { primaryPhone: cleanPhone },
-          { email: cleanEmail }
-        ]
+        OR: duplicateChecks
       }
     });
 
@@ -104,7 +118,7 @@ exports.register = async (req, res, next) => {
         where: { id: existing.id },
         data: {
           name: cleanName || existing.name,
-          email: cleanEmail,
+          email: cleanEmail || existing.email,
           password: hashedPassword,
           address: address ? address.trim() : existing.address
         }
@@ -114,7 +128,7 @@ exports.register = async (req, res, next) => {
       customer = await prisma.customer.create({
         data: {
           name: cleanName,
-          primaryPhone: cleanPhone,
+          primaryPhone: normalizedPhone,
           email: cleanEmail,
           password: hashedPassword,
           address: address ? address.trim() : null
@@ -122,7 +136,7 @@ exports.register = async (req, res, next) => {
       });
     }
 
-    // Issue JWT token
+    // Issue JWT token with role 'CUSTOMER'
     const token = jwt.sign(
       {
         id: customer.id,
@@ -167,36 +181,60 @@ exports.login = async (req, res, next) => {
     if (!identifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Email / Phone and Password are required.'
+        message: 'Phone number or email, and password are required.'
       });
     }
 
     const cleanIdentifier = identifier.trim();
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown-ip';
+    const rateLimitKey = `cust_login:${clientIp}:${cleanIdentifier.toLowerCase()}`;
 
-    // Look up by email or phone
+    // Rate limiting: 5 failed attempts per 15 minutes window
+    const rateStatus = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
+    if (rateStatus.isBlocked) {
+      return res.status(429).json({
+        success: false,
+        message: `Too many failed login attempts. Please try again in ${rateStatus.retryAfterSeconds} seconds.`
+      });
+    }
+
+    // Phone search variants
+    const phoneVariants = getPhoneSearchVariants(cleanIdentifier);
+    const searchConditions = [
+      { email: cleanIdentifier.toLowerCase() }
+    ];
+    if (phoneVariants.length > 0) {
+      searchConditions.push({ primaryPhone: { in: phoneVariants } });
+    } else {
+      searchConditions.push({ primaryPhone: cleanIdentifier });
+    }
+
+    // Look up customer
     const customer = await prisma.customer.findFirst({
       where: {
-        OR: [
-          { email: cleanIdentifier.toLowerCase() },
-          { primaryPhone: cleanIdentifier }
-        ]
+        OR: searchConditions
       }
     });
 
     if (!customer || !customer.password) {
+      recordFailedAttempt(rateLimitKey);
       return res.status(401).json({
         success: false,
-        message: 'Invalid email/phone or password.'
+        message: 'Invalid phone number / email or password.'
       });
     }
 
     const isMatch = await bcrypt.compare(password, customer.password);
     if (!isMatch) {
+      recordFailedAttempt(rateLimitKey);
       return res.status(401).json({
         success: false,
-        message: 'Invalid email/phone or password.'
+        message: 'Invalid phone number / email or password.'
       });
     }
+
+    // Successful login: reset failed attempts
+    resetRateLimit(rateLimitKey);
 
     const token = jwt.sign(
       {
@@ -222,7 +260,8 @@ exports.login = async (req, res, next) => {
           email: customer.email,
           primaryPhone: customer.primaryPhone,
           alternativePhone: customer.alternativePhone,
-          address: customer.address
+          address: customer.address,
+          profilePhoto: customer.profilePhoto
         }
       }
     });
@@ -331,25 +370,26 @@ exports.sendOtp = async (req, res, next) => {
   try {
     const { identifier } = req.body;
 
-    if (!identifier) {
-      return res.status(400).json({ success: false, message: 'Email / Phone is required.' });
+    if (!identifier || !identifier.trim()) {
+      return res.status(400).json({ success: false, message: 'Email or phone number is required.' });
     }
 
-    const cleanIdentifier = identifier.trim().toLowerCase();
+    const rawId = identifier.trim();
+    const phoneVariants = getPhoneSearchVariants(rawId);
+    const searchConditions = [{ email: rawId.toLowerCase() }];
+    if (phoneVariants.length > 0) {
+      searchConditions.push({ primaryPhone: { in: phoneVariants } });
+    }
 
-    // Check if customer exists (but DO NOT reveal to user if they don't)
+    // Look up customer
     const customer = await prisma.customer.findFirst({
-      where: {
-        OR: [
-          { email: cleanIdentifier },
-          { primaryPhone: cleanIdentifier }
-        ]
-      }
+      where: { OR: searchConditions }
     });
 
-    // Check rate limit using Prisma CustomerOtp
+    // Rate limit check using CustomerOtp
+    const otpKey = customer?.email ? customer.email.toLowerCase() : rawId.toLowerCase();
     const existingOtp = await prisma.customerOtp.findUnique({
-      where: { identifier: cleanIdentifier }
+      where: { identifier: otpKey }
     });
 
     if (existingOtp) {
@@ -359,60 +399,84 @@ exports.sendOtp = async (req, res, next) => {
       }
     }
 
-    // Always respond with success to prevent enumeration
+    // If customer doesn't exist, simulate fake delay to prevent enumeration
     if (!customer) {
-      // Simulate fake processing time to deter timing attacks
       await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 500));
-      return res.status(200).json({ success: true, message: 'If an account exists with this email, an OTP has been sent.' });
+      return res.status(200).json({
+        success: true,
+        message: 'If a matching account with email recovery exists, an OTP has been sent.'
+      });
     }
 
-    // Generate a secure 6-digit OTP
-    const otp = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    const otpHash = await bcrypt.hash(otp, 10);
+    // Check if customer has an email address
+    if (customer.email) {
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      const otpHash = await bcrypt.hash(otp, 10);
 
-    // Upsert into DB
-    await prisma.customerOtp.upsert({
-      where: { identifier: cleanIdentifier },
-      update: {
-        otpHash,
-        attempts: 0,
-        lastSentAt: new Date(),
-        expiresAt
-      },
-      create: {
-        identifier: cleanIdentifier,
-        otpHash,
-        expiresAt
-      }
-    });
-
-    // Brevo SMTP configuration
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-      port: process.env.SMTP_PORT || 587,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
-
-    try {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: cleanIdentifier,
-        subject: 'Bella Design - Password Reset OTP',
-        text: `Your OTP for password reset is: ${otp}\n\nThis OTP is valid for 5 minutes. Do not share this with anyone.`
+      await prisma.customerOtp.upsert({
+        where: { identifier: customer.email.toLowerCase() },
+        update: {
+          otpHash,
+          attempts: 0,
+          lastSentAt: new Date(),
+          expiresAt
+        },
+        create: {
+          identifier: customer.email.toLowerCase(),
+          otpHash,
+          expiresAt
+        }
       });
-      return res.status(200).json({ success: true, message: 'If an account exists with this email, an OTP has been sent.' });
-    } catch (mailErr) {
-      // Intentionally not logging the exact error to stdout in prod, just a generic one
-      console.error('SMTP Delivery Error');
-      return res.status(500).json({ success: false, message: 'Error sending email. Please try again later.' });
+
+      // Brevo SMTP configuration
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+        port: process.env.SMTP_PORT || 587,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: customer.email,
+          subject: 'Bella Design - Password Reset OTP',
+          text: `Your OTP for password reset is: ${otp}\n\nThis OTP is valid for 5 minutes. Do not share this with anyone.`
+        });
+
+        // Mask email for response (e.g. j***n@example.com)
+        const parts = customer.email.split('@');
+        const masked = parts[0].length > 2
+          ? `${parts[0][0]}***${parts[0].slice(-1)}@${parts[1]}`
+          : `${parts[0][0]}***@${parts[1]}`;
+
+        return res.status(200).json({
+          success: true,
+          message: `Password reset OTP has been sent to your registered email (${masked}).`,
+          destination: 'email',
+          maskedEmail: masked
+        });
+      } catch (mailErr) {
+        console.error('SMTP Delivery Error:', mailErr.message);
+        return res.status(500).json({ success: false, message: 'Error sending email. Please try again later.' });
+      }
+    } else {
+      // Customer has NO email registered
+      const hasSmsConfig = Boolean(process.env.SMS_API_KEY || process.env.SMS_GATEWAY_URL || process.env.TWILIO_ACCOUNT_SID);
+      if (!hasSmsConfig) {
+        return res.status(400).json({
+          success: false,
+          requiresStaffAssistance: true,
+          message: 'This account does not have a registered email address, and SMS OTP recovery is not currently configured on the system. Please visit Bella Design or contact our store staff to reset or update your portal account.'
+        });
+      }
     }
 
   } catch (error) {
-    console.error('Customer sendOtp error');
+    console.error('Customer sendOtp error:', error);
     return res.status(500).json({ success: false, message: 'Server error processing request.' });
   }
 };
@@ -432,10 +496,23 @@ exports.forgotPassword = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
     }
 
-    const cleanIdentifier = identifier.trim().toLowerCase();
+    const rawId = identifier.trim().toLowerCase();
+    const phoneVariants = getPhoneSearchVariants(rawId);
 
-    const otpRecord = await prisma.customerOtp.findUnique({
-      where: { identifier: cleanIdentifier }
+    const searchConditions = [{ email: rawId }];
+    if (phoneVariants.length > 0) {
+      searchConditions.push({ primaryPhone: { in: phoneVariants } });
+    }
+    const customer = await prisma.customer.findFirst({
+      where: { OR: searchConditions }
+    });
+
+    const otpLookups = [rawId];
+    if (customer?.email) otpLookups.push(customer.email.toLowerCase());
+    if (customer?.primaryPhone) otpLookups.push(customer.primaryPhone);
+
+    const otpRecord = await prisma.customerOtp.findFirst({
+      where: { identifier: { in: otpLookups } }
     });
 
     if (!otpRecord) {
@@ -443,33 +520,23 @@ exports.forgotPassword = async (req, res, next) => {
     }
 
     if (otpRecord.attempts >= 3) {
-      await prisma.customerOtp.delete({ where: { identifier: cleanIdentifier } });
+      await prisma.customerOtp.delete({ where: { id: otpRecord.id } });
       return res.status(400).json({ success: false, message: 'Too many failed attempts. Please request a new OTP.' });
     }
 
     if (Date.now() > new Date(otpRecord.expiresAt).getTime()) {
-      await prisma.customerOtp.delete({ where: { identifier: cleanIdentifier } });
+      await prisma.customerOtp.delete({ where: { id: otpRecord.id } });
       return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
     }
 
     const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
     if (!isMatch) {
       await prisma.customerOtp.update({
-        where: { identifier: cleanIdentifier },
+        where: { id: otpRecord.id },
         data: { attempts: { increment: 1 } }
       });
       return res.status(400).json({ success: false, message: 'Invalid OTP.' });
     }
-
-    // OTP Verified! Now update password.
-    const customer = await prisma.customer.findFirst({
-      where: {
-        OR: [
-          { email: cleanIdentifier },
-          { primaryPhone: cleanIdentifier }
-        ]
-      }
-    });
 
     if (!customer) {
       return res.status(400).json({ success: false, message: 'Account not found.' });
@@ -483,13 +550,80 @@ exports.forgotPassword = async (req, res, next) => {
     });
 
     // Delete OTP securely after successful reset
-    await prisma.customerOtp.delete({ where: { identifier: cleanIdentifier } });
+    await prisma.customerOtp.delete({ where: { id: otpRecord.id } });
 
-    return res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in with your new password.' });
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successfully. You can now log in with your new password.'
+    });
 
   } catch (error) {
-    console.error('Customer forgotPassword error');
+    console.error('Customer forgotPassword error:', error);
     return res.status(500).json({ success: false, message: 'Server error resetting password.' });
+  }
+};
+
+/**
+ * 7. Change Password (Authenticated Customer)
+ */
+exports.changePassword = async (req, res, next) => {
+  try {
+    const customerId = req.user?.id;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long.'
+      });
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirm password do not match.'
+      });
+    }
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer account not found.' });
+    }
+
+    if (customer.password) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required.'
+        });
+      }
+      const isMatch = await bcrypt.compare(currentPassword, customer.password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Current password is incorrect.'
+        });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: { password: hashedPassword }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully.'
+    });
+
+  } catch (error) {
+    console.error('Customer changePassword error:', error);
+    return res.status(500).json({ success: false, message: 'Server error changing password.' });
   }
 };
 
@@ -613,7 +747,7 @@ exports.createCustomerOrder = async (req, res, next) => {
       if (customerDetails.alternativePhone !== undefined) updateData.alternativePhone = customerDetails.alternativePhone ? customerDetails.alternativePhone.trim() : null;
       if (customerDetails.address !== undefined) updateData.address = customerDetails.address ? customerDetails.address.trim() : null;
       if (customerDetails.profilePhoto) updateData.profilePhoto = customerDetails.profilePhoto;
-      
+
       if (Object.keys(updateData).length > 0) {
         await prisma.customer.update({
           where: { id: customerId },
@@ -1017,4 +1151,3 @@ exports.uploadPaymentSlip = async (req, res, next) => {
     res.status(500).json({ success: false, message: 'Server error uploading payment slip.', error: error.message });
   }
 };
-

@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Search, Bell, Sun, Moon, MapPin, ChevronDown, LogIn, Menu, Calendar, Clock, CheckCircle2 } from 'lucide-react';
-import { API_URL } from '../config/api';
+import { Search, Bell, Sun, Moon, MapPin, LogIn, Menu, Calendar, CheckCircle2 } from 'lucide-react';
 
 export const TopHeader = () => {
-  const { user, activeBranch, setActiveBranch, theme, toggleTheme, setIsLoginOpen, isMobileMenuOpen, setIsMobileMenuOpen, setActiveTab } = useAuth();
+  const {
+    user,
+    activeBranch,
+    setActiveBranch,
+    theme,
+    toggleTheme,
+    setIsLoginOpen,
+    setIsMobileMenuOpen,
+    setActiveTab,
+    pendingOrders = []
+  } = useAuth();
 
   const userRole = (user?.role || '').toUpperCase();
   const canSwitchBranch = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(userRole);
@@ -22,36 +31,8 @@ export const TopHeader = () => {
     year: 'numeric'
   });
 
-  const [pendingOrders, setPendingOrders] = useState([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const alertsRef = useRef(null);
-
-  const isManagement = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(userRole);
-
-  useEffect(() => {
-    if (!isManagement) return;
-
-    const fetchPendingOrders = async () => {
-      try {
-        const token = localStorage.getItem('jb_token');
-        if (!token) return;
-        const res = await fetch(`${API_URL}/api/orders`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.orders)) {
-          const pending = data.orders.filter(o => o.status === 'PENDING_APPROVAL');
-          setPendingOrders(pending);
-        }
-      } catch (e) {
-        // quiet
-      }
-    };
-
-    fetchPendingOrders();
-    const interval = setInterval(fetchPendingOrders, 10000);
-    return () => clearInterval(interval);
-  }, [isManagement]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

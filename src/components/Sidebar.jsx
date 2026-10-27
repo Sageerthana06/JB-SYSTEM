@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission, ROLE_LABELS, MODULE_PERMISSIONS } from '../utils/permissions';
-import { API_URL } from '../config/api';
 import {
   LayoutDashboard,
   ShoppingCart,
   Scissors,
   Users,
-  UserCheck,
   Package,
   DollarSign,
   CreditCard,
@@ -19,37 +17,23 @@ import {
   FileSpreadsheet,
   Award,
   LogOut,
+  ShieldCheck,
   X
 } from 'lucide-react';
 
 export const Sidebar = () => {
-  const { activeTab, setActiveTab, user, logout, isMobileMenuOpen, setIsMobileMenuOpen } = useAuth();
+  const {
+    activeTab,
+    setActiveTab,
+    user,
+    logout,
+    isMobileMenuOpen,
+    setIsMobileMenuOpen,
+    pendingApprovalsCount = 0
+  } = useAuth();
 
   const role = user?.role || null;
-  const [pendingApprovals, setPendingApprovals] = useState(0);
-
-  useEffect(() => {
-    if (!['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(role)) return;
-
-    const checkPending = async () => {
-      try {
-        const token = localStorage.getItem('jb_token');
-        if (!token) return;
-        const res = await fetch(`${API_URL}/api/orders`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.orders)) {
-          const count = data.orders.filter(o => o.status === 'PENDING_APPROVAL').length;
-          setPendingApprovals(count);
-        }
-      } catch (e) {}
-    };
-
-    checkPending();
-    const interval = setInterval(checkPending, 10000);
-    return () => clearInterval(interval);
-  }, [role]);
+  const pendingApprovals = pendingApprovalsCount;
 
   const allNavGroups = [
     {
@@ -71,13 +55,14 @@ export const Sidebar = () => {
     {
       title: 'FINANCE & PAYROLL',
       items: [
-        { id: 'payroll',     label: 'Salary & Payroll ERP',  icon: CreditCard },
+        { id: 'payroll',     label: 'Weekly Tailor Salary',  icon: CreditCard, badge: 'ERP' },
         { id: 'finance',     label: 'Finance',               icon: DollarSign }
       ]
     },
     {
       title: 'ORGANIZATION',
       items: [
+        { id: 'users',       label: 'User Management',       icon: ShieldCheck },
         { id: 'marketing',   label: 'Customer Enquiries',    icon: Share2 },
         { id: 'branches',    label: 'Branch Reports',        icon: Building }
       ]

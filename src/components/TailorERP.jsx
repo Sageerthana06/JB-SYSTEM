@@ -15,7 +15,8 @@ import {
   LogOut,
   XCircle,
   ShieldCheck,
-  Users
+  Layers,
+  Activity
 } from 'lucide-react';
 import { CeoAttendanceCenter } from './CeoAttendanceCenter';
 import { SelfAttendanceCard } from './SelfAttendanceCard';
@@ -31,10 +32,11 @@ export const TailorERP = () => {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [attendanceFeedback, setAttendanceFeedback] = useState(null);
   const [activeTab, setActiveTab] = useState('performance'); // 'performance' | 'attendance'
+  const [productionView, setProductionView] = useState('all'); // 'all' | 'cutting' | 'stitching'
+  const [modalFilter, setModalFilter] = useState('all'); // 'all' | 'active' | 'completed' | 'cutting' | 'stitching'
 
   // Permissions: CEO (SUPER_ADMIN), ADMIN & MANAGER can view & mark; TAILOR/STAFF are view-only
   const canMarkAttendance = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role);
-  const isTailor = user?.role === 'TAILOR';
   // Only privileged roles may see company-wide attendance (prevents 403 for TAILOR/STAFF)
   const canViewCompanyAttendance = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role);
 
@@ -48,6 +50,18 @@ export const TailorERP = () => {
       return '—';
     }
   };
+
+  const formatDateTime = (isoString) => {
+    if (!isoString) return '—';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '—';
+      return `${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    } catch {
+      return '—';
+    }
+  };
+
 
   const handleMarkPresent = async (tailorId) => {
     if (!canMarkAttendance) return;
@@ -165,18 +179,109 @@ export const TailorERP = () => {
     fetchTailorPerformance();
   }, [activeBranch]);
 
+  // Helper to extract view-specific metrics
+  const getWorkerMetrics = (tailor, view) => {
+    if (!tailor) return {};
+    if (view === 'cutting') {
+      const cut = tailor.cutting || {};
+      return {
+        roleTitle: 'Cutting Master',
+        assignedGarments: cut.assignedGarments || 0,
+        assignedTasks: cut.assignedTasks || 0,
+        completedToday: cut.completedToday || 0,
+        completedMonth: cut.completedMonth || 0,
+        totalCompleted: cut.totalCompleted || 0,
+        activeWorkload: cut.activeWorkload || 0,
+        activeTasks: cut.activeTasks || 0,
+        completionRate: cut.completionRate ?? 0,
+        avgDurationFormatted: cut.avgDurationFormatted || '—',
+        avgDurationMinutes: cut.avgDurationMinutes || null
+      };
+    }
+    if (view === 'stitching') {
+      const stitch = tailor.stitching || {};
+      return {
+        roleTitle: 'Stitching Tailor',
+        assignedGarments: stitch.assignedGarments || 0,
+        assignedTasks: stitch.assignedTasks || 0,
+        completedToday: stitch.completedToday || 0,
+        completedMonth: stitch.completedMonth || 0,
+        totalCompleted: stitch.totalCompleted || 0,
+        activeWorkload: stitch.activeWorkload || 0,
+        activeTasks: stitch.activeTasks || 0,
+        completionRate: stitch.completionRate ?? 0,
+        avgDurationFormatted: stitch.avgDurationFormatted || '—',
+        avgDurationMinutes: stitch.avgDurationMinutes || null
+      };
+    }
+    return {
+      roleTitle: tailor.roleLabel || 'Craftsman / Tailor',
+      assignedGarments: tailor.garmentsAssigned || 0,
+      assignedTasks: tailor.tasksAssigned || 0,
+      completedToday: tailor.completedToday || 0,
+      completedMonth: tailor.completedMonth || 0,
+      totalCompleted: tailor.totalCompleted || 0,
+      activeWorkload: tailor.activeWorkload || 0,
+      activeTasks: tailor.activeTasksCount || 0,
+      completionRate: tailor.completionRate ?? 0,
+      avgDurationFormatted: tailor.avgDurationFormatted || '—',
+      avgDurationMinutes: tailor.avgDurationMinutes || null
+    };
+  };
+
   // Filter tailors based on active branch selection
-  const filteredTailors = tailors.filter((tailor) => {
+  const branchFilteredTailors = tailors.filter((tailor) => {
     if (!activeBranch || activeBranch === 'ALL') return true;
     const bName = (tailor.branch || '').toLowerCase();
     return bName.includes(activeBranch.toLowerCase());
   });
 
-  // Re-rank filtered view dynamically based on real numbers
-  const displayTailors = filteredTailors.map((t, index) => ({
+  // Filter candidates for current production stage view
+  const getWorkersForView = (workers, view) => {
+    if (view === 'cutting') {
+      const list = workers.filter(w => w.role === 'CUTTING' || (w.cutting && (w.cutting.assignedTasks > 0 || w.cutting.totalCompleted > 0 || w.cutting.activeWorkload > 0)));
+      return list.length > 0 ? list : workers;
+    }
+    if (view === 'stitching') {
+      const list = workers.filter(w => w.role === 'TAILOR' || (w.stitching && (w.stitching.assignedTasks > 0 || w.stitching.totalCompleted > 0 || w.stitching.activeWorkload > 0)));
+      return list.length > 0 ? list : workers;
+    }
+    return workers;
+  };
+
+  const candidateTailors = getWorkersForView(branchFilteredTailors, productionView);
+
+  // Dynamic ranking based on the active view's real numbers
+  const sortedTailors = [...candidateTailors].sort((a, b) => {
+    const aMet = getWorkerMetrics(a, productionView);
+    const bMet = getWorkerMetrics(b, productionView);
+    if (bMet.completedMonth !== aMet.completedMonth) return bMet.completedMonth - aMet.completedMonth;
+    if (bMet.completedToday !== aMet.completedToday) return bMet.completedToday - aMet.completedToday;
+    if (bMet.activeWorkload !== aMet.activeWorkload) return bMet.activeWorkload - aMet.activeWorkload;
+    if (bMet.completionRate !== aMet.completionRate) return bMet.completionRate - aMet.completionRate;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  const displayTailors = sortedTailors.map((t, index) => ({
     ...t,
     rank: index + 1
   }));
+
+  // Live selected tailor details & filtered tasks for details modal
+  const currentTailor = tailors.find(t => t.id === selectedTailor?.id) || selectedTailor;
+  const tailorAllTasks = currentTailor?.allTasks || [];
+  const activeTasksCount = tailorAllTasks.filter(t => t.isTaskActive).length;
+  const completedTasksCount = tailorAllTasks.filter(t => t.isTaskCompleted).length;
+  const cuttingTasksCount = tailorAllTasks.filter(t => t.taskType === 'CUTTING').length;
+  const stitchingTasksCount = tailorAllTasks.filter(t => t.taskType === 'STITCHING').length;
+
+  const displayedTasks = tailorAllTasks.filter(task => {
+    if (modalFilter === 'active') return task.isTaskActive;
+    if (modalFilter === 'completed') return task.isTaskCompleted;
+    if (modalFilter === 'cutting') return task.taskType === 'CUTTING';
+    if (modalFilter === 'stitching') return task.taskType === 'STITCHING';
+    return true;
+  });
 
   // Helper for generating initials for neutral avatar
   const getInitials = (name = '') => {
@@ -344,6 +449,99 @@ export const TailorERP = () => {
       {/* Tailor Performance View */}
       {activeTab === 'performance' && (
         <>
+      {/* 3-Way Production Stage Switcher (All Production | Cutting Master | Stitching Tailor) */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px',
+        backgroundColor: 'var(--bg-card)',
+        padding: '12px 16px',
+        borderRadius: '10px',
+        border: '1px solid var(--border-color)',
+        marginBottom: '20px',
+        boxShadow: 'var(--shadow-card)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Production View:
+          </span>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setProductionView('all')}
+              style={{
+                padding: '7px 16px',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: productionView === 'all' ? '2px solid #0a192f' : '1px solid var(--border-color)',
+                backgroundColor: productionView === 'all' ? '#0a192f' : 'transparent',
+                color: productionView === 'all' ? '#ffffff' : 'var(--text-main)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Layers size={15} /> All Production
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setProductionView('cutting')}
+              style={{
+                padding: '7px 16px',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: productionView === 'cutting' ? '2px solid #0284c7' : '1px solid var(--border-color)',
+                backgroundColor: productionView === 'cutting' ? '#0284c7' : 'transparent',
+                color: productionView === 'cutting' ? '#ffffff' : 'var(--text-main)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Scissors size={15} /> Cutting Master Performance
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setProductionView('stitching')}
+              style={{
+                padding: '7px 16px',
+                borderRadius: '8px',
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: productionView === 'stitching' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                backgroundColor: productionView === 'stitching' ? '#10b981' : 'transparent',
+                color: productionView === 'stitching' ? '#ffffff' : 'var(--text-main)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Activity size={15} /> Stitching Tailor Performance
+            </button>
+          </div>
+        </div>
+
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+          {productionView === 'cutting'
+            ? 'Tracking fabric cutting throughput, patterns, and cutting master metrics.'
+            : productionView === 'stitching'
+            ? 'Tracking sewing assembly throughput, stitching, and tailor metrics.'
+            : 'Combined cutting and stitching production statistics across all craftsmen.'}
+        </div>
+      </div>
+
       {/* Loading State */}
       {loading && (
         <div className="card" style={{ padding: '48px', textAlign: 'center', marginBottom: '24px' }}>
@@ -385,12 +583,12 @@ export const TailorERP = () => {
             <Scissors size={28} />
           </div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '8px' }}>
-            No real tailor performance data available yet.
+            No verified {productionView === 'cutting' ? 'cutting master' : productionView === 'stitching' ? 'stitching tailor' : 'craftsman'} performance data available.
           </h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto 20px auto' }}>
             {activeBranch !== 'ALL'
-              ? `No active tailor records or completed garments found for ${activeBranch}. Switch to "All Branches" or assign tailors to orders.`
-              : 'No active tailor records or production assignments found in the database. When orders are assigned and completed by tailors, their productivity rankings will appear here automatically.'}
+              ? `No active task assignments or completed garments found for ${activeBranch}. Switch to "All Branches" or assign tasks to craftsmen.`
+              : 'When production tasks are assigned and completed in the production workflow, their verified output rankings will appear here automatically.'}
           </p>
           <button className="btn-secondary" onClick={fetchTailorPerformance}>
             <RefreshCw size={14} /> Refresh Roster
@@ -402,12 +600,13 @@ export const TailorERP = () => {
       {!loading && !error && displayTailors.length > 0 && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
           gap: '18px',
           marginBottom: '28px'
         }}>
           {displayTailors.slice(0, 3).map((tailor) => {
             const isRank1 = tailor.rank === 1;
+            const metrics = getWorkerMetrics(tailor, productionView);
             return (
               <div
                 key={tailor.id}
@@ -461,7 +660,7 @@ export const TailorERP = () => {
                       {tailor.name}
                     </h3>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {tailor.roleLabel || 'Craftsman / Tailor'}
+                      {metrics.roleTitle}
                     </p>
                     <span className="badge badge-navy" style={{ fontSize: '0.7rem', marginTop: '4px' }}>
                       {tailor.branch}
@@ -481,23 +680,29 @@ export const TailorERP = () => {
                 }}>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
-                      Dresses Completed
+                      Garments Completed
                     </span>
                     <div style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                      {tailor.completedToday} Today / {tailor.completedMonth} Month
+                      {metrics.completedToday} Today / {metrics.completedMonth} Month
                     </div>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      {metrics.totalCompleted} Total Garments
+                    </span>
                   </div>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>
                       Active Workload
                     </span>
                     <div style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--jb-crimson)' }}>
-                      {tailor.activeWorkload} Garments
+                      {metrics.activeWorkload} Garments
                     </div>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      {metrics.activeTasks} Active Tasks
+                    </span>
                   </div>
                 </div>
 
-                {/* Unrecorded Metrics Footnote */}
+                {/* Performance Footnote & Efficiency */}
                 <div style={{
                   backgroundColor: 'var(--bg-main)',
                   borderRadius: '8px',
@@ -507,12 +712,16 @@ export const TailorERP = () => {
                   marginBottom: '14px'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span>Commission:</span>
-                    <span style={{ fontStyle: 'italic', fontWeight: 600 }}>No data recorded</span>
+                    <span>Completion Rate:</span>
+                    <span style={{ fontWeight: 700, color: metrics.completionRate >= 80 ? 'var(--status-success)' : 'var(--text-main)' }}>
+                      {metrics.completionRate}%
+                    </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span>Quality Rating:</span>
-                    <span style={{ fontStyle: 'italic', fontWeight: 600 }}>No data recorded</span>
+                    <span>Avg Duration:</span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                      {metrics.avgDurationFormatted}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Attendance:</span>
@@ -556,10 +765,14 @@ export const TailorERP = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
             <div>
               <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                All Tailor Productivity & Production Roster
+                {productionView === 'cutting'
+                  ? 'Cutting Master Production Roster'
+                  : productionView === 'stitching'
+                  ? 'Stitching Tailor Production Roster'
+                  : 'All Craftsman Production & Productivity Roster'}
               </h4>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Showing {displayTailors.length} verified craftsman record{displayTailors.length === 1 ? '' : 's'} from database.
+                Showing {displayTailors.length} verified record{displayTailors.length === 1 ? '' : 's'} calculated from live task assignments.
               </p>
             </div>
           </div>
@@ -571,97 +784,111 @@ export const TailorERP = () => {
                   <th style={{ padding: '12px 16px' }}>Rank</th>
                   <th style={{ padding: '12px 16px' }}>Craftsman</th>
                   <th style={{ padding: '12px 16px' }}>Branch</th>
-                  <th style={{ padding: '12px 16px' }}>Dresses Today</th>
+                  <th style={{ padding: '12px 16px' }}>Assigned Garments (Tasks)</th>
+                  <th style={{ padding: '12px 16px' }}>Completed Today</th>
                   <th style={{ padding: '12px 16px' }}>Monthly Total</th>
-                  <th style={{ padding: '12px 16px' }}>Working Hours</th>
-                  <th style={{ padding: '12px 16px' }}>Attendance</th>
-                  <th style={{ padding: '12px 16px' }}>Commission</th>
                   <th style={{ padding: '12px 16px', textAlign: 'center' }}>Active Workload</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'center' }}>Completion Rate</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'center' }}>Avg Duration</th>
+                  <th style={{ padding: '12px 16px' }}>Attendance</th>
                   <th style={{ padding: '12px 16px', textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {displayTailors.map((t) => (
-                  <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 900, color: t.rank === 1 ? 'var(--jb-crimson)' : 'var(--text-main)' }}>
-                      #{t.rank}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '50%',
-                          backgroundColor: 'var(--jb-navy)',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 800,
-                          fontSize: '0.8rem',
-                          flexShrink: 0
-                        }}>
-                          {getInitials(t.name)}
-                        </div>
-                        <div>
-                          <div>{t.name}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                            {t.roleLabel || t.role}
+                {displayTailors.map((t) => {
+                  const metrics = getWorkerMetrics(t, productionView);
+                  return (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 900, color: t.rank === 1 ? 'var(--jb-crimson)' : 'var(--text-main)' }}>
+                        #{t.rank}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--jb-navy)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            flexShrink: 0
+                          }}>
+                            {getInitials(t.name)}
+                          </div>
+                          <div>
+                            <div>{t.name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                              {metrics.roleTitle}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className="badge badge-navy">{t.branch}</span>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {t.completedToday} Units
-                    </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {t.completedMonth} Units
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      No data recorded
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      {t.todayAttendance?.status === 'Present' ? (
-                        <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <CheckCircle size={12} /> Present
-                          {t.todayAttendance.checkIn && (
-                            <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>
-                              ({formatTime(t.todayAttendance.checkIn)})
-                            </span>
-                          )}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span className="badge badge-navy">{t.branch}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text-main)' }}>
+                        <strong>{metrics.assignedGarments}</strong> Garments{' '}
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          ({metrics.assignedTasks} Tasks)
                         </span>
-                      ) : t.todayAttendance?.status === 'Absent' ? (
-                        <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <XCircle size={12} /> Absent
+                      </td>
+                      <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
+                        {metrics.completedToday} Garments
+                      </td>
+                      <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-main)' }}>
+                        {metrics.completedMonth} Garments
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <span className={metrics.activeWorkload > 0 ? 'badge badge-warning' : 'badge badge-navy'}>
+                          {metrics.activeWorkload} Garments ({metrics.activeTasks} Tasks)
                         </span>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          Not Marked
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 700 }}>
+                        <span style={{
+                          color: metrics.completionRate >= 80 ? 'var(--status-success)' : metrics.completionRate >= 50 ? 'var(--text-main)' : 'var(--text-muted)'
+                        }}>
+                          {metrics.completionRate}%
                         </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      No data recorded
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <span className={t.activeWorkload > 0 ? 'badge badge-warning' : 'badge badge-navy'}>
-                        {t.activeWorkload} Active Garments
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <button
-                        className="btn-secondary"
-                        style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                        onClick={() => setSelectedTailor(t)}
-                      >
-                        <UserCheck size={13} /> View Tailor
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        {metrics.avgDurationFormatted}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {t.todayAttendance?.status === 'Present' ? (
+                          <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle size={12} /> Present
+                            {t.todayAttendance.checkIn && (
+                              <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>
+                                ({formatTime(t.todayAttendance.checkIn)})
+                              </span>
+                            )}
+                          </span>
+                        ) : t.todayAttendance?.status === 'Absent' ? (
+                          <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <XCircle size={12} /> Absent
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            Not Marked
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <button
+                          className="btn-secondary"
+                          style={{ padding: '5px 12px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          onClick={() => setSelectedTailor(t)}
+                        >
+                          <UserCheck size={13} /> View Tailor
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -686,7 +913,7 @@ export const TailorERP = () => {
           zIndex: 1000,
           padding: '20px'
         }}>
-          <div className="card" style={{ maxWidth: '680px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card" style={{ maxWidth: '960px', width: '100%', maxHeight: '92vh', overflowY: 'auto' }}>
             {/* Modal Header */}
             <div style={{
               display: 'flex',
@@ -710,23 +937,23 @@ export const TailorERP = () => {
                   fontSize: '1.1rem',
                   border: '2px solid var(--border-color)'
                 }}>
-                  {getInitials(selectedTailor.name)}
+                  {getInitials(currentTailor.name)}
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                      {selectedTailor.name}
+                      {currentTailor.name}
                     </h3>
                     <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
-                      Grade {selectedTailor.productivityGrade}
+                      Grade {currentTailor.productivityGrade}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {selectedTailor.roleLabel || selectedTailor.role}
+                      {currentTailor.roleLabel || currentTailor.role}
                     </span>
                     <span className="badge badge-navy" style={{ fontSize: '0.65rem' }}>
-                      {selectedTailor.branch}
+                      {currentTailor.branch}
                     </span>
                   </div>
                 </div>
@@ -762,6 +989,132 @@ export const TailorERP = () => {
                 <span>{attendanceFeedback.message}</span>
               </div>
             )}
+
+            {/* Craftsman Performance Breakdown Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '12px',
+              marginBottom: '20px'
+            }}>
+              {/* All Production Overview Card */}
+              <div style={{
+                backgroundColor: 'var(--bg-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '14px',
+                borderTop: '3px solid #0a192f'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Layers size={14} /> Total Production
+                  </span>
+                  <span className="badge badge-navy" style={{ fontSize: '0.65rem' }}>Combined</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Assigned</span>
+                    <strong>{currentTailor.garmentsAssigned || 0} Garments</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({currentTailor.tasksAssigned || 0} Tasks)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Completed</span>
+                    <strong>{currentTailor.completedToday || 0} Today</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{currentTailor.completedMonth || 0} Month ({currentTailor.totalCompleted || 0} Total)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Active Workload</span>
+                    <strong style={{ color: 'var(--jb-crimson)' }}>{currentTailor.activeWorkload || 0} Garments</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({currentTailor.activeTasksCount || 0} Active Tasks)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Rate / Avg Time</span>
+                    <strong style={{ color: (currentTailor.completionRate || 0) >= 80 ? 'var(--status-success)' : 'var(--text-main)' }}>{currentTailor.completionRate || 0}%</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{currentTailor.avgDurationFormatted || '—'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cutting Master Card */}
+              <div style={{
+                backgroundColor: 'var(--bg-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '14px',
+                borderTop: '3px solid #0284c7'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Scissors size={14} style={{ color: '#0284c7' }} /> Cutting Workload
+                  </span>
+                  <span style={{ fontSize: '0.65rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                    Cutting Master
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Assigned</span>
+                    <strong>{currentTailor.cutting?.assignedGarments || 0} Garments</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({currentTailor.cutting?.assignedTasks || 0} Tasks)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Completed</span>
+                    <strong>{currentTailor.cutting?.completedToday || 0} Today</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{currentTailor.cutting?.completedMonth || 0} Month ({currentTailor.cutting?.totalCompleted || 0} Total)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Active Workload</span>
+                    <strong style={{ color: 'var(--jb-crimson)' }}>{currentTailor.cutting?.activeWorkload || 0} Garments</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({currentTailor.cutting?.activeTasks || 0} Active Tasks)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Rate / Avg Time</span>
+                    <strong style={{ color: (currentTailor.cutting?.completionRate || 0) >= 80 ? 'var(--status-success)' : 'var(--text-main)' }}>{currentTailor.cutting?.completionRate || 0}%</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{currentTailor.cutting?.avgDurationFormatted || '—'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stitching Tailor Card */}
+              <div style={{
+                backgroundColor: 'var(--bg-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '14px',
+                borderTop: '3px solid #10b981'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Activity size={14} style={{ color: '#10b981' }} /> Stitching Workload
+                  </span>
+                  <span style={{ fontSize: '0.65rem', backgroundColor: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                    Stitching Tailor
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Assigned</span>
+                    <strong>{currentTailor.stitching?.assignedGarments || 0} Garments</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({currentTailor.stitching?.assignedTasks || 0} Tasks)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Completed</span>
+                    <strong>{currentTailor.stitching?.completedToday || 0} Today</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{currentTailor.stitching?.completedMonth || 0} Month ({currentTailor.stitching?.totalCompleted || 0} Total)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Active Workload</span>
+                    <strong style={{ color: 'var(--jb-crimson)' }}>{currentTailor.stitching?.activeWorkload || 0} Garments</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({currentTailor.stitching?.activeTasks || 0} Active Tasks)</div>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>Rate / Avg Time</span>
+                    <strong style={{ color: (currentTailor.stitching?.completionRate || 0) >= 80 ? 'var(--status-success)' : 'var(--text-main)' }}>{currentTailor.stitching?.completionRate || 0}%</strong>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{currentTailor.stitching?.avgDurationFormatted || '—'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* ======================================================== */}
             {/* TODAY'S ATTENDANCE CARD (Bordered Card)                   */}
@@ -923,7 +1276,7 @@ export const TailorERP = () => {
                           } else {
                             setAttendanceFeedback({ type: 'error', message: data.message || 'Failed to clock in.' });
                           }
-                        } catch (err) {
+                        } catch {
                           setAttendanceFeedback({ type: 'error', message: 'Network error clocking in.' });
                         } finally {
                           setAttendanceLoading(false);
@@ -971,7 +1324,7 @@ export const TailorERP = () => {
                           } else {
                             setAttendanceFeedback({ type: 'error', message: data.message || 'Failed to clock out.' });
                           }
-                        } catch (err) {
+                        } catch {
                           setAttendanceFeedback({ type: 'error', message: 'Network error clocking out.' });
                         } finally {
                           setAttendanceLoading(false);
@@ -1102,55 +1455,224 @@ export const TailorERP = () => {
               ) : null}
             </div>
 
-            {/* Active Production Orders Breakdown */}
-            <div>
+            {/* Craftsman Task History & Assignments Table */}
+            <div style={{ marginTop: '20px' }}>
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '12px'
+                marginBottom: '12px',
+                flexWrap: 'wrap',
+                gap: '8px'
               }}>
-                <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                  Active Production Orders
-                </h4>
-                <span className="badge badge-navy" style={{ fontSize: '0.75rem' }}>
-                  {selectedTailor.activeWorkload || 0} Garments In Progress
-                </span>
+                <div>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                    Craftsman Task History & Assignments
+                  </h4>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                    Verified order task assignments, start/completion dates, and durations from live production workflow.
+                  </p>
+                </div>
+
+                {/* Filter Tabs */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalFilter('all')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      border: modalFilter === 'all' ? '1.5px solid #0a192f' : '1px solid var(--border-color)',
+                      backgroundColor: modalFilter === 'all' ? '#0a192f' : 'var(--bg-main)',
+                      color: modalFilter === 'all' ? '#ffffff' : 'var(--text-main)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    All ({tailorAllTasks.length})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalFilter('active')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      border: modalFilter === 'active' ? '1.5px solid var(--jb-navy)' : '1px solid var(--border-color)',
+                      backgroundColor: modalFilter === 'active' ? 'var(--jb-navy)' : 'var(--bg-main)',
+                      color: modalFilter === 'active' ? '#ffffff' : 'var(--text-main)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Active ({activeTasksCount})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalFilter('completed')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      border: modalFilter === 'completed' ? '1.5px solid #10b981' : '1px solid var(--border-color)',
+                      backgroundColor: modalFilter === 'completed' ? '#10b981' : 'var(--bg-main)',
+                      color: modalFilter === 'completed' ? '#ffffff' : 'var(--text-main)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Completed ({completedTasksCount})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalFilter('cutting')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      border: modalFilter === 'cutting' ? '1.5px solid #0284c7' : '1px solid var(--border-color)',
+                      backgroundColor: modalFilter === 'cutting' ? '#0284c7' : 'var(--bg-main)',
+                      color: modalFilter === 'cutting' ? '#ffffff' : 'var(--text-main)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cutting ({cuttingTasksCount})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalFilter('stitching')}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.725rem',
+                      fontWeight: 700,
+                      border: modalFilter === 'stitching' ? '1.5px solid #059669' : '1px solid var(--border-color)',
+                      backgroundColor: modalFilter === 'stitching' ? '#059669' : 'var(--bg-main)',
+                      color: modalFilter === 'stitching' ? '#ffffff' : 'var(--text-main)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Stitching ({stitchingTasksCount})
+                  </button>
+                </div>
               </div>
 
-              {selectedTailor.activeOrders && selectedTailor.activeOrders.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
-                  {selectedTailor.activeOrders.map((ord) => (
-                    <div
-                      key={ord.id}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-main)',
-                        border: '1px solid var(--border-color)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                          {ord.orderNumber}
-                        </div>
-                        <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {ord.dressType} • Qty: {ord.quantity}
-                        </div>
-                      </div>
-                      <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
-                        {ord.status.replace(/_/g, ' ')}
-                      </span>
-                    </div>
-                  ))}
+              {displayedTasks.length > 0 ? (
+                <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px 12px' }}>Order #</th>
+                        <th style={{ padding: '10px 12px' }}>Garment / Customer</th>
+                        <th style={{ padding: '10px 12px' }}>Task Type</th>
+                        <th style={{ padding: '10px 12px' }}>Assigned Date</th>
+                        <th style={{ padding: '10px 12px' }}>Start Date</th>
+                        <th style={{ padding: '10px 12px' }}>Completion Date</th>
+                        <th style={{ padding: '10px 12px' }}>Duration</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedTasks.map((task) => (
+                        <tr key={task.taskId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 800, color: 'var(--text-main)' }}>
+                            {task.orderNumber}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{task.dressType}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                              {task.customerName} • <strong>Qty: {task.quantity}</strong>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {task.taskType === 'CUTTING' ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backgroundColor: '#e0f2fe',
+                                color: '#0369a1',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700
+                              }}>
+                                <Scissors size={12} /> Cutting
+                              </span>
+                            ) : task.taskType === 'STITCHING' ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backgroundColor: '#dcfce7',
+                                color: '#15803d',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700
+                              }}>
+                                <Activity size={12} /> Stitching
+                              </span>
+                            ) : (
+                              <span className="badge badge-navy" style={{ fontSize: '0.72rem' }}>
+                                {task.taskName || task.taskType}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
+                            {formatDateTime(task.assignedAt)}
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
+                            {task.startedAt ? formatDateTime(task.startedAt) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>
+                            {task.completedAt ? formatDateTime(task.completedAt) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            {task.durationFormatted}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            {task.status === 'COMPLETED' ? (
+                              <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>
+                                Completed
+                              </span>
+                            ) : task.status === 'IN_PROGRESS' ? (
+                              <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                                In Progress
+                              </span>
+                            ) : task.status === 'CANCELLED' ? (
+                              <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>
+                                Cancelled
+                              </span>
+                            ) : (
+                              <span className="badge badge-navy" style={{ fontSize: '0.7rem' }}>
+                                {task.status}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0', margin: 0 }}>
-                  No active orders currently assigned to this tailor.
-                </p>
+                <div style={{
+                  textAlign: 'center',
+                  padding: '28px',
+                  backgroundColor: 'var(--bg-main)',
+                  borderRadius: '8px',
+                  border: '1px dashed var(--border-color)',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.85rem'
+                }}>
+                  No {modalFilter !== 'all' ? modalFilter : ''} tasks recorded for this craftsman yet.
+                </div>
               )}
             </div>
 

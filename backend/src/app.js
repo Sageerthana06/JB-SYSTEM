@@ -10,6 +10,7 @@ const userRoutes = require('./routes/userRoutes');
 const customerPortalRoutes = require('./routes/customerPortalRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const salaryRoutes = require('./routes/salaryRoutes');
 
 const app = express();
 
@@ -19,8 +20,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve uploads statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -40,6 +41,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customer-portal', customerPortalRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/salary', salaryRoutes);
 
 app.use(errorHandler);
 

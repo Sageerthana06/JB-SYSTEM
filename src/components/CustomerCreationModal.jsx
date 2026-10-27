@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Mail, Phone, MapPin, Key, Loader } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { validatePhoneNumber, normalizePhoneNumber } from '../utils/phoneUtils';
 
 export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -11,35 +12,71 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
     password: '',
     address: ''
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   if (!isOpen) return null;
-  
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError(null);
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.primaryPhone || !formData.password) {
+    if (!formData.name.trim() || !formData.primaryPhone.trim() || !formData.password.trim()) {
       setError('Name, Primary Phone, and Password are required.');
       return;
     }
-    
+
+    const phoneVal = validatePhoneNumber(formData.primaryPhone);
+    if (!phoneVal.valid) {
+      setError(phoneVal.error || 'Please enter a valid primary phone number.');
+      return;
+    }
+
+    if (formData.alternativePhone && formData.alternativePhone.trim()) {
+      const altVal = validatePhoneNumber(formData.alternativePhone);
+      if (!altVal.valid) {
+        setError(altVal.error || 'Please enter a valid alternative phone number.');
+        return;
+      }
+    }
+
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setError('Please enter a valid email address.');
+        return;
+      }
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
     setLoading(true);
     try {
+      const payload = {
+        name: formData.name.trim(),
+        primaryPhone: normalizePhoneNumber(formData.primaryPhone) || formData.primaryPhone.trim(),
+        alternativePhone: formData.alternativePhone ? formData.alternativePhone.trim() : '',
+        email: formData.email ? formData.email.trim().toLowerCase() : '',
+        password: formData.password,
+        address: formData.address ? formData.address.trim() : ''
+      };
+
       const res = await fetch(`${API_URL}/api/customers/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
-      
+
       const data = await res.json();
       if (data.success) {
         onSuccess && onSuccess();
@@ -55,7 +92,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
       setLoading(false);
     }
   };
-  
+
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
       <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', width: '100%', maxWidth: '500px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
@@ -68,14 +105,14 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
             <X size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} style={{ padding: '24px' }} autoComplete="off">
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '8px', fontSize: '0.875rem', marginBottom: '20px', fontWeight: 600 }}>
               {error}
             </div>
           )}
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Full Name *</label>
@@ -84,7 +121,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
                 <input type="text" name="name" value={formData.name} onChange={handleChange} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }} placeholder="Customer Full Name" required />
               </div>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Primary Phone *</label>
@@ -101,7 +138,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
               </div>
             </div>
-            
+
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Email Address (Optional)</label>
               <div style={{ position: 'relative' }}>
@@ -118,7 +155,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
               <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Provide this password to the customer to log into the portal.</p>
             </div>
-            
+
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Physical Address (Optional)</label>
               <div style={{ position: 'relative' }}>
@@ -127,7 +164,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
             </div>
           </div>
-          
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
             <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: 700, cursor: 'pointer' }}>
               Cancel

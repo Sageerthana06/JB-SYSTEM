@@ -3,10 +3,8 @@ import {
   X,
   Printer,
   Download,
-  Share2,
   MessageCircle,
-  Image as ImageIcon,
-  CheckCircle2
+  Image as ImageIcon
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -85,7 +83,6 @@ export const DigitalInvoiceModal = ({ order, isOpen, onClose }) => {
   const invoiceRef = useRef(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingPng, setDownloadingPng] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
 
   if (!isOpen || !order) return null;
 

@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   AlertCircle
 } from 'lucide-react';
+import { validatePhoneNumber, normalizePhoneNumber } from '../../utils/phoneUtils';
 
 export const CustomerRegister = () => {
   const { customerRegister } = useAuth();
@@ -37,9 +38,23 @@ export const CustomerRegister = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.primaryPhone || !formData.email || !formData.password) {
-      setError('Please fill in all required fields.');
+    if (!formData.name.trim() || !formData.primaryPhone.trim() || !formData.password.trim()) {
+      setError('Please fill in your name, phone number, and password.');
       return;
+    }
+
+    const phoneVal = validatePhoneNumber(formData.primaryPhone);
+    if (!phoneVal.valid) {
+      setError(phoneVal.error || 'Please enter a valid phone number.');
+      return;
+    }
+
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setError('Please enter a valid email address.');
+        return;
+      }
     }
 
     if (formData.password.length < 6) {
@@ -50,7 +65,15 @@ export const CustomerRegister = () => {
     setLoading(true);
     setError('');
 
-    const res = await customerRegister(formData);
+    const payload = {
+      name: formData.name.trim(),
+      primaryPhone: normalizePhoneNumber(formData.primaryPhone) || formData.primaryPhone.trim(),
+      email: formData.email ? formData.email.trim().toLowerCase() : '',
+      password: formData.password,
+      address: formData.address ? formData.address.trim() : ''
+    };
+
+    const res = await customerRegister(payload);
     setLoading(false);
 
     if (res.success) {
@@ -207,7 +230,7 @@ export const CustomerRegister = () => {
           {/* Email */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '5px' }}>
-              Email Address *
+              Email Address (Optional)
             </label>
             <div style={{ position: 'relative' }}>
               <Mail size={18} color="#0052cc" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -216,8 +239,7 @@ export const CustomerRegister = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="e.g. priyanthi@example.com"
-                required
+                placeholder="e.g. priyanthi@example.com (optional)"
                 style={{
                   width: '100%',
                   padding: '12px 14px 12px 42px',

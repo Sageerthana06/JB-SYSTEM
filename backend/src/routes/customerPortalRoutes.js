@@ -22,4 +22,6 @@ router.post('/orders/:id/accept-price', authenticateToken, customerPortalControl
 router.post('/orders/:id/decline-price', authenticateToken, customerPortalController.declinePrice);
 router.post('/orders/:id/payment-slip', authenticateToken, handleMultipartUpload, customerPortalController.uploadPaymentSlip);
 
+router.put('/change-password', authenticateToken, customerPortalController.changePassword);
+
 module.exports = router;

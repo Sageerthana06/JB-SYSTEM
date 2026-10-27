@@ -1,3 +1,27 @@
+/**
+ * InventoryERP Component — JB GROUP / Bella Design ERP
+ *
+ * =========================================================================
+ * COMPONENT ROADMAP & ARCHITECTURE:
+ * =========================================================================
+ * This workstation manages raw materials, warehouse inventory, and tailoring supply.
+ *
+ * Major Sections & Sub-Tabs:
+ * 1. Materials Master ('items'):
+ *    - SKU catalog: Fabrics, lining, thread spools, zippers, buttons, embellishments
+ *    - Reorder levels, minimum stock alerts, and unit pricing
+ * 2. Stock Movements Ledger ('ledger'):
+ *    - Manual adjustments: STOCK_IN, RETURN, ISSUE, WASTAGE, DAMAGED
+ * 3. Tailor Material Requests ('requests'):
+ *    - Tailors request supplies for specific orders; warehouse staff issues materials
+ * 4. Purchase Orders & GRN ('purchases'):
+ *    - Requisitions, manager approval, and verified goods received notes (GRN)
+ * 5. Suppliers ('suppliers'):
+ *    - Vendor directory, contact details, payment terms
+ * 6. Customer Fabric Tracker ('customer-fabrics'):
+ *    - Customer-owned fabric lifecycle (<CustomerFabricTracker />)
+ * =========================================================================
+ */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../config/api';
@@ -5,7 +29,6 @@ import {
   Package,
   Plus,
   Search,
-  Filter,
   AlertTriangle,
   ArrowUpDown,
   Download,
@@ -15,24 +38,19 @@ import {
   Layers,
   FileText,
   DollarSign,
-  Truck,
   CheckCircle2,
   Clock,
   X,
   Edit2,
   Trash2,
-  ExternalLink,
-  ChevronRight,
-  ShieldCheck,
-  Building,
   RotateCcw,
-  Sparkles,
   Inbox,
   Eye,
   LayoutGrid,
   List,
-  Info
+  Scissors
 } from 'lucide-react';
+import { CustomerFabricTracker } from './CustomerFabricTracker';
 
 export const InventoryERP = () => {
   const { user, activeBranch } = useAuth();
@@ -206,7 +224,7 @@ export const InventoryERP = () => {
       } else {
         setError(data.message || 'Failed to fetch inventory items');
       }
-    } catch (e) {
+    } catch {
       setError('Network error connecting to inventory database.');
     } finally {
       setLoading(false);
@@ -359,7 +377,7 @@ export const InventoryERP = () => {
       } else {
         alert(data.message || 'Error saving material.');
       }
-    } catch (err) {
+    } catch {
       alert('Network error while saving material.');
     } finally {
       setIsSubmittingItem(false);
@@ -413,7 +431,7 @@ export const InventoryERP = () => {
       } else {
         alert(data.message || 'Failed to record stock movement.');
       }
-    } catch (err) {
+    } catch {
       alert('Network error recording movement.');
     } finally {
       setIsSubmittingMovement(false);
@@ -527,7 +545,7 @@ export const InventoryERP = () => {
       } else {
         alert(data.message || 'Failed to submit material requisition.');
       }
-    } catch (err) {
+    } catch {
       alert('Network error submitting requisition.');
     } finally {
       setIsSubmittingReq(false);
@@ -577,7 +595,7 @@ export const InventoryERP = () => {
       } else {
         alert(data.message || 'Failed to issue material.');
       }
-    } catch (err) {
+    } catch {
       alert('Network error issuing material.');
     } finally {
       setIsSubmittingIssue(false);
@@ -628,7 +646,7 @@ export const InventoryERP = () => {
       } else {
         alert(data.message || 'Failed to record return.');
       }
-    } catch (err) {
+    } catch {
       alert('Network error recording return.');
     } finally {
       setIsSubmittingReturn(false);
@@ -650,7 +668,7 @@ export const InventoryERP = () => {
       } else {
         alert(data.message || 'Failed to close requisition.');
       }
-    } catch (err) {
+    } catch {
       alert('Network error closing requisition.');
     }
   };
@@ -942,6 +960,7 @@ export const InventoryERP = () => {
           { id: 'materials', label: 'Material Master', icon: Layers, count: items.length },
           { id: 'ledger', label: 'Stock Movement Ledger', icon: FileText },
           { id: 'requests', label: 'Order Material Issues', icon: RotateCcw, count: dashboardStats.pendingRequests },
+          { id: 'customerFabric', label: 'Customer Fabric Tracker', icon: Scissors },
           { id: 'valuation', label: 'Valuation & Reorder Analytics', icon: DollarSign }
         ].map(tab => {
           const Icon = tab.icon;
@@ -1817,6 +1836,16 @@ export const InventoryERP = () => {
             <span>Download Full Inventory Valuation Ledger (CSV)</span>
           </button>
         </div>
+      )}
+
+      {/* 8. Tab: CUSTOMER FABRIC TRACKER */}
+      {activeTab === 'customerFabric' && (
+        <CustomerFabricTracker
+          user={user}
+          activeBranch={activeBranch}
+          authHeaders={authHeaders}
+          meta={meta}
+        />
       )}
 
       {/* ========================================================

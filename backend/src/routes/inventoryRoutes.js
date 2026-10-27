@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const inv = require('../controllers/inventoryController');
+const cf = require('../controllers/customerFabricController');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { requireInv } = require('../config/inventoryPermissions');
 
@@ -62,5 +63,16 @@ router.post('/purchase-orders/:id/receive', requireInv('PO_RECEIVE'), inv.receiv
 router.get('/purchase-spend', requireInv('VIEW_COSTS'), inv.getPurchaseSpendReport);
 router.get('/reports/:type', requireInv('VIEW_REPORTS'), inv.getReport);
 router.get('/audit-logs', requireInv('VIEW_AUDIT'), inv.listAuditLogs);
+
+// Customer-Owned Fabric Management (Separated from company inventory & valuation)
+router.get('/customer-fabrics/orders/lookup', cf.lookupOrdersForFabric);
+router.get('/customer-fabrics', cf.listCustomerFabrics);
+router.get('/customer-fabrics/:id', cf.getCustomerFabricById);
+router.post('/customer-fabrics', cf.receiveCustomerFabric);
+router.post('/customer-fabrics/:id/issue', cf.issueToTailor);
+router.post('/customer-fabrics/:id/tailor-return', cf.recordTailorReturn);
+router.post('/customer-fabrics/:id/consume', cf.recordConsumption);
+router.post('/customer-fabrics/:id/waste', cf.recordWaste);
+router.post('/customer-fabrics/:id/return-to-customer', cf.returnToCustomer);
 
 module.exports = router;

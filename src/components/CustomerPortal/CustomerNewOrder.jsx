@@ -3,26 +3,26 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from '../../utils/router';
 import { CustomerPortalLayout } from './CustomerPortalLayout';
 import { API_URL, getImageUrl } from '../../config/api';
+import { ImageUploadCapture } from '../common/ImageUploadCapture';
+import { CameraCaptureModal } from '../common/CameraCaptureModal';
+import { validateImageFileClient, ACCEPT_IMAGE_INPUT_STRING } from '../../utils/imageUploadHelper';
 import {
   DRESS_TYPE_OPTIONS,
   getMeasurementsForDressType
 } from '../../config/tailoringMeasurements';
 import {
   Upload,
-  PlusCircle,
   Image as ImageIcon,
   CheckCircle2,
   AlertCircle,
   Scissors,
   ArrowRight,
   ArrowLeft,
-  Info,
   Sparkles,
   X,
   Camera,
   User,
   Ruler,
-  FileText,
   Clock,
   Check,
   Edit3,
@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 
 export const CustomerNewOrder = () => {
-  const { getAuthHeaders, token } = useAuth();
+  const { getAuthHeaders } = useAuth();
   const { navigate } = useRouter();
 
   // Wizard Step State (1: Customer, 2: Garment, 3: Measurements, 4: Work, 5: Design, 6: Review)
@@ -84,9 +84,10 @@ export const CustomerNewOrder = () => {
   const [uploadingDesign, setUploadingDesign] = useState(false);
   const [additionalImages, setAdditionalImages] = useState([]); // array of URLs
   const [uploadingAdditional, setUploadingAdditional] = useState(false);
+  const [isAdditionalCameraOpen, setIsAdditionalCameraOpen] = useState(false);
 
   // System & Flow State
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [_loadingProfile, setLoadingProfile] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -122,17 +123,14 @@ export const CustomerNewOrder = () => {
       .finally(() => setLoadingProfile(false));
   }, [getAuthHeaders]);
 
-  // Handle Customer Photo selection & upload
-  const handleCustomerPhotoSelect = async (e) => {
-    const file = e.target.files?.[0];
+  // Handle Customer Photo selection & upload (20 MB limit)
+  const handleCustomerPhotoSelect = async (fileOrEvent) => {
+    const file = fileOrEvent?.target ? fileOrEvent.target.files?.[0] : fileOrEvent;
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Photo must be 5MB or smaller.');
-      return;
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
-      setError('Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.');
+    const validation = validateImageFileClient(file);
+    if (!validation.valid) {
+      setError(validation.error);
       return;
     }
 
@@ -160,23 +158,20 @@ export const CustomerNewOrder = () => {
       } else {
         setError(data.message || 'Customer photo upload failed.');
       }
-    } catch (err) {
+    } catch {
       setUploadingCustomerPhoto(false);
       setError('Error connecting to upload server.');
     }
   };
 
-  // Handle Design Reference Image upload
-  const handleDesignImageSelect = async (e) => {
-    const file = e.target.files?.[0];
+  // Handle Design Reference Image upload (20 MB limit)
+  const handleDesignImageSelect = async (fileOrEvent) => {
+    const file = fileOrEvent?.target ? fileOrEvent.target.files?.[0] : fileOrEvent;
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Photo must be 5MB or smaller.');
-      return;
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
-      setError('Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.');
+    const validation = validateImageFileClient(file);
+    if (!validation.valid) {
+      setError(validation.error);
       return;
     }
 
@@ -201,23 +196,20 @@ export const CustomerNewOrder = () => {
       } else {
         setError(data.message || 'Design reference upload failed.');
       }
-    } catch (err) {
+    } catch {
       setUploadingDesign(false);
       setError('Error uploading design reference image.');
     }
   };
 
-  // Handle Additional Reference Photos upload
-  const handleAdditionalImageSelect = async (e) => {
-    const file = e.target.files?.[0];
+  // Handle Additional Reference Photos upload (20 MB limit per photo)
+  const handleAdditionalImageSelect = async (fileOrEvent) => {
+    const file = fileOrEvent?.target ? fileOrEvent.target.files?.[0] : fileOrEvent;
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Photo must be 5MB or smaller.');
-      return;
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
-      setError('Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.');
+    const validation = validateImageFileClient(file);
+    if (!validation.valid) {
+      setError(validation.error);
       return;
     }
 
@@ -241,7 +233,7 @@ export const CustomerNewOrder = () => {
       } else {
         setError(data.message || 'Failed to upload additional reference.');
       }
-    } catch (err) {
+    } catch {
       setUploadingAdditional(false);
       setError('Error uploading additional photo.');
     }
@@ -286,7 +278,7 @@ export const CustomerNewOrder = () => {
       } else {
         setPreviousLoadedMsg('No previous measurements available for this dress type.');
       }
-    } catch (err) {
+    } catch {
       setLoadingPrevious(false);
       setError('Failed to fetch previous measurements from server.');
     }
@@ -438,7 +430,7 @@ export const CustomerNewOrder = () => {
       } else {
         setError(data.message || 'Failed to submit bespoke custom order.');
       }
-    } catch (err) {
+    } catch {
       setSubmitting(false);
       setError('Network error submitting your tailoring order.');
     }
@@ -619,106 +611,23 @@ export const CustomerNewOrder = () => {
               </div>
 
               {/* Customer Photo Upload Section */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '20px',
-                padding: '16px 20px',
-                backgroundColor: '#f8fafc',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                marginBottom: '24px'
-              }}>
-                <div style={{ position: 'relative', width: '76px', height: '76px', flexShrink: 0 }}>
-                  {customerPhotoPreview ? (
-                    <img
-                      src={customerPhotoPreview}
-                      alt="Customer Preview"
-                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid #3b82f6' }}
-                    />
-                  ) : customerData.profilePhoto ? (
-                    <img
-                      src={getImageUrl(customerData.profilePhoto)}
-                      alt="Customer Profile"
-                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid #cbd5e1' }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: '50%',
-                      backgroundColor: '#0a192f',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.8rem',
-                      fontWeight: 900
-                    }}>
-                      {customerData.name ? customerData.name.charAt(0).toUpperCase() : <User size={36} />}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', marginBottom: '2px' }}>
-                    Customer Photo
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '10px' }}>
-                    Supports JPG, JPEG, PNG, or WEBP (Max 5MB). Displays in your bespoke tailoring record.
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      backgroundColor: '#ffffff',
-                      border: '1.5px solid #cbd5e1',
-                      color: '#1d4ed8',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      cursor: uploadingCustomerPhoto ? 'wait' : 'pointer'
-                    }}>
-                      <Camera size={14} />
-                      <span>{uploadingCustomerPhoto ? 'Uploading...' : (customerPhotoPreview || customerData.profilePhoto ? 'Change Photo' : 'Upload Customer Photo')}</span>
-                      <input
-                        type="file"
-                        accept="image/jpeg, image/png, image/webp, image/jpg"
-                        onChange={handleCustomerPhotoSelect}
-                        disabled={uploadingCustomerPhoto}
-                        style={{ display: 'none' }}
-                      />
-                    </label>
-
-                    {customerPhotoPreview && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomerPhotoFile(null);
-                          setCustomerPhotoPreview(null);
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '6px 10px',
-                          borderRadius: '8px',
-                          backgroundColor: '#fee2e2',
-                          border: '1px solid #fecaca',
-                          color: '#dc2626',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <X size={13} /> Revert
-                      </button>
-                    )}
-                  </div>
-                </div>
+              <div style={{ marginBottom: '24px' }}>
+                <ImageUploadCapture
+                  label="Customer Photo"
+                  sublabel="Upload a portrait photo or take a photo with your camera (Max 20 MB • JPG, PNG, WebP, GIF, BMP)"
+                  currentImageUrl={customerData.profilePhoto ? getImageUrl(customerData.profilePhoto) : null}
+                  previewUrl={customerPhotoPreview}
+                  file={customerPhotoFile}
+                  onFileSelected={handleCustomerPhotoSelect}
+                  onFileRemoved={() => {
+                    setCustomerPhotoFile(null);
+                    setCustomerPhotoPreview(null);
+                  }}
+                  isUploading={uploadingCustomerPhoto}
+                  onError={(err) => setError(err)}
+                  cameraTitle="Take Customer Photo"
+                  compact={false}
+                />
               </div>
 
               {/* Customer Text Fields */}
@@ -1495,137 +1404,92 @@ export const CustomerNewOrder = () => {
 
               {/* Primary Design Reference (Mandatory) */}
               <div style={{ marginBottom: '28px' }}>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
-                  Primary Design Reference Photo <span style={{ color: '#dc2626' }}>*</span>
-                </label>
-
-                {!designReferenceImage ? (
-                  <label style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '36px 20px',
-                    borderRadius: '14px',
-                    border: '2px dashed #cbd5e1',
-                    backgroundColor: '#f8fafc',
-                    cursor: uploadingDesign ? 'wait' : 'pointer',
-                    transition: 'all 0.2s'
-                  }}>
-                    <Upload size={32} color="#64748b" style={{ marginBottom: '8px' }} />
-                    <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>
-                      {uploadingDesign ? 'Uploading Design Reference...' : 'Click to Upload Design Reference'}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
-                      PNG, JPG, JPEG, or WEBP (Max 5MB)
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/jpeg, image/png, image/webp, image/jpg"
-                      onChange={handleDesignImageSelect}
-                      disabled={uploadingDesign}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                ) : (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    padding: '16px',
-                    borderRadius: '14px',
-                    border: '1.5px solid #bbf7d0',
-                    backgroundColor: '#f0fdf4'
-                  }}>
-                    <img
-                      src={getImageUrl(designReferenceImage)}
-                      alt="Primary Design Reference"
-                      style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', border: '1.5px solid #86efac' }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 800, color: '#166534', fontSize: '0.9rem' }}>✓ Primary Reference Photo Uploaded</div>
-                      <div style={{ fontSize: '0.78rem', color: '#4b5563', marginTop: '2px' }}>{designReferenceImage}</div>
-
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <label style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #cbd5e1',
-                          color: '#1d4ed8',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}>
-                          <span>Change Photo</span>
-                          <input
-                            type="file"
-                            accept="image/jpeg, image/png, image/webp, image/jpg"
-                            onChange={handleDesignImageSelect}
-                            style={{ display: 'none' }}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDesignReferenceImage('');
-                            setDesignReferencePreview(null);
-                          }}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            backgroundColor: '#fee2e2',
-                            border: '1px solid #fecaca',
-                            color: '#dc2626',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <X size={12} /> Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <ImageUploadCapture
+                  label="Primary Design Reference Photo"
+                  sublabel="Upload customer design sketch, sample garment, embroidery pattern, or take a picture with camera (Max 20 MB • JPG, PNG, WebP, GIF, BMP)"
+                  currentImageUrl={designReferenceImage ? getImageUrl(designReferenceImage) : null}
+                  previewUrl={designReferencePreview}
+                  onFileSelected={handleDesignImageSelect}
+                  onFileRemoved={() => {
+                    setDesignReferenceImage('');
+                    setDesignReferencePreview(null);
+                  }}
+                  isUploading={uploadingDesign}
+                  onError={(err) => setError(err)}
+                  cameraTitle="Take Design Reference Photo"
+                  required={true}
+                />
               </div>
 
               {/* Additional Reference Photos */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a' }}>
-                    Additional Reference Photos (Optional)
-                  </label>
-                  <label style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    backgroundColor: '#eff6ff',
-                    border: '1px solid #bfdbfe',
-                    color: '#1d4ed8',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: uploadingAdditional ? 'wait' : 'pointer'
-                  }}>
-                    <PlusCircle size={14} />
-                    <span>{uploadingAdditional ? 'Uploading...' : 'Add Another Photo'}</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg, image/png, image/webp, image/jpg"
-                      onChange={handleAdditionalImageSelect}
-                      disabled={uploadingAdditional}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0f172a', display: 'block' }}>
+                      Additional Reference Photos (Optional)
+                    </label>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      Add up to 5 additional design, fabric, or alteration reference photos (Max 20 MB each)
+                    </span>
+                  </div>
+
+                  {additionalImages.length < 5 && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <label style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        color: '#1d4ed8',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: uploadingAdditional ? 'wait' : 'pointer'
+                      }}>
+                        <Upload size={14} />
+                        <span>{uploadingAdditional ? 'Uploading...' : 'Upload Image'}</span>
+                        <input
+                          type="file"
+                          accept={ACCEPT_IMAGE_INPUT_STRING}
+                          onChange={handleAdditionalImageSelect}
+                          disabled={uploadingAdditional}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAdditionalCameraOpen(true)}
+                        disabled={uploadingAdditional}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: '#2563eb',
+                          border: 'none',
+                          color: '#ffffff',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: uploadingAdditional ? 'wait' : 'pointer'
+                        }}
+                      >
+                        <Camera size={14} />
+                        <span>Take Photo</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                <CameraCaptureModal
+                  isOpen={isAdditionalCameraOpen}
+                  onClose={() => setIsAdditionalCameraOpen(false)}
+                  onCapture={handleAdditionalImageSelect}
+                  title="Take Additional Reference Photo"
+                />
 
                 {additionalImages.length > 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '12px', marginTop: '12px' }}>

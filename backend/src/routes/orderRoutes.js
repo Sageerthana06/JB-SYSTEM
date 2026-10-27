@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
+const taskController = require('../controllers/taskController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 // All order routes require authentication
@@ -11,6 +12,12 @@ router.get('/', authorizeRoles('ADMIN', 'MANAGER', 'STAFF', 'TAILOR', 'CUTTING',
 
 // Dashboard summary metrics — all authenticated staff/management
 router.get('/dashboard-summary', orderController.getDashboardSummary);
+
+// Task Management Endpoints (Must be before /:id)
+router.get('/tasks/my-tasks', authorizeRoles('TAILOR', 'CUTTING', 'EMBROIDERY', 'ADMIN', 'MANAGER', 'STAFF'), taskController.getMyTasks);
+router.get('/tasks/all', authorizeRoles('ADMIN', 'MANAGER', 'STAFF'), taskController.getAllTasks);
+router.patch('/tasks/:taskId/status', authorizeRoles('TAILOR', 'CUTTING', 'EMBROIDERY', 'ADMIN', 'MANAGER', 'STAFF'), taskController.updateTaskStatus);
+router.patch('/tasks/:taskId/reassign', authorizeRoles('ADMIN', 'MANAGER'), taskController.reassignTask);
 
 // Get list of active tailors for assignment (Must be defined before /:id)
 router.get('/tailors/list', authorizeRoles('ADMIN', 'MANAGER', 'STAFF'), orderController.getTailorsList);
@@ -41,8 +48,10 @@ router.patch('/:id/confirm-price', authorizeRoles('ADMIN', 'MANAGER'), orderCont
 router.patch('/:id/request-price-revision', authorizeRoles('ADMIN', 'MANAGER'), orderController.requestCustomerPriceRevision);
 router.patch('/:id/reject', authorizeRoles('ADMIN', 'MANAGER'), orderController.rejectOrder);
 router.patch('/:id/assign-tailor', authorizeRoles('ADMIN', 'MANAGER'), orderController.assignTailor);
+router.get('/:id/tasks', taskController.getOrderTasks);
+router.post('/:id/tasks', authorizeRoles('ADMIN', 'MANAGER'), taskController.assignOrderTasks);
 
-// Tailor Acceptance / Rejection Workflow
+// Tailor Acceptance / Rejection Workflow (Preserved for backwards compatibility)
 router.patch('/:id/tailor-accept', authorizeRoles('TAILOR'), orderController.tailorAcceptOrder);
 router.patch('/:id/tailor-reject', authorizeRoles('TAILOR'), orderController.tailorRejectAssignment);
 
@@ -57,10 +66,10 @@ router.patch(
   orderController.updateOrderStatus
 );
 
-// WhatsApp Ready Notification — management and staff
+// Customer Finished Notification — Manager, Admin, and CEO/SUPER_ADMIN only
 router.post(
   '/:id/notify-ready',
-  authorizeRoles('ADMIN', 'MANAGER', 'STAFF', 'TAILOR'),
+  authorizeRoles('SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER'),
   orderController.notifyOrderReady
 );
 

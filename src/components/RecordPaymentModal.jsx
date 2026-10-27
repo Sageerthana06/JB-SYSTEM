@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, DollarSign, CheckCircle, AlertCircle, ArrowRight, Upload, Trash2 } from 'lucide-react';
+import { X, CreditCard, AlertCircle } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { ImageUploadCapture } from './common/ImageUploadCapture';
+import { validateImageFileClient } from '../utils/imageUploadHelper';
 
 export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }) => {
   const [amount, setAmount] = useState('');
@@ -40,15 +42,11 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
     setError(null);
   };
 
-  const handleSlipChange = (e) => {
-    const file = e.target.files[0];
+  const handleSlipChange = (file) => {
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Payment slip photo must be 5MB or smaller.');
-        return;
-      }
-      if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
-        setError('Invalid file type for receipt. Only JPG, PNG, and WEBP images are allowed.');
+      const validation = validateImageFileClient(file);
+      if (!validation.valid) {
+        setError(validation.error);
         return;
       }
       setSlipFile(file);
@@ -405,83 +403,19 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
             </div>
           </div>
 
-          {/* Payment Slip / Receipt Photo Upload Box */}
-          <div style={{
-            marginBottom: '18px',
-            backgroundColor: '#f8fafc',
-            border: '1.5px dashed #cbd5e1',
-            borderRadius: '10px',
-            padding: '14px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#334155' }}>
-                Payment Slip / Receipt Photo (Optional)
-              </span>
-              {slipPreview && (
-                <button
-                  type="button"
-                  onClick={handleRemoveSlip}
-                  style={{
-                    background: '#fee2e2',
-                    border: 'none',
-                    color: '#dc2626',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <Trash2 size={12} /> Remove
-                </button>
-              )}
-            </div>
-
-            {slipPreview ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#ffffff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <img
-                  src={slipPreview}
-                  alt="Receipt Preview"
-                  style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                />
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontSize: '0.8rem', fontWeight: 700 }}>
-                    <CheckCircle size={14} /> Receipt Attached
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
-                    {slipFile?.name} ({((slipFile?.size || 0) / 1024).toFixed(0)} KB)
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '12px',
-                backgroundColor: '#ffffff',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                cursor: 'pointer'
-              }}>
-                <Upload size={16} color="#2563eb" />
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>
-                  Upload Receipt / Bank Slip Photo
-                </span>
-                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>(JPG, PNG, WEBP max 5MB)</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/jpg"
-                  onChange={handleSlipChange}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            )}
-          </div>
+          {/* Payment Slip / Receipt Photo Upload Box with Camera & Upload options */}
+          <ImageUploadCapture
+            label="Payment Slip / Receipt Photo (Optional)"
+            sublabel="Capture or upload bank deposit slip, card receipt, or transfer proof (Max 20 MB)"
+            previewUrl={slipPreview}
+            file={slipFile}
+            onFileSelected={handleSlipChange}
+            onFileRemoved={handleRemoveSlip}
+            onError={(err) => setError(err)}
+            cameraTitle="Take Payment Slip Photo"
+            compact={true}
+            style={{ marginBottom: '18px' }}
+          />
 
           {/* Live Outcome Preview */}
           {numAmount > 0 && numAmount <= currentBalance && (

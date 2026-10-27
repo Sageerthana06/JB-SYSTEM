@@ -1,15 +1,58 @@
-const { Pool } = require('pg');
-const { PrismaPg } = require('@prisma/adapter-pg');
-const { PrismaClient } = require('@prisma/client');
+/**
+ * Order Management Controller — JB GROUP / Bella Design ERP
+ *
+ * =========================================================================
+ * CONTROLLER ROADMAP & TABLE OF CONTENTS:
+ * =========================================================================
+ * This is the primary business logic controller for the tailoring lifecycle.
+ *
+ * Section 1: Helpers & Identifiers
+ *   - getActorDisplayName: Sanitizes user titles (CEO, Manager, Tailor name)
+ *   - generateOrderNumber: Formats sequential order numbers (e.g. ORD-2026-0001)
+ *
+ * Section 2: Order Creation & Ingestion
+ *   - createOrder: Handles customer order entry (Shop vs Online)
+ *
+ * Section 3: Queries & Data Retrieval
+ *   - getAllOrders: Filtered list by role, status, branch, tailor
+ *   - getDashboardSummary: KPI metrics for executive dashboard
+ *   - getCustomerOrders: Order history for a specific customer
+ *   - getOrderById: Detailed order profile with garment specs & payments
+ *   - getOrderHistory: Audit trail of stage transitions
+ *   - getTailorsList: Active tailors available for assignment
+ *   - getTailorPerformance: Leaderboard & productivity statistics
+ *
+ * Section 4: CEO & Management Approval Workflow
+ *   - approveOrder: Approves online booking for production
+ *   - requestChangesOrder: Returns order to staff for corrections
+ *   - rejectOrder: Rejects order booking
+ *
+ * Section 5: Pricing & Customer Quotations
+ *   - setOrderPrice: Sets service charge, fabric charge, additional work
+ *   - confirmCustomerPrice: Accepts quotation and moves to production
+ *   - requestCustomerPriceRevision: Requests quotation re-estimate
+ *
+ * Section 6: Tailor Assignment & Production Stages
+ *   - assignTailor: Assigns primary tailor to order
+ *   - tailorAcceptOrder / tailorRejectAssignment: Legacy acceptance workflow
+ *   - updateOrderStatus: Advances stages (Cutting -> Stitching -> QC -> Ready)
+ *   - deliverOrder: Marks order as collected/delivered to client
+ *   - completeOrder: Final closure after delivery & full settlement
+ *   - notifyOrderReady: Dispatches SMS / WhatsApp ready notification
+ *
+ * Section 7: Payments, Slips & Invoices
+ *   - recordPayment: Logs cash, card, or transfer payment against balance
+ *   - verifyPaymentSlip: Manager/CEO verifies bank deposit slip
+ *   - rejectPaymentSlip: Rejects illegible or invalid bank slips
+ *   - generateOrderPdf: Compiles printable order docket & invoice
+ * =========================================================================
+ */
+const { prisma, pool } = require('../prisma');
+const { logAudit } = require('../utils/auditLogger');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { VALID_STATUSES, ORDER_STATUS_LABELS, ALLOWED_STAGE_TRANSITIONS } = require('../config/orderStatus');
-
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
 
 // Clean user display title (Role or clean name, NEVER raw email)
 const getActorDisplayName = (user) => {
@@ -82,7 +125,7 @@ exports.createOrder = async (req, res, next) => {
     // Prepare data
     const orderSource = req.body.orderSource || 'SHOP';
     const initialStatus = orderSource === 'ONLINE' ? 'PENDING_APPROVAL' : 'ORDER_CONFIRMED';
-    
+
     const orderData = {
       orderNumber,
       customerId: parseInt(customerId),
@@ -286,9 +329,12 @@ exports.getAllOrders = async (req, res, next) => {
       where.branchId = branchId;
     }
 
-    // Tailor security: Tailor can ONLY see confirmed production orders assigned to them
+    // Tailor security: Tailor can ONLY see confirmed production orders assigned to them or their tasks
     if (req.user?.role === 'TAILOR') {
-      where.assignedTailorId = req.user.id;
+      where.OR = [
+        { assignedTailorId: req.user.id },
+        { tasks: { some: { assignedTailorId: req.user.id } } }
+      ];
       where.status = { notIn: ['PENDING_APPROVAL', 'APPROVED', 'PRICE_DECLINED', 'REJECTED'] };
     }
 
@@ -303,6 +349,14 @@ exports.getAllOrders = async (req, res, next) => {
         branch: true,
         assignedTailor: {
           select: { id: true, name: true, email: true }
+        },
+        tasks: {
+          include: {
+            assignedTailor: {
+              select: { id: true, name: true, email: true, role: true }
+            }
+          },
+          orderBy: { sequence: 'asc' }
         },
         ...(!isTailor && {
           payments: {
@@ -350,6 +404,14 @@ exports.getOrderById = async (req, res, next) => {
         assignedTailor: {
           select: { id: true, name: true, email: true }
         },
+        tasks: {
+          include: {
+            assignedTailor: {
+              select: { id: true, name: true, email: true, role: true }
+            }
+          },
+          orderBy: { sequence: 'asc' }
+        },
         ...(!isTailor && {
           payments: {
             orderBy: { createdAt: 'asc' }
@@ -370,10 +432,11 @@ exports.getOrderById = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Access denied. You can only view your own orders.' });
     }
 
-    // Security check: Tailor can only view approved orders assigned to them
+    // Security check: Tailor can only view approved orders assigned to them or their tasks
     if (req.user?.role === 'TAILOR') {
+      const isAssigned = order.assignedTailorId === req.user.id || (order.tasks && order.tasks.some(t => t.assignedTailorId === req.user.id));
       if (
-        order.assignedTailorId !== req.user.id ||
+        !isAssigned ||
         ['PENDING_APPROVAL', 'APPROVED', 'PRICE_DECLINED', 'REJECTED'].includes(order.status)
       ) {
         return res.status(403).json({ success: false, message: 'Access denied. This order is not assigned to you or is pending approval/pricing.' });
@@ -584,43 +647,9 @@ exports.updateOrderStatus = async (req, res, next) => {
       updateData.completedAt = now;
     }
 
-    // Customer WhatsApp Ready Notification logic (JB GROUP only)
-    let notificationResult = null;
-    if (status === 'READY') {
-      const custName = currentOrder.customer?.name || 'Customer';
-      const ordNum = currentOrder.orderNumber || (currentOrder.id ? `ORD-${currentOrder.id}` : 'N/A');
-      const phone = currentOrder.customer?.primaryPhone;
-      const readyMsg = `Dear ${custName},\n\nYour order ${ordNum} from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!`;
-
-      if (!currentOrder.readyNotificationSent) {
-        updateData.readyNotificationSent = true;
-        updateData.readyNotificationSentAt = now;
-        updateData.readyNotificationStatus = 'SENT';
-
-        notificationResult = {
-          sent: true,
-          duplicatePrevented: false,
-          phone,
-          customerName: custName,
-          orderNumber: ordNum,
-          message: readyMsg,
-          status: 'SENT',
-          sentAt: now
-        };
-      } else {
-        notificationResult = {
-          sent: false,
-          duplicatePrevented: true,
-          phone,
-          customerName: custName,
-          orderNumber: ordNum,
-          message: readyMsg,
-          status: currentOrder.readyNotificationStatus || 'SENT',
-          sentAt: currentOrder.readyNotificationSentAt,
-          note: 'Notification was already sent previously. Duplicate prevented.'
-        };
-      }
-    }
+    // Note: Production status updates (including marking READY / Finished) do NOT automatically
+    // trigger customer Finished/Ready notifications. Only authorized Managers/Admins/CEO can explicitly
+    // confirm and send customer finished notifications via notifyOrderReady.
 
     // Update the order status
     const order = await prisma.order.update({
@@ -655,8 +684,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       success: true,
       message: `Status updated to: ${ORDER_STATUS_LABELS[status] || status}`,
       order,
-      historyRecord,
-      notification: notificationResult
+      historyRecord
     });
   } catch (error) {
     console.error('Error updating order status:', error);
@@ -972,7 +1000,7 @@ exports.generateOrderPdf = async (req, res, next) => {
     }
 
     const doc = new PDFDocument({ margin: 50 });
-    
+
     // Set headers
     res.setHeader('Content-disposition', `attachment; filename=Order_${order.orderNumber}.pdf`);
     res.setHeader('Content-type', 'application/pdf');
@@ -988,7 +1016,7 @@ exports.generateOrderPdf = async (req, res, next) => {
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.5);
     doc.fontSize(10).font('Helvetica');
-    
+
     const friendlyStatus = {
       'ORDER_CONFIRMED': 'Pending',
       'PENDING': 'Pending',
@@ -1016,7 +1044,7 @@ exports.generateOrderPdf = async (req, res, next) => {
     doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.5);
     doc.fontSize(10).font('Helvetica');
-    
+
     const c = order.customer;
     doc.text(`Name: ${c.name}`);
     doc.text(`Primary Contact: ${c.primaryPhone}`);
@@ -1030,7 +1058,7 @@ exports.generateOrderPdf = async (req, res, next) => {
       doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
       doc.moveDown(0.5);
       doc.fontSize(10).font('Helvetica');
-      
+
       const g = order.garmentDetails;
       doc.text(`Dress Type: ${g.dressType}`);
       doc.text(`Quantity: ${g.quantity}`);
@@ -1580,8 +1608,8 @@ exports.setOrderPrice = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error setting order price:', error);
-    return res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       message: 'Unable to set order price.',
       error: error.message || 'Internal server error'
     });
@@ -1873,8 +1901,21 @@ exports.assignTailor = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Cannot assign order to an inactive tailor.' });
     }
 
+    // Branch security for Managers
+    if (req.user?.role === 'MANAGER') {
+      if (order.branchId && order.branchId !== req.user.branchId) {
+        return res.status(403).json({ success: false, message: 'Permission denied: Managers can only assign orders in their authorized branch.' });
+      }
+      if (tailor.branchId && tailor.branchId !== req.user.branchId) {
+        return res.status(403).json({ success: false, message: `Permission denied: Tailor ${tailor.name} does not belong to your authorized branch.` });
+      }
+    }
+
     const assignerInfo = getActorDisplayName(req.user);
     const assignmentDate = new Date();
+
+    // Bypass tailor acceptance: status moves immediately to IN_PROGRESS (or CUTTING)
+    const targetStatus = order.status === 'CUSTOMER_APPROVED' || order.status === 'PENDING_PRODUCTION' ? 'IN_PROGRESS' : order.status;
 
     const updated = await prisma.order.update({
       where: { id: orderId },
@@ -1882,17 +1923,22 @@ exports.assignTailor = async (req, res, next) => {
         assignedTailorId: tailor.id,
         assignedBy: assignerInfo,
         assignedAt: assignmentDate,
-        tailorAccepted: false,
-        tailorAcceptedAt: null,
+        tailorAccepted: true,         // Acceptance step bypassed
+        tailorAcceptedAt: assignmentDate,
         tailorRejectedAt: null,
         tailorRejectionReason: null,
-        status: 'TAILOR_ASSIGNED'
+        status: targetStatus
       },
       include: {
         customer: true,
         garmentDetails: true,
         branch: true,
-        assignedTailor: { select: { id: true, name: true, email: true } }
+        assignedTailor: { select: { id: true, name: true, email: true } },
+        tasks: {
+          include: {
+            assignedTailor: { select: { id: true, name: true, email: true } }
+          }
+        }
       }
     });
 
@@ -1900,10 +1946,11 @@ exports.assignTailor = async (req, res, next) => {
     await prisma.productionHistory.create({
       data: {
         orderId,
-        stage: 'TAILOR_ASSIGNED',
+        stage: targetStatus,
         previousStage: order.status,
         assignedToId: tailor.id,
-        notes: `Assigned to Master Tailor ${tailor.name} by ${assignerInfo}. Waiting for tailor acceptance.`
+        startedAt: assignmentDate,
+        notes: `Assigned to Master Tailor ${tailor.name} by ${assignerInfo}. Acceptance requirement bypassed (immediately ASSIGNED/active).`
       }
     });
 
@@ -2219,7 +2266,7 @@ exports.getTailorsList = async (req, res, next) => {
   try {
     const tailors = await prisma.user.findMany({
       where: {
-        role: 'TAILOR',
+        role: { in: ['TAILOR', 'CUTTING', 'EMBROIDERY'] },
         isActive: true
       },
       select: {
@@ -2229,6 +2276,12 @@ exports.getTailorsList = async (req, res, next) => {
         role: true,
         branchId: true,
         branch: { select: { id: true, name: true } },
+        assignedTasks: {
+          where: {
+            status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+          },
+          select: { id: true }
+        },
         assignedOrders: {
           where: {
             status: { notIn: ['READY', 'DELIVERED', 'COMPLETED', 'REJECTED', 'CANCELLED'] }
@@ -2246,7 +2299,7 @@ exports.getTailorsList = async (req, res, next) => {
       role: t.role,
       branchId: t.branchId,
       branchName: t.branch?.name || 'Main Branch',
-      activeOrdersCount: t.assignedOrders ? t.assignedOrders.length : 0,
+      activeOrdersCount: (t.assignedTasks?.length || 0) + (t.assignedOrders?.length || 0),
       isActive: true
     }));
 
@@ -2262,27 +2315,60 @@ exports.getTailorsList = async (req, res, next) => {
 
 /**
  * Get Real Tailor Performance & Leaderboard Data
- * Calculates productivity metrics from actual database orders and production records.
- * Excludes all financial and pricing data.
+ * Accurately credits Cutting Masters and Stitching Tailors using OrderTask records as source of truth.
+ * Supports All Production, Cutting Master Performance, and Stitching Tailor Performance.
  */
 exports.getTailorPerformance = async (req, res, next) => {
   try {
-    const tailors = await prisma.user.findMany({
-      where: {
-        OR: [
-          { role: 'TAILOR' },
-          { assignedOrders: { some: {} } }
-        ],
-        isActive: true
-      },
+    const { branchId } = req.query;
+
+    const whereUser = {
+      OR: [
+        { role: { in: ['TAILOR', 'CUTTING', 'EMBROIDERY'] } },
+        { assignedTasks: { some: {} } },
+        { assignedOrders: { some: {} } }
+      ],
+      isActive: true
+    };
+
+    // Branch restriction for Managers
+    if (req.user?.role === 'MANAGER') {
+      if (req.user.branchId) {
+        whereUser.branchId = req.user.branchId;
+      }
+    } else if (branchId && branchId !== 'ALL') {
+      whereUser.branchId = parseInt(branchId, 10);
+    }
+
+    const workers = await prisma.user.findMany({
+      where: whereUser,
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
         branchId: true,
-        branch: {
-          select: { id: true, name: true }
+        branch: { select: { id: true, name: true } },
+        assignedTasks: {
+          include: {
+            order: {
+              select: {
+                id: true,
+                orderNumber: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                customer: { select: { id: true, name: true } },
+                garmentDetails: {
+                  select: {
+                    quantity: true,
+                    dressType: true
+                  }
+                }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
         },
         assignedOrders: {
           select: {
@@ -2291,21 +2377,29 @@ exports.getTailorPerformance = async (req, res, next) => {
             status: true,
             createdAt: true,
             updatedAt: true,
+            completedAt: true,
+            customer: { select: { id: true, name: true } },
             garmentDetails: {
               select: {
                 quantity: true,
                 dressType: true
               }
+            },
+            tasks: {
+              select: { id: true }
             }
-          }
+          },
+          orderBy: { createdAt: 'desc' }
         }
       },
       orderBy: { name: 'asc' }
     });
 
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -2317,70 +2411,282 @@ exports.getTailorPerformance = async (req, res, next) => {
     });
     const attendanceMap = {};
     for (const att of todayAttendances) {
-      attendanceMap[att.tailorId] = att;
+      if (att.tailorId) attendanceMap[att.tailorId] = att;
+      if (att.userId) attendanceMap[att.userId] = att;
     }
 
-    const performanceList = tailors.map((tailor) => {
-      const todayAtt = attendanceMap[tailor.id] || null;
-      let completedToday = 0;
-      let completedMonth = 0;
-      let totalCompleted = 0;
-      let activeWorkload = 0;
-      const activeOrders = [];
-      const statusCounts = {};
+    const formatDuration = (mins) => {
+      if (mins === null || mins === undefined || isNaN(mins) || mins < 0) return '—';
+      if (mins < 60) return `${mins}m`;
+      const hrs = Math.floor(mins / 60);
+      const remMins = mins % 60;
+      if (hrs < 24) return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+      const days = Math.floor(hrs / 24);
+      const remHrs = hrs % 24;
+      return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`;
+    };
 
-      for (const order of tailor.assignedOrders || []) {
-        const qty = order.garmentDetails?.quantity || 1;
-        const isCompleted = ['READY', 'DELIVERED'].includes(order.status);
-        const isInactive = ['READY', 'DELIVERED', 'CANCELLED', 'REJECTED'].includes(order.status);
-        const updated = new Date(order.updatedAt);
+    const performanceList = workers.map((worker) => {
+      const todayAtt = attendanceMap[worker.id] || null;
+      const allTasksList = [];
 
-        if (isCompleted) {
-          totalCompleted += qty;
-          if (updated >= startOfMonth) {
-            completedMonth += qty;
-          }
-          if (updated >= startOfToday) {
-            completedToday += qty;
+      // 1. Process OrderTask records (primary granular source of truth)
+      for (const task of worker.assignedTasks || []) {
+        if (!task.order) continue;
+        const order = task.order;
+        const qty = (order.garmentDetails?.quantity && order.garmentDetails.quantity > 0)
+          ? order.garmentDetails.quantity
+          : 1;
+
+        const isOrderCancelled = ['CANCELLED', 'REJECTED'].includes(order.status);
+        const isTaskCancelled = task.status === 'CANCELLED' || isOrderCancelled;
+        const isTaskCompleted = task.status === 'COMPLETED' && !isOrderCancelled;
+        const isTaskActive = !isTaskCancelled && !isTaskCompleted && ['ASSIGNED', 'IN_PROGRESS'].includes(task.status);
+
+        let durationMins = null;
+        if (task.completedAt && (task.startedAt || task.assignedAt || task.createdAt)) {
+          const start = new Date(task.startedAt || task.assignedAt || task.createdAt);
+          const end = new Date(task.completedAt);
+          const diffMs = end - start;
+          if (diffMs > 0 && diffMs < 30 * 24 * 60 * 60 * 1000) {
+            durationMins = Math.round(diffMs / 60000);
           }
         }
 
-        if (!isInactive) {
-          activeWorkload += qty;
-          statusCounts[order.status] = (statusCounts[order.status] || 0) + qty;
-          activeOrders.push({
-            id: order.id,
-            orderNumber: order.orderNumber,
-            status: order.status,
-            dressType: order.garmentDetails?.dressType || 'Garment',
-            quantity: qty
+        allTasksList.push({
+          taskId: task.id,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customer?.name || 'Customer',
+          dressType: order.garmentDetails?.dressType || 'Garment',
+          quantity: qty,
+          taskType: task.taskType,
+          taskName: task.taskName || task.taskType,
+          status: isOrderCancelled ? 'CANCELLED' : task.status,
+          assignedAt: task.assignedAt || task.createdAt,
+          startedAt: task.startedAt,
+          completedAt: task.completedAt,
+          durationMinutes: durationMins,
+          durationFormatted: formatDuration(durationMins),
+          isTaskCompleted,
+          isTaskActive,
+          isTaskCancelled
+        });
+      }
+
+      // 2. Process legacy assignedOrders (ONLY if order has no OrderTask records to prevent duplicate credit)
+      for (const order of worker.assignedOrders || []) {
+        if (order.tasks && order.tasks.length > 0) {
+          continue; // Order tasks exist; skip to prevent duplicate counting
+        }
+
+        const qty = (order.garmentDetails?.quantity && order.garmentDetails.quantity > 0)
+          ? order.garmentDetails.quantity
+          : 1;
+
+        const isOrderCancelled = ['CANCELLED', 'REJECTED'].includes(order.status);
+        const isCompleted = !isOrderCancelled && ['READY', 'DELIVERED', 'COMPLETED'].includes(order.status);
+        const isActive = !isOrderCancelled && !isCompleted;
+
+        const completedDate = order.completedAt ? new Date(order.completedAt) : (isCompleted ? new Date(order.updatedAt) : null);
+        let durationMins = null;
+        if (completedDate && order.createdAt) {
+          const diffMs = completedDate - new Date(order.createdAt);
+          if (diffMs > 0 && diffMs < 30 * 24 * 60 * 60 * 1000) {
+            durationMins = Math.round(diffMs / 60000);
+          }
+        }
+
+        allTasksList.push({
+          taskId: `legacy-${order.id}`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customer?.name || 'Customer',
+          dressType: order.garmentDetails?.dressType || 'Garment',
+          quantity: qty,
+          taskType: 'STITCHING',
+          taskName: 'Tailoring & Stitching',
+          status: isOrderCancelled ? 'CANCELLED' : (isCompleted ? 'COMPLETED' : 'IN_PROGRESS'),
+          assignedAt: order.createdAt,
+          startedAt: order.createdAt,
+          completedAt: completedDate,
+          durationMinutes: durationMins,
+          durationFormatted: formatDuration(durationMins),
+          isTaskCompleted: isCompleted,
+          isTaskActive: isActive,
+          isTaskCancelled: isOrderCancelled
+        });
+      }
+
+      // Compute statistics for filtered subset
+      const computeStats = (filterFn) => {
+        const filtered = allTasksList.filter(filterFn);
+        let assignedGarments = 0;
+        let completedTodayGarments = 0;
+        let completedMonthGarments = 0;
+        let totalCompletedGarments = 0;
+        let activeWorkloadGarments = 0;
+
+        let assignedTasksCount = 0;
+        let completedTodayTasksCount = 0;
+        let completedMonthTasksCount = 0;
+        let totalCompletedTasksCount = 0;
+        let activeTasksCount = 0;
+
+        const durations = [];
+
+        for (const item of filtered) {
+          if (item.isTaskCancelled) continue;
+
+          assignedGarments += item.quantity;
+          assignedTasksCount += 1;
+
+          if (item.isTaskCompleted) {
+            totalCompletedGarments += item.quantity;
+            totalCompletedTasksCount += 1;
+
+            if (item.durationMinutes !== null && item.durationMinutes > 0) {
+              durations.push(item.durationMinutes);
+            }
+
+            if (item.completedAt) {
+              const compDate = new Date(item.completedAt);
+              if (compDate >= startOfToday && compDate <= endOfToday) {
+                completedTodayGarments += item.quantity;
+                completedTodayTasksCount += 1;
+              }
+              if (compDate >= startOfMonth && compDate <= endOfMonth) {
+                completedMonthGarments += item.quantity;
+                completedMonthTasksCount += 1;
+              }
+            }
+          }
+
+          if (item.isTaskActive) {
+            activeWorkloadGarments += item.quantity;
+            activeTasksCount += 1;
+          }
+        }
+
+        const totalRelevantTasks = totalCompletedTasksCount + activeTasksCount;
+        const completionRate = totalRelevantTasks > 0
+          ? Math.round((totalCompletedTasksCount / totalRelevantTasks) * 100)
+          : 0;
+
+        const avgDurationMins = durations.length > 0
+          ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+          : null;
+
+        return {
+          assignedGarments,
+          assignedTasksCount,
+          completedTodayGarments,
+          completedTodayTasksCount,
+          completedMonthGarments,
+          completedMonthTasksCount,
+          totalCompletedGarments,
+          totalCompletedTasksCount,
+          activeWorkloadGarments,
+          activeTasksCount,
+          completionRate,
+          avgDurationMinutes: avgDurationMins,
+          avgDurationFormatted: formatDuration(avgDurationMins)
+        };
+      };
+
+      const allStats = computeStats(() => true);
+      const cuttingStats = computeStats(t => t.taskType === 'CUTTING');
+      const stitchingStats = computeStats(t => t.taskType === 'STITCHING');
+
+      const activeTasks = allTasksList.filter(t => t.isTaskActive);
+
+      // Map active tasks to activeOrders format for existing UI compatibility
+      const activeOrdersMap = new Map();
+      for (const t of activeTasks) {
+        if (!activeOrdersMap.has(t.orderId)) {
+          activeOrdersMap.set(t.orderId, {
+            id: t.orderId,
+            orderNumber: t.orderNumber,
+            status: t.status,
+            dressType: t.dressType,
+            quantity: t.quantity,
+            taskType: t.taskType,
+            taskName: t.taskName
           });
         }
       }
+      const activeOrders = Array.from(activeOrdersMap.values());
 
-      // Grade strictly based on real verified production completion
       let productivityGrade = 'No data recorded';
-      if (completedMonth >= 15) productivityGrade = 'A+';
-      else if (completedMonth >= 8) productivityGrade = 'A';
-      else if (completedMonth >= 3) productivityGrade = 'B+';
-      else if (completedMonth > 0 || activeWorkload > 0) productivityGrade = 'B';
+      const mCompleted = allStats.completedMonthGarments;
+      if (mCompleted >= 15) productivityGrade = 'A+';
+      else if (mCompleted >= 8) productivityGrade = 'A';
+      else if (mCompleted >= 3) productivityGrade = 'B+';
+      else if (mCompleted > 0 || allStats.activeWorkloadGarments > 0) productivityGrade = 'B';
       else productivityGrade = 'Pending';
 
+      let roleLabel = worker.role;
+      if (worker.role === 'TAILOR') roleLabel = 'Master Tailor & Craftsman';
+      else if (worker.role === 'CUTTING') roleLabel = 'Cutting Master';
+      else if (worker.role === 'EMBROIDERY') roleLabel = 'Embroidery Specialist';
+
       return {
-        id: tailor.id,
-        name: tailor.name,
-        email: tailor.email,
-        role: tailor.role,
-        roleLabel: tailor.role === 'TAILOR' ? 'Master Tailor & Craftsman' : tailor.role,
-        branch: tailor.branch?.name || 'Main Branch',
-        branchId: tailor.branchId,
-        completedToday,
-        completedMonth,
-        totalCompleted,
-        activeWorkload,
+        id: worker.id,
+        name: worker.name,
+        email: worker.email,
+        role: worker.role,
+        roleLabel,
+        branch: worker.branch?.name || (worker.branchId === 2 ? 'Bella Design' : 'JB Group (Main)'),
+        branchId: worker.branchId,
+
+        // Overall performance (All Production):
+        tasksAssigned: allStats.assignedTasksCount,
+        garmentsAssigned: allStats.assignedGarments,
+        completedToday: allStats.completedTodayGarments,
+        completedMonth: allStats.completedMonthGarments,
+        totalCompleted: allStats.totalCompletedGarments,
+        completedTasksToday: allStats.completedTodayTasksCount,
+        completedTasksMonth: allStats.completedMonthTasksCount,
+        totalTasksCompleted: allStats.totalCompletedTasksCount,
+        activeWorkload: allStats.activeWorkloadGarments,
+        activeTasksCount: allStats.activeTasksCount,
+        completionRate: allStats.completionRate,
+        avgDurationMinutes: allStats.avgDurationMinutes,
+        avgDurationFormatted: allStats.avgDurationFormatted,
+
+        // Cutting Master specific performance:
+        cutting: {
+          assignedGarments: cuttingStats.assignedGarments,
+          assignedTasks: cuttingStats.assignedTasksCount,
+          completedToday: cuttingStats.completedTodayGarments,
+          completedMonth: cuttingStats.completedMonthGarments,
+          totalCompleted: cuttingStats.totalCompletedGarments,
+          activeWorkload: cuttingStats.activeWorkloadGarments,
+          activeTasks: cuttingStats.activeTasksCount,
+          completionRate: cuttingStats.completionRate,
+          avgDurationMinutes: cuttingStats.avgDurationMinutes,
+          avgDurationFormatted: cuttingStats.avgDurationFormatted
+        },
+
+        // Stitching Tailor specific performance:
+        stitching: {
+          assignedGarments: stitchingStats.assignedGarments,
+          assignedTasks: stitchingStats.assignedTasksCount,
+          completedToday: stitchingStats.completedTodayGarments,
+          completedMonth: stitchingStats.completedMonthGarments,
+          totalCompleted: stitchingStats.totalCompletedGarments,
+          activeWorkload: stitchingStats.activeWorkloadGarments,
+          activeTasks: stitchingStats.activeTasksCount,
+          completionRate: stitchingStats.completionRate,
+          avgDurationMinutes: stitchingStats.avgDurationMinutes,
+          avgDurationFormatted: stitchingStats.avgDurationFormatted
+        },
+
+        // Task history for View Tailor details:
+        activeTasks,
         activeOrders,
-        statusCounts,
-        // Real attendance record from PostgreSQL:
+        allTasks: allTasksList,
+
         attendance: todayAtt ? todayAtt.status : null,
         todayAttendance: todayAtt || null,
         hoursWorked: null,
@@ -2413,7 +2719,7 @@ exports.getTailorPerformance = async (req, res, next) => {
         activeWorkload: true,
         ranking: true,
         hoursWorked: false,
-        attendance: false,
+        attendance: true,
         commission: false,
         qualityRating: false
       }
@@ -2426,7 +2732,8 @@ exports.getTailorPerformance = async (req, res, next) => {
 
 /**
  * POST /api/orders/:id/notify-ready
- * Trigger or re-send WhatsApp Ready Notification (JB GROUP)
+ * Manager Controls Customer Finished Notification (JB GROUP)
+ * Available only to Manager, Admin, and CEO/SUPER_ADMIN roles.
  */
 exports.notifyOrderReady = async (req, res, next) => {
   try {
@@ -2438,40 +2745,73 @@ exports.notifyOrderReady = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid order ID.' });
     }
 
+    // Role check: Only Manager, Admin, and CEO/SUPER_ADMIN roles
+    const userRole = req.user?.role;
+    const allowedRoles = ['SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER'];
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Only authorized Managers, Admins, and CEO can send customer finished notifications. Your role: ${userRole || 'UNKNOWN'}`
+      });
+    }
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { customer: true }
+      include: { customer: true, garmentDetails: true, branch: true }
     });
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
+    // Verify final completion and quality-check requirements
     if (order.status !== 'READY') {
       return res.status(400).json({
         success: false,
-        message: `Notification can only be sent when order is Ready for Collection. Current status: ${ORDER_STATUS_LABELS[order.status] || order.status}.`
+        message: `Customer Finished Notification can only be sent when the order is Ready for Collection (Final completion & Quality Check passed). Current status: ${ORDER_STATUS_LABELS[order.status] || order.status}.`
+      });
+    }
+
+    // Customer phone number validation
+    const rawPhone = order.customer?.primaryPhone;
+    if (!rawPhone || !rawPhone.toString().trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer phone number is missing. Cannot send customer finished notification.'
+      });
+    }
+
+    const cleanedDigits = rawPhone.toString().replace(/[^0-9]/g, '');
+    if (cleanedDigits.length < 7) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid customer phone number (${rawPhone}). Cannot send customer finished notification.`
       });
     }
 
     // Check duplicate prevention
     if (order.readyNotificationSent && !force) {
-      return res.status(200).json({
-        success: true,
-        alreadySent: true,
-        message: 'Ready notification was already sent to customer. Duplicate prevented.',
+      return res.status(409).json({
+        success: false,
+        duplicatePrevented: true,
+        message: `Customer finished notification was already sent on ${order.readyNotificationSentAt ? new Date(order.readyNotificationSentAt).toLocaleString() : 'earlier'} by ${order.readyNotificationSentBy || 'Authorized Manager'}. Duplicate prevented.`,
         sentAt: order.readyNotificationSentAt,
+        sentBy: order.readyNotificationSentBy,
         status: order.readyNotificationStatus || 'SENT',
         order
       });
     }
 
     const now = new Date();
+    const actorName = getActorDisplayName(req.user) || req.user?.name || req.user?.email || 'Authorized Manager';
+
+    // Update the order notification record
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: {
         readyNotificationSent: true,
         readyNotificationSentAt: now,
+        readyNotificationSentBy: actorName,
         readyNotificationStatus: 'SENT'
       },
       include: { customer: true, garmentDetails: true, branch: true }
@@ -2479,17 +2819,34 @@ exports.notifyOrderReady = async (req, res, next) => {
 
     const custName = updatedOrder.customer?.name || 'Customer';
     const ordNum = updatedOrder.orderNumber || (updatedOrder.id ? `ORD-${updatedOrder.id}` : 'N/A');
-    const phone = updatedOrder.customer?.primaryPhone;
     const msg = `Dear ${custName},\n\nYour order ${ordNum} from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!`;
 
-    res.status(200).json({
+    // Record audit log
+    await logAudit({
+      action: 'CUSTOMER_FINISHED_NOTIFICATION_SENT',
+      entityType: 'ORDER',
+      entityId: order.id,
+      req,
+      details: {
+        orderNumber: ordNum,
+        customerName: custName,
+        customerPhone: rawPhone,
+        sentBy: actorName,
+        sentByRole: req.user?.role,
+        sentAt: now.toISOString(),
+        message: msg
+      }
+    });
+
+    return res.status(200).json({
       success: true,
-      message: 'WhatsApp notification sent successfully.',
-      phone,
+      message: 'Customer finished notification dispatched successfully.',
+      phone: rawPhone,
       customerName: custName,
       orderNumber: ordNum,
       whatsAppMessage: msg,
       sentAt: now,
+      sentBy: actorName,
       status: 'SENT',
       order: updatedOrder
     });
@@ -2498,6 +2855,3 @@ exports.notifyOrderReady = async (req, res, next) => {
     next(error);
   }
 };
-
-
-

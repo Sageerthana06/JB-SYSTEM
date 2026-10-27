@@ -1,3 +1,23 @@
+/**
+ * SalesERP Component — JB GROUP / Bella Design ERP
+ *
+ * =========================================================================
+ * COMPONENT ROADMAP & ARCHITECTURE:
+ * =========================================================================
+ * This is the central sales & order management workstation.
+ *
+ * Major Sections:
+ * 1. Helper Modals & Micro-Components (Lines 40–1900):
+ *    - StatusDropdown: Quick status transition popup
+ *    - PriceQuotationModal: Set service/tailoring charges & quotation
+ *    - OrderCard: Kanban/table card with status badges, tailors, & action buttons
+ * 2. Main SalesERP Container (Lines 1900+):
+ *    - Revenue & Metric Cards (Daily revenue, Pending approvals, Active orders)
+ *    - Search & Filter Controls (Status, Branch, Date range)
+ *    - Order Kanban Columns & List View
+ *    - Modal Mounts (Order creation, Invoices, Payment slips, WhatsApp alerts)
+ * =========================================================================
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import jsPDF from 'jspdf';
@@ -8,13 +28,10 @@ import {
   ShoppingCart,
   Clock,
   AlertCircle,
-  CheckCircle,
   Check,
-  Filter,
   Download,
   Plus,
   ArrowUpRight,
-  ArrowDownRight,
   Eye,
   CreditCard,
   MessageCircle,
@@ -22,15 +39,17 @@ import {
   X,
   FileText,
   ArrowRight,
-  Send
+  Send,
+  Scissors
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { OrderCreationModal } from './OrderCreationModal';
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { CustomerProfileDrawer } from './CustomerProfileDrawer';
 import { SelfAttendanceCard } from './SelfAttendanceCard';
-import { getStatusLabel, getStatusColors, getNextStageInfo, ALL_STATUSES, ALLOWED_STAGE_TRANSITIONS, getPriceStatusLabel, getPriceStatusColors, cleanActivityNote, cleanActorName } from '../utils/orderStatus';
+import { TaskAssignmentModal } from './TaskAssignmentModal';
+import { CustomerFinishedNotificationModal } from './CustomerFinishedNotificationModal';
+import { getStatusLabel, getStatusColors, getNextStageInfo, ALLOWED_STAGE_TRANSITIONS, getPriceStatusLabel, getPriceStatusColors, cleanActivityNote, cleanActorName } from '../utils/orderStatus';
 import { API_URL, getImageUrl } from '../config/api';
 
 const StatusDropdown = ({ currentStatus, onStatusChange, targetOrder, userRole }) => {
@@ -61,7 +80,7 @@ const StatusDropdown = ({ currentStatus, onStatusChange, targetOrder, userRole }
     if (!options.includes('CANCELLED')) options.push('CANCELLED');
   }
 
-  const canChange = isManager || (userRole === 'TAILOR' && targetOrder?.assignedTailorId && targetOrder?.tailorAccepted);
+  const canChange = isManager || (userRole === 'TAILOR' && (targetOrder?.assignedTailorId || (targetOrder?.tasks && targetOrder.tasks.length > 0)));
 
   if (!canChange || options.length <= 1) {
     return (
@@ -307,7 +326,7 @@ const PriceSettingModal = ({ order, isOpen, onClose, onPriceSaved, user }) => {
       const data = await res.json();
       if (data.success) {
         alert(directAccept ? 'Price accepted and order confirmed for production!' : 'Price quotation updated and sent to customer successfully.');
-        onPriceSaved && onPriceSaved(data.order);
+        if (onPriceSaved) onPriceSaved(data.order);
         onClose();
       } else {
         const errorMsg = data.message ? (data.error ? `${data.message} (${data.error})` : data.message) : 'Failed to save price quotation';
@@ -527,11 +546,13 @@ const ViewOrderModal = ({
   tailorsList,
   onOpenPricing,
   user,
-  onTailorAccept,
-  onOpenTailorReject,
+  onOpenTaskModal,
+  onTailorAccept: _onTailorAccept,
+  onOpenTailorReject: _onOpenTailorReject,
   onConfirmCustomerPrice,
   onVerifyPaymentSlip,
-  onRejectPaymentSlip
+  onRejectPaymentSlip,
+  onOpenFinishedNotification
 }) => {
   const pdfRef = useRef();
   const [downloading, setDownloading] = useState(false);
@@ -547,7 +568,6 @@ const ViewOrderModal = ({
   if (!order) return null;
 
   const nextInfo = getNextStageInfo(order);
-  const isMyAssignedPending = Boolean(user?.role === 'TAILOR' && Number(order.assignedTailorId) === Number(user?.id) && !order.tailorAccepted);
   const canAssignTailor = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(user?.role));
   const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes((user?.role || '').toUpperCase());
   const isPriceConfirmed = Boolean(
@@ -599,21 +619,20 @@ const ViewOrderModal = ({
               <FileText size={14} /> Digital Invoice
             </button>
           )}
-          {order.status === 'READY' && order.customer?.primaryPhone && (
-            <a
-              href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(order))}`}
-              target="_blank"
-              rel="noreferrer"
+          {isFullAccess && order.status === 'READY' && (
+            <button
+              type="button"
+              onClick={() => onOpenFinishedNotification && onOpenFinishedNotification(order)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
-                backgroundColor: order.readyNotificationSent ? '#15803d' : '#22C55E', color: '#fff',
-                padding: '6px 12px', borderRadius: '6px',
-                fontSize: '0.85rem', fontWeight: 600,
-                textDecoration: 'none'
+                backgroundColor: order.readyNotificationSent ? '#15803d' : '#16a34a', color: '#fff',
+                padding: '6px 14px', borderRadius: '6px',
+                fontSize: '0.85rem', fontWeight: 700,
+                border: 'none', cursor: 'pointer'
               }}
             >
-              <MessageCircle size={14} /> {order.readyNotificationSent ? '✓ WA Delivered' : 'WhatsApp Ready'}
-            </a>
+              <MessageCircle size={14} /> {order.readyNotificationSent ? '✓ Finished Msg Sent' : 'Send Customer Finished Message'}
+            </button>
           )}
           <button
             onClick={downloadPDF}
@@ -627,8 +646,8 @@ const ViewOrderModal = ({
           </button>
         </div>
 
-        {/* WhatsApp Order Ready Notification Banner */}
-        {order.status === 'READY' && order.customer?.primaryPhone && (
+        {/* WhatsApp Order Ready Notification Banner (Manager / Admin / CEO only) */}
+        {isFullAccess && order.status === 'READY' && (
           <div style={{
             backgroundColor: '#f0fdf4',
             border: '2px solid #22c55e',
@@ -659,7 +678,7 @@ const ViewOrderModal = ({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#14532d' }}>
-                    JB GROUP WhatsApp Ready Notification
+                    JB GROUP Customer Finished Notification
                   </h4>
                   {order.readyNotificationSent ? (
                     <span style={{
@@ -668,7 +687,7 @@ const ViewOrderModal = ({
                       padding: '2px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800,
                       border: '1px solid #86efac'
                     }}>
-                      ✓ WhatsApp Delivered ({order.readyNotificationStatus || 'SENT'})
+                      ✓ Finished Message Sent ({order.readyNotificationStatus || 'SENT'})
                     </span>
                   ) : (
                     <span style={{
@@ -677,15 +696,15 @@ const ViewOrderModal = ({
                       padding: '2px 8px', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 800,
                       border: '1px solid #fde68a'
                     }}>
-                      ● Pending Notification
+                      ● Customer Finished Message Pending
                     </span>
                   )}
                 </div>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: '#166534', lineHeight: 1.4 }}>
-                  Customer: <strong>{order.customer?.name}</strong> | Phone: <strong>{order.customer?.primaryPhone}</strong>
+                  Customer: <strong>{order.customer?.name}</strong> | Phone: <strong>{order.customer?.primaryPhone || 'None'}</strong>
                   {order.readyNotificationSent && order.readyNotificationSentAt && (
                     <span style={{ display: 'block', fontSize: '0.75rem', color: '#15803d', marginTop: '2px' }}>
-                      Sent at: {new Date(order.readyNotificationSentAt).toLocaleString()} (Duplicate protection active)
+                      Sent at: {new Date(order.readyNotificationSentAt).toLocaleString()} by <strong>{order.readyNotificationSentBy || 'Authorized Manager'}</strong> (Duplicate protection active)
                     </span>
                   )}
                 </p>
@@ -705,41 +724,27 @@ const ViewOrderModal = ({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <a
-                href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(order))}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={async () => {
-                  try {
-                    await fetch(`${API_URL}/api/orders/${order.id}/notify-ready`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
-                      },
-                      body: JSON.stringify({ force: false })
-                    });
-                  } catch (e) {
-                    console.error(e);
-                  }
-                }}
+              <button
+                type="button"
+                onClick={() => onOpenFinishedNotification && onOpenFinishedNotification(order)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  backgroundColor: '#22c55e',
+                  backgroundColor: order.readyNotificationSent ? '#15803d' : '#16a34a',
                   color: '#ffffff',
                   padding: '8px 16px',
                   borderRadius: '8px',
                   fontSize: '0.85rem',
                   fontWeight: 700,
-                  textDecoration: 'none',
-                  boxShadow: '0 2px 6px rgba(34, 197, 94, 0.3)'
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(22, 163, 74, 0.3)'
                 }}
               >
                 <MessageCircle size={16} />
-                {order.readyNotificationSent ? 'Open WhatsApp (Delivered)' : 'Send WhatsApp Message'}
-              </a>
+                {order.readyNotificationSent ? 'Resend Customer Finished Message' : 'Send Customer Finished Message'}
+              </button>
             </div>
           </div>
         )}
@@ -1048,162 +1053,157 @@ const ViewOrderModal = ({
                   </div>
                 )}
                 {order.status !== 'PENDING_APPROVAL' && order.status !== 'REJECTED' && (
-                  <div style={{ marginTop: '8px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                      Assign Responsible Tailor (1 Order = 1 Tailor):
-                    </label>
-                    <div>
-                        {/* Tailor waiting acceptance banner for logged-in tailor */}
-                        {isMyAssignedPending && (
-                          <div style={{
-                            backgroundColor: '#fffbeb',
-                            border: '2px solid #f59e0b',
-                            borderRadius: '8px',
-                            padding: '12px 14px',
-                            marginBottom: '10px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '8px'
-                          }}>
-                            <div>
-                              <div style={{ fontWeight: 800, color: '#92400e', fontSize: '0.88rem' }}>
-                                ⏳ WAITING ACCEPTANCE
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: '#b45309' }}>
-                                You are assigned as the tailor. Please accept to proceed to Cutting or reject with a reason.
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button
-                                onClick={() => onTailorAccept && onTailorAccept(order.id)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '6px 14px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#16a34a',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 800,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <Check size={13} /> Accept Order
-                              </button>
-                              <button
-                                onClick={() => onOpenTailorReject && onOpenTailorReject(order)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '6px 12px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#fee2e2',
-                                  color: '#dc2626',
-                                  border: '1px solid #fca5a5',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <X size={13} /> Reject Order
-                              </button>
-                            </div>
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {/* Multi-Stage Production Tasks Card */}
+                    <div style={{ backgroundColor: '#f5f3ff', padding: '14px', borderRadius: '10px', border: '1px solid #ddd6fe' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#5b21b6' }}>
+                            ✂️ Production Tasks Assignment
                           </div>
+                          <div style={{ fontSize: '0.74rem', color: '#6d28d9' }}>
+                            Assign Cutting, Stitching, Aari, Finishing &amp; QC to craftsmen (No tailor acceptance required)
+                          </div>
+                        </div>
+                        {canAssignTailor && (
+                          <button
+                            onClick={() => onOpenTaskModal && onOpenTaskModal(order)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '6px 14px',
+                              borderRadius: '6px',
+                              backgroundColor: '#6d28d9',
+                              color: '#ffffff',
+                              border: 'none',
+                              fontSize: '0.8rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(109, 40, 217, 0.2)'
+                            }}
+                          >
+                            <Scissors size={14} />
+                            <span>{order.tasks && order.tasks.length > 0 ? 'Manage Tasks' : 'Assign Tasks'}</span>
+                          </button>
                         )}
+                      </div>
 
-                        {/* Previous rejection banner if applicable */}
-                        {order.tailorRejectedAt && order.tailorRejectionReason && !order.assignedTailorId && (
-                          <div style={{
-                            backgroundColor: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            borderRadius: '8px',
-                            padding: '8px 12px',
-                            marginBottom: '10px',
-                            fontSize: '0.8rem',
-                            color: '#991b1b'
-                          }}>
-                            <strong>✕ Previously Rejected by Tailor:</strong> {order.tailorRejectionReason} {order.tailorRejectedAt && `(${new Date(order.tailorRejectedAt).toLocaleDateString()})`}
-                          </div>
-                        )}
-
-                        {canAssignTailor ? (
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <select
-                                value={localTailorId}
-                                onChange={(e) => setLocalTailorId(e.target.value)}
-                                style={{
-                                  padding: '7px 12px',
-                                  borderRadius: '8px',
-                                  border: '1px solid var(--border-color)',
-                                  fontSize: '0.84rem',
-                                  fontWeight: 600,
-                                  backgroundColor: '#ffffff',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <option value="">-- Select Tailor --</option>
-                                {tailorsList?.map(t => (
-                                  <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => onAssignTailor && onAssignTailor(order.id, localTailorId)}
-                                disabled={!localTailorId || Number(localTailorId) === Number(order.assignedTailorId)}
-                                style={{
-                                  padding: '7px 14px',
-                                  borderRadius: '8px',
-                                  backgroundColor: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'var(--jb-crimson)' : '#e2e8f0',
-                                  color: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? '#ffffff' : '#94a3b8',
-                                  border: 'none',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 700,
-                                  cursor: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'pointer' : 'not-allowed'
-                                }}
-                              >
-                                {order.assignedTailorId ? 'Reassign Tailor' : 'Assign Tailor'}
-                              </button>
-                              {order.assignedTailor && (
-                                <span style={{
-                                  fontSize: '0.78rem',
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  fontWeight: 700,
-                                  backgroundColor: order.tailorAccepted ? '#dcfce7' : '#fef3c7',
-                                  color: order.tailorAccepted ? '#15803d' : '#b45309'
-                                }}>
-                                  {order.tailorAccepted ? '✓ Accepted by Tailor' : '⏳ Waiting for Acceptance'}
-                                </span>
-                              )}
+                      {order.tasks && order.tasks.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {order.tasks.map(t => (
+                            <div key={t.id} style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              backgroundColor: '#ffffff',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #e2e8f0',
+                              fontSize: '0.78rem'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 800, color: '#1e293b' }}>{t.taskName}</span>
+                                <span style={{ color: '#64748b' }}>→ {t.assignedTailor?.name || 'Unassigned'}</span>
+                              </div>
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                fontWeight: 800,
+                                fontSize: '0.7rem',
+                                backgroundColor: t.status === 'COMPLETED' ? '#dcfce7' : (t.status === 'IN_PROGRESS' ? '#dbeafe' : '#fef3c7'),
+                                color: t.status === 'COMPLETED' ? '#15803d' : (t.status === 'IN_PROGRESS' ? '#1d4ed8' : '#b45309')
+                              }}>
+                                {t.status === 'COMPLETED' ? '✓ Completed' : (t.status === 'IN_PROGRESS' ? '⚡ In Progress' : '● Assigned')}
+                              </span>
                             </div>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: 700 }}>
-                              {order.assignedTailor?.name || 'Not assigned'}
-                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.76rem', color: '#7c3aed', fontStyle: 'italic' }}>
+                          No task breakdown created yet. Click "Assign Tasks" to assign separate production stages to tailors.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Single Tailor Assignment (Legacy Support) */}
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Primary Tailor:
+                      </label>
+                      {canAssignTailor ? (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <select
+                              value={localTailorId}
+                              onChange={(e) => setLocalTailorId(e.target.value)}
+                              style={{
+                                padding: '7px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                fontSize: '0.84rem',
+                                fontWeight: 600,
+                                backgroundColor: '#ffffff',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="">-- Select Tailor --</option>
+                              {tailorsList?.map(t => (
+                                <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => onAssignTailor && onAssignTailor(order.id, localTailorId)}
+                              disabled={!localTailorId || Number(localTailorId) === Number(order.assignedTailorId)}
+                              style={{
+                                padding: '7px 14px',
+                                borderRadius: '8px',
+                                backgroundColor: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'var(--jb-crimson)' : '#e2e8f0',
+                                color: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? '#ffffff' : '#94a3b8',
+                                border: 'none',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: (localTailorId && Number(localTailorId) !== Number(order.assignedTailorId)) ? 'pointer' : 'not-allowed'
+                              }}
+                            >
+                              {order.assignedTailorId ? 'Reassign Tailor' : 'Assign Tailor'}
+                            </button>
                             {order.assignedTailor && (
                               <span style={{
                                 fontSize: '0.78rem',
                                 padding: '4px 10px',
                                 borderRadius: '6px',
                                 fontWeight: 700,
-                                backgroundColor: order.tailorAccepted ? '#dcfce7' : '#fef3c7',
-                                color: order.tailorAccepted ? '#15803d' : '#b45309'
+                                backgroundColor: '#dcfce7',
+                                color: '#15803d'
                               }}>
-                                {order.tailorAccepted ? '✓ Accepted by Tailor' : '⏳ Waiting for Acceptance'}
+                                ✓ Assigned
                               </span>
                             )}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 700 }}>
+                            {order.assignedTailor?.name || 'Not assigned'}
+                          </span>
+                          {order.assignedTailor && (
+                            <span style={{
+                              fontSize: '0.78rem',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontWeight: 700,
+                              backgroundColor: '#dcfce7',
+                              color: '#15803d'
+                            }}>
+                              ✓ Assigned
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                )}
                 {nextInfo && order.status !== 'PENDING_APPROVAL' && (
                   <div style={{ marginTop: '4px' }}>
                     <button
@@ -1966,7 +1966,7 @@ const ViewOrderModal = ({
 };
 
 export const SalesERP = () => {
-  const { activeBranch, setActiveBranch, getAuthHeaders, user } = useAuth();
+  const { activeBranch, setActiveBranch, getAuthHeaders, user, setActiveTab } = useAuth();
   const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes((user?.role || '').toUpperCase());
   const canSwitchBranch = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes((user?.role || '').toUpperCase());
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -1982,11 +1982,12 @@ export const SalesERP = () => {
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [pricingOrder, setPricingOrder] = useState(null);
+  const [taskModalOrder, setTaskModalOrder] = useState(null);
+  const [finishedNotificationOrder, setFinishedNotificationOrder] = useState(null);
   const [trendReferenceDate, setTrendReferenceDate] = useState('');
 
   // Approval and tailor assignment state
   const [tailorsList, setTailorsList] = useState([]);
-  const [selectedTailorForOrder, setSelectedTailorForOrder] = useState({});
   const [rejectingOrder, setRejectingOrder] = useState(null);
   const [rejectionReasonText, setRejectionReasonText] = useState('');
   const [tailorRejectingOrder, setTailorRejectingOrder] = useState(null);
@@ -2378,16 +2379,6 @@ export const SalesERP = () => {
         if (viewingOrder?.id === orderId) {
           setViewingOrder(prev => ({ ...prev, ...(data.order || {}), status: newStatus }));
         }
-
-        // When order status is marked READY (Finished), dispatch WhatsApp ready notification
-        if (newStatus === 'READY') {
-          const targetOrd = data.order || orders.find(o => o.id === orderId) || {};
-          const phone = targetOrd.customer?.primaryPhone || targetOrd.phone;
-          if (phone) {
-            const waUrl = `https://wa.me/${normalizePhoneForWhatsApp(phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrd))}`;
-            window.open(waUrl, '_blank');
-          }
-        }
       } else {
         alert(data.message || 'Failed to update status');
       }
@@ -2538,6 +2529,24 @@ export const SalesERP = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {isFullAccess && (
+            <button
+              className="btn-secondary"
+              onClick={() => setActiveTab && setActiveTab('payroll')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                color: 'var(--jb-blue-accent)',
+                borderColor: 'rgba(37, 99, 235, 0.3)',
+                fontWeight: 700
+              }}
+              title="Navigate to Weekly Tailor Salary ERP"
+            >
+              <CreditCard size={16} /> Weekly Tailor Salary
+            </button>
+          )}
           <button className="btn-secondary">
             <Download size={16} /> Export Orders
           </button>
@@ -3233,167 +3242,62 @@ export const SalesERP = () => {
                         ) : isRejected ? (
                           <span style={{ color: '#ef4444', fontSize: '0.76rem' }}>Order Rejected</span>
                         ) : (() => {
-                          const isMyAssignedPending = Boolean(user?.role === 'TAILOR' && Number(targetOrder.assignedTailorId) === Number(user?.id) && !targetOrder.tailorAccepted);
                           const canAssign = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role));
+                          const hasTasks = targetOrder.tasks && targetOrder.tasks.length > 0;
+                          const completedTasks = hasTasks ? targetOrder.tasks.filter(t => t.status === 'COMPLETED').length : 0;
 
-                          if (isMyAssignedPending) {
-                            return (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <div style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 800,
-                                  backgroundColor: '#fef3c7',
-                                  color: '#b45309',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  border: '1px solid #fde68a',
-                                  width: 'fit-content'
-                                }}>
-                                  ⏳ WAITING ACCEPTANCE
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {hasTasks ? (
+                                <div>
+                                  <div style={{ fontWeight: 800, color: '#0369a1', fontSize: '0.8rem' }}>
+                                    ✂️ Tasks: {completedTasks}/{targetOrder.tasks.length} Done
+                                  </div>
+                                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                    {targetOrder.tasks.slice(0, 2).map(t => `${t.taskName}: ${t.assignedTailor?.name?.split(' ')[0] || 'Unassigned'}`).join(' • ')}
+                                    {targetOrder.tasks.length > 2 && '...'}
+                                  </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '4px' }}>
+                              ) : targetOrder.assignedTailor ? (
+                                <div>
+                                  <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.82rem' }}>
+                                    {targetOrder.assignedTailor.name}
+                                  </div>
+                                  <span style={{
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    color: '#16a34a'
+                                  }}>
+                                    ✓ Assigned
+                                  </span>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Unassigned</span>
+                              )}
+
+                              {canAssign && (
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '2px' }}>
                                   <button
-                                    onClick={() => handleTailorAccept(ord.id)}
-                                    disabled={isProcessingApproval}
-                                    title="Accept Order"
+                                    onClick={() => setTaskModalOrder(targetOrder)}
+                                    title="Assign or reassign production tasks to craftsmen"
                                     style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       gap: '3px',
-                                      padding: '4px 8px',
+                                      padding: '3px 8px',
                                       borderRadius: '6px',
-                                      backgroundColor: '#16a34a',
-                                      color: '#ffffff',
-                                      border: 'none',
-                                      fontSize: '0.72rem',
+                                      backgroundColor: '#f5f3ff',
+                                      color: '#6d28d9',
+                                      border: '1px solid #ddd6fe',
+                                      fontSize: '0.7rem',
                                       fontWeight: 800,
-                                      cursor: 'pointer',
-                                      boxShadow: '0 1px 3px rgba(22, 163, 74, 0.3)'
-                                    }}
-                                  >
-                                    <Check size={12} /> Accept Order
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setTailorRejectingOrder(targetOrder);
-                                      setTailorRejectionReasonText('');
-                                    }}
-                                    disabled={isProcessingApproval}
-                                    title="Reject Order"
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '3px',
-                                      padding: '4px 8px',
-                                      borderRadius: '6px',
-                                      backgroundColor: '#fee2e2',
-                                      color: '#dc2626',
-                                      border: '1px solid #fca5a5',
-                                      fontSize: '0.72rem',
-                                      fontWeight: 700,
                                       cursor: 'pointer'
                                     }}
                                   >
-                                    <X size={12} /> Reject Order
+                                    <Scissors size={11} />
+                                    <span>{hasTasks ? 'Manage Tasks' : 'Assign Tasks'}</span>
                                   </button>
                                 </div>
-                              </div>
-                            );
-                          }
-
-                          if (targetOrder.assignedTailor) {
-                            return (
-                              <div>
-                                <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.82rem' }}>
-                                  {targetOrder.assignedTailor.name}
-                                </div>
-                                <span style={{
-                                  fontSize: '0.68rem',
-                                  fontWeight: 700,
-                                  color: targetOrder.tailorAccepted ? '#16a34a' : '#b45309'
-                                }}>
-                                  {targetOrder.tailorAccepted ? '✓ Accepted' : '⏳ Waiting Acceptance'}
-                                </span>
-                                {canAssign && (
-                                  <div style={{ marginTop: '4px' }}>
-                                    <select
-                                      value=""
-                                      onChange={(e) => {
-                                        if (e.target.value) handleAssignTailor(ord.id, e.target.value);
-                                      }}
-                                      style={{
-                                        padding: '2px 6px',
-                                        borderRadius: '4px',
-                                        border: '1px solid #cbd5e1',
-                                        fontSize: '0.7rem',
-                                        backgroundColor: '#f8fafc',
-                                        color: '#475569'
-                                      }}
-                                    >
-                                      <option value="">Reassign...</option>
-                                      {tailorsList.filter(t => t.id !== targetOrder.assignedTailorId).map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div>
-                              {targetOrder.tailorRejectedAt && targetOrder.tailorRejectionReason && (
-                                <div style={{ fontSize: '0.68rem', color: '#dc2626', marginBottom: '4px', fontWeight: 600 }}>
-                                  ✕ Rejected: {targetOrder.tailorRejectionReason}
-                                </div>
-                              )}
-                              {canAssign ? (
-                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                  <select
-                                    value={selectedTailorForOrder[ord.id] || ''}
-                                    onChange={(e) => setSelectedTailorForOrder(prev => ({ ...prev, [ord.id]: e.target.value }))}
-                                    style={{
-                                      padding: '4px 6px',
-                                      borderRadius: '6px',
-                                      border: '1px solid var(--border-color)',
-                                      fontSize: '0.72rem',
-                                      fontWeight: 600,
-                                      backgroundColor: '#ffffff',
-                                      color: '#0f172a'
-                                    }}
-                                  >
-                                    <option value="">Select Tailor...</option>
-                                    {tailorsList.map(t => (
-                                      <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    onClick={() => {
-                                      const tid = selectedTailorForOrder[ord.id];
-                                      if (tid) handleAssignTailor(ord.id, tid);
-                                    }}
-                                    disabled={!selectedTailorForOrder[ord.id]}
-                                    style={{
-                                      padding: '4px 8px',
-                                      borderRadius: '6px',
-                                      backgroundColor: selectedTailorForOrder[ord.id] ? 'var(--jb-crimson)' : '#e2e8f0',
-                                      color: selectedTailorForOrder[ord.id] ? '#ffffff' : '#94a3b8',
-                                      border: 'none',
-                                      fontSize: '0.7rem',
-                                      fontWeight: 700,
-                                      cursor: selectedTailorForOrder[ord.id] ? 'pointer' : 'not-allowed',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                  >
-                                    Assign
-                                  </button>
-                                </div>
-                              ) : (
-                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Unassigned</span>
                               )}
                             </div>
                           );
@@ -3575,7 +3479,7 @@ export const SalesERP = () => {
                               onStatusChange={(newStatus) => handleStatusChange(ord.id, newStatus)}
                             />
                             {(() => {
-                              const canAdvanceStage = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role) || (user?.role === 'TAILOR' && Number(targetOrder.assignedTailorId) === Number(user?.id) && targetOrder.tailorAccepted));
+                              const canAdvanceStage = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role) || (user?.role === 'TAILOR' && (Number(targetOrder.assignedTailorId) === Number(user?.id) || (targetOrder?.tasks && targetOrder.tasks.some(t => Number(t.assignedTailorId) === Number(user?.id))))));
                               if (!canAdvanceStage) return null;
                               const nextInfo = getNextStageInfo(targetOrder);
                               if (!nextInfo) return null;
@@ -3599,43 +3503,26 @@ export const SalesERP = () => {
                                 </button>
                               );
                             })()}
-                            
-                            {ord.status === 'READY' && ord.phone && (
-                              <a
-                                href={`https://wa.me/${normalizePhoneForWhatsApp(ord.phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrder))}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={async () => {
-                                  try {
-                                    await fetch(`${API_URL}/api/orders/${targetOrder.id}/notify-ready`, {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
-                                      },
-                                      body: JSON.stringify({ force: false })
-                                    });
-                                    setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
-                                  } catch (e) {
-                                    console.error(e);
-                                  }
-                                }}
-                                title="Send WhatsApp Ready Notification"
+
+                            {isFullAccess && ord.status === 'READY' && (
+                              <button
+                                type="button"
+                                onClick={() => setFinishedNotificationOrder(targetOrder)}
+                                title={targetOrder.readyNotificationSent ? `Finished notification sent by ${targetOrder.readyNotificationSentBy || 'Manager'}` : 'Send Customer Finished Message'}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: '4px',
                                   padding: '4px 8px', borderRadius: '6px',
-                                  backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#25D366',
+                                  backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#16a34a',
                                   color: '#fff',
                                   fontSize: '0.72rem', fontWeight: 800,
-                                  textDecoration: 'none',
                                   whiteSpace: 'nowrap',
                                   border: 'none',
                                   cursor: 'pointer'
                                 }}
                               >
                                 <MessageCircle size={12} />
-                                <span>{targetOrder.readyNotificationSent ? '✓ WA Sent' : 'Send WhatsApp'}</span>
-                              </a>
+                                <span>{targetOrder.readyNotificationSent ? '✓ Finished Sent' : 'Send Customer Finished Message'}</span>
+                              </button>
                             )}
                           </div>
                         )}
@@ -3676,42 +3563,7 @@ export const SalesERP = () => {
                             </>
                           )}
 
-                          {/* Assigned tailor acceptance quick actions in row */}
-                          {user?.role === 'TAILOR' && Number(targetOrder.assignedTailorId) === Number(user?.id) && !targetOrder.tailorAccepted && (
-                            <>
-                              <button
-                                onClick={() => handleTailorAccept(ord.id)}
-                                disabled={isProcessingApproval}
-                                title="Accept Order"
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                  padding: '4px 8px', borderRadius: '6px',
-                                  backgroundColor: '#16a34a', color: '#fff',
-                                  border: 'none', fontSize: '0.75rem', fontWeight: 800,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <Check size={12} /> Accept
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setTailorRejectingOrder(targetOrder);
-                                  setTailorRejectionReasonText('');
-                                }}
-                                disabled={isProcessingApproval}
-                                title="Reject Order"
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                  padding: '4px 8px', borderRadius: '6px',
-                                  backgroundColor: '#dc2626', color: '#fff',
-                                  border: 'none', fontSize: '0.75rem', fontWeight: 800,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <X size={12} /> Reject
-                              </button>
-                            </>
-                          )}
+
 
                           <button className="btn-secondary" onClick={() => setViewingOrder(orders.find(o => o.id === ord.id))} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
                             <Eye size={14} /> View
@@ -3768,44 +3620,29 @@ export const SalesERP = () => {
                             </button>
                           )}
 
-                          {/* WhatsApp Ready Notification & Delivery Status */}
-                          {ord.status === 'READY' && ord.phone && (
-                            <a
-                              href={`https://wa.me/${normalizePhoneForWhatsApp(ord.phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrder))}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={async () => {
-                                try {
-                                  await fetch(`${API_URL}/api/orders/${targetOrder.id}/notify-ready`, {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
-                                    },
-                                    body: JSON.stringify({ force: false })
-                                  });
-                                  setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
-                                } catch (e) {
-                                  console.error(e);
-                                }
-                              }}
+                          {/* Manager-controlled Finished Notification */}
+                          {isFullAccess && ord.status === 'READY' && (
+                            <button
+                              type="button"
+                              onClick={() => setFinishedNotificationOrder(targetOrder)}
                               title={
                                 targetOrder.readyNotificationSent
-                                  ? `Delivered to ${ord.phone} at ${targetOrder.readyNotificationSentAt ? new Date(targetOrder.readyNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)`
-                                  : `Send JB GROUP WhatsApp Ready notification to ${ord.phone}`
+                                  ? `Finished notification sent by ${targetOrder.readyNotificationSentBy || 'Manager'} at ${targetOrder.readyNotificationSentAt ? new Date(targetOrder.readyNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)`
+                                  : 'Send Customer Finished Message'
                               }
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                                 padding: '4px 8px', borderRadius: '6px',
-                                backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#22C55E',
+                                backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#16a34a',
                                 color: '#fff',
                                 fontSize: '0.72rem', fontWeight: 700,
-                                textDecoration: 'none'
+                                border: 'none', cursor: 'pointer',
+                                whiteSpace: 'nowrap'
                               }}
                             >
                               <MessageCircle size={12} />
-                              {targetOrder.readyNotificationSent ? '✓ WA Delivered' : 'WA Ready'}
-                            </a>
+                              <span>{targetOrder.readyNotificationSent ? '✓ Finished' : 'Send Finished Msg'}</span>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -3827,10 +3664,9 @@ export const SalesERP = () => {
               const balance = total > 0 ? Math.max(0, total - paid) : 0;
               const isPartiallyPaid = paid > 0 && paid < total;
               const isPaid = paid >= total && total > 0;
-              const isMyAssignedPending = Boolean(user?.role === 'TAILOR' && Number(targetOrder.assignedTailorId) === Number(user?.id) && !targetOrder.tailorAccepted);
               const canAssign = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role));
               const nextInfo = getNextStageInfo(targetOrder);
-              const canAdvanceStage = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role) || (user?.role === 'TAILOR' && Number(targetOrder.assignedTailorId) === Number(user?.id) && targetOrder.tailorAccepted));
+              const canAdvanceStage = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role) || (user?.role === 'TAILOR' && (Number(targetOrder.assignedTailorId) === Number(user?.id) || (targetOrder?.tasks && targetOrder.tasks.some(t => Number(t.assignedTailorId) === Number(user?.id))))));
 
               return (
                 <div key={`mob-${ord.id}`} className="erp-mobile-order-card" style={{ backgroundColor: isPending ? '#fffdf7' : 'var(--bg-card)' }}>
@@ -3929,63 +3765,45 @@ export const SalesERP = () => {
 
                     {/* Tailor Status / Assignment */}
                     <div style={{ fontSize: '0.78rem', paddingTop: '4px', borderTop: '1px dashed var(--border-color)' }}>
-                      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Tailor: </span>
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Tailor / Tasks: </span>
                       {isPending ? (
                         <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Pending Approval</span>
                       ) : isRejected ? (
                         <span style={{ color: '#ef4444', fontWeight: 700 }}>Order Rejected</span>
-                      ) : isMyAssignedPending ? (
-                        <span style={{ color: '#b45309', fontWeight: 800 }}>⏳ Waiting Your Acceptance</span>
+                      ) : targetOrder.tasks && targetOrder.tasks.length > 0 ? (
+                        <span style={{ fontWeight: 800, color: '#0369a1' }}>
+                          ✂️ {targetOrder.tasks.filter(t => t.status === 'COMPLETED').length}/{targetOrder.tasks.length} Tasks Done
+                        </span>
                       ) : targetOrder.assignedTailor ? (
                         <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                          {targetOrder.assignedTailor.name} ({targetOrder.tailorAccepted ? '✓ Accepted' : '⏳ Waiting'})
+                          {targetOrder.assignedTailor.name} (✓ Assigned)
                         </span>
                       ) : (
                         <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Unassigned</span>
                       )}
                     </div>
 
-                    {/* Tailor Assign Controls for Privileged Roles if needed */}
+                    {/* Task Assignment Button for Privileged Roles */}
                     {canAssign && !isPending && !isRejected && (
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}>
-                        <select
-                          value={selectedTailorForOrder[ord.id] || ''}
-                          onChange={(e) => setSelectedTailorForOrder(prev => ({ ...prev, [ord.id]: e.target.value }))}
-                          style={{
-                            flex: 1,
-                            padding: '6px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-color)',
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            backgroundColor: '#ffffff',
-                            color: '#0f172a'
-                          }}
-                        >
-                          <option value="">{targetOrder.assignedTailor ? 'Reassign Tailor...' : 'Select Tailor...'}</option>
-                          {tailorsList.filter(t => t.id !== targetOrder.assignedTailorId).map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
-                        </select>
+                      <div style={{ marginTop: '4px', display: 'flex', gap: '6px' }}>
                         <button
-                          onClick={() => {
-                            const tid = selectedTailorForOrder[ord.id];
-                            if (tid) handleAssignTailor(ord.id, tid);
-                          }}
-                          disabled={!selectedTailorForOrder[ord.id]}
+                          onClick={() => setTaskModalOrder(targetOrder)}
                           style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
                             padding: '6px 12px',
                             borderRadius: '6px',
-                            backgroundColor: selectedTailorForOrder[ord.id] ? 'var(--jb-crimson)' : '#e2e8f0',
-                            color: selectedTailorForOrder[ord.id] ? '#ffffff' : '#94a3b8',
-                            border: 'none',
+                            backgroundColor: '#f5f3ff',
+                            color: '#6d28d9',
+                            border: '1px solid #ddd6fe',
                             fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: selectedTailorForOrder[ord.id] ? 'pointer' : 'not-allowed',
-                            whiteSpace: 'nowrap'
+                            fontWeight: 800,
+                            cursor: 'pointer'
                           }}
                         >
-                          Assign
+                          <Scissors size={13} />
+                          <span>{targetOrder.tasks && targetOrder.tasks.length > 0 ? 'Manage Tasks' : 'Assign Tasks'}</span>
                         </button>
                       </div>
                     )}
@@ -4106,30 +3924,7 @@ export const SalesERP = () => {
                     )}
                   </div>
 
-                  {/* Tailor Pending Acceptance Quick Buttons in Card */}
-                  {isMyAssignedPending && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '2px' }}>
-                      <button
-                        onClick={() => handleTailorAccept(ord.id)}
-                        disabled={isProcessingApproval}
-                        className="touch-target-btn"
-                        style={{ backgroundColor: '#16a34a', color: '#ffffff', border: 'none' }}
-                      >
-                        <Check size={14} /> Accept Order
-                      </button>
-                      <button
-                        onClick={() => {
-                          setTailorRejectingOrder(targetOrder);
-                          setTailorRejectionReasonText('');
-                        }}
-                        disabled={isProcessingApproval}
-                        className="touch-target-btn"
-                        style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5' }}
-                      >
-                        <X size={14} /> Reject Order
-                      </button>
-                    </div>
-                  )}
+
 
                   {/* CEO / Manager Approval Actions */}
                   {isPending && Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role)) && (
@@ -4232,41 +4027,30 @@ export const SalesERP = () => {
                       </button>
                     )}
 
-                    {ord.status === 'READY' && ord.phone && (
-                      <a
-                        href={`https://wa.me/${normalizePhoneForWhatsApp(ord.phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrder))}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={async () => {
-                          try {
-                            await fetch(`${API_URL}/api/orders/${targetOrder.id}/notify-ready`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
-                              },
-                              body: JSON.stringify({ force: false })
-                            });
-                            setOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, readyNotificationSent: true, readyNotificationStatus: 'SENT', readyNotificationSentAt: new Date().toISOString() } : o));
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }}
+                    {isFullAccess && ord.status === 'READY' && (
+                      <button
+                        type="button"
+                        onClick={() => setFinishedNotificationOrder(targetOrder)}
                         className="touch-target-btn"
                         style={{
-                          backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#22C55E',
+                          backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#16a34a',
                           color: '#fff',
                           fontSize: '0.78rem',
                           padding: '6px 10px',
-                          textDecoration: 'none',
                           minHeight: '38px',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px'
+                          justifyContent: 'center',
+                          gap: '4px',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 700
                         }}
                       >
-                        <MessageCircle size={14} /> {targetOrder.readyNotificationSent ? '✓ WA Delivered' : 'WA Ready'}
-                      </a>
+                        <MessageCircle size={14} />
+                        <span>{targetOrder.readyNotificationSent ? '✓ Finished Sent' : 'Send Finished Msg'}</span>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -4464,6 +4248,7 @@ export const SalesERP = () => {
         tailorsList={tailorsList}
         onOpenPricing={(ord) => setPricingOrder(ord)}
         user={user}
+        onOpenTaskModal={(ord) => setTaskModalOrder(ord)}
         onTailorAccept={handleTailorAccept}
         onOpenTailorReject={(ord) => {
           setTailorRejectingOrder(ord);
@@ -4472,6 +4257,30 @@ export const SalesERP = () => {
         onConfirmCustomerPrice={handleConfirmCustomerPrice}
         onVerifyPaymentSlip={handleVerifyPaymentSlip}
         onRejectPaymentSlip={handleRejectPaymentSlip}
+        onOpenFinishedNotification={(ord) => setFinishedNotificationOrder(ord)}
+      />
+      <CustomerFinishedNotificationModal
+        order={finishedNotificationOrder}
+        isOpen={Boolean(finishedNotificationOrder)}
+        onClose={() => setFinishedNotificationOrder(null)}
+        user={user}
+        onSuccess={(updatedOrder) => {
+          setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
+          if (viewingOrder && viewingOrder.id === updatedOrder.id) {
+            setViewingOrder(prev => ({ ...prev, ...updatedOrder }));
+          }
+          fetchOrders();
+        }}
+      />
+      <TaskAssignmentModal
+        order={taskModalOrder}
+        isOpen={Boolean(taskModalOrder)}
+        onClose={() => setTaskModalOrder(null)}
+        user={user}
+        onAssigned={() => {
+          fetchOrders();
+          refreshAll();
+        }}
       />
       <DigitalInvoiceModal
         order={selectedInvoiceOrder}

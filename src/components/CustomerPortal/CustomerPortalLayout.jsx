@@ -6,9 +6,7 @@ import {
   ShoppingBag,
   PlusCircle,
   User,
-  LogOut,
-  Sparkles,
-  Scissors
+  LogOut
 } from 'lucide-react';
 
 export const CustomerPortalLayout = ({ children, activePage }) => {

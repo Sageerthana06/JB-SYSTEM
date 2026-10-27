@@ -6,10 +6,7 @@ import {
   Calendar,
   CheckCircle,
   LogOut,
-  AlertCircle,
-  RefreshCw,
-  UserCheck,
-  ShieldAlert
+  AlertCircle
 } from 'lucide-react';
 
 export const SelfAttendanceCard = () => {

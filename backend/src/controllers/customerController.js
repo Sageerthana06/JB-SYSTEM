@@ -1,5 +1,12 @@
 const { prisma } = require('../prisma');
+const bcrypt = require('bcrypt');
 const { validateDressMeasurements } = require('../utils/measurementValidation');
+const {
+  cleanPhoneRaw,
+  normalizePhoneNumber,
+  getPhoneSearchVariants,
+  validatePhoneNumber
+} = require('../utils/phoneUtils');
 
 // Helper to generate a unique order number (e.g., JB-20260916-0001)
 const generateOrderNumber = async () => {
@@ -42,9 +49,6 @@ const buildGarmentData = (g) => ({
   additionalImages: g.additionalImages || null,
   customerMeasurementId: g.customerMeasurementId || null
 });
-
-const bcrypt = require('bcrypt');
-
 // CREATE CUSTOMER & ORDER
 exports.createCustomer = async (req, res, next) => {
   let createdCustomerId = null; // Track for rollback if order fails
@@ -100,27 +104,39 @@ exports.createCustomer = async (req, res, next) => {
 
     // Step 1: Resolve customer
     if (customerType === 'NEW') {
-      const existing = await prisma.customer.findUnique({
-        where: { primaryPhone: primaryContact.trim() }
+      const phoneVariants = getPhoneSearchVariants(primaryContact);
+      const existing = await prisma.customer.findFirst({
+        where: { primaryPhone: { in: phoneVariants } }
       });
+      const normalizedPhone = normalizePhoneNumber(primaryContact) || primaryContact.trim();
+
       if (existing) {
-        return res.status(409).json({
-          success: false,
-          message: 'A customer with this phone number already exists. Please use Returning Customer.'
-        });
-      }
-
-      customer = await prisma.customer.create({
-        data: {
-          name: customerName.trim(),
-          primaryPhone: primaryContact.trim(),
-          alternativePhone: alternativeContact ? alternativeContact.trim() : null,
-          address: address ? address.trim() : null,
-          profilePhoto: profilePhoto || null
+        // Existing customer found with this phone: reuse and update record seamlessly
+        const updateCustomerData = {
+          name: customerName ? customerName.trim() : existing.name,
+          address: address ? address.trim() : existing.address,
+          alternativePhone: alternativeContact ? alternativeContact.trim() : existing.alternativePhone
+        };
+        // Preserve existing customer profile photo; never clear or overwrite with null/empty
+        if (profilePhoto && typeof profilePhoto === 'string' && profilePhoto.trim()) {
+          updateCustomerData.profilePhoto = profilePhoto.trim();
         }
-      });
-      createdCustomerId = customer.id;
-
+        customer = await prisma.customer.update({
+          where: { id: existing.id },
+          data: updateCustomerData
+        });
+      } else {
+        customer = await prisma.customer.create({
+          data: {
+            name: customerName.trim(),
+            primaryPhone: normalizedPhone,
+            alternativePhone: alternativeContact ? alternativeContact.trim() : null,
+            address: address ? address.trim() : null,
+            profilePhoto: (profilePhoto && typeof profilePhoto === 'string') ? profilePhoto.trim() : null
+          }
+        });
+        createdCustomerId = customer.id;
+      }
     } else {
       // RETURNING: resolve by previous order OR by phone
       if (previousOrderNumber) {
@@ -160,11 +176,11 @@ exports.createCustomer = async (req, res, next) => {
         customer = found;
       }
 
-      // If returning customer provided or replaced their profile photo, update it in DB
-      if (profilePhoto && customer) {
+      // If returning customer provided a valid new profile photo, update it in DB
+      if (profilePhoto && typeof profilePhoto === 'string' && profilePhoto.trim() && customer && profilePhoto.trim() !== customer.profilePhoto) {
         customer = await prisma.customer.update({
           where: { id: customer.id },
-          data: { profilePhoto }
+          data: { profilePhoto: profilePhoto.trim() }
         });
       }
     }
@@ -322,7 +338,8 @@ exports.searchCustomer = async (req, res, next) => {
     const where = query && query.trim() ? {
       OR: [
         { primaryPhone: { contains: query.trim() } },
-        { name: { contains: query.trim(), mode: 'insensitive' } }
+        { name: { contains: query.trim(), mode: 'insensitive' } },
+        { email: { contains: query.trim(), mode: 'insensitive' } }
       ]
     } : {};
 
@@ -535,43 +552,128 @@ exports.getCustomerById = async (req, res, next) => {
 // REGISTER CUSTOMER ONLY (No Order)
 exports.registerCustomerOnly = async (req, res, next) => {
   try {
-    const { name, primaryPhone, alternativePhone, email, password, address } = req.body;
+    const { name, primaryPhone, alternativePhone, email, password, address, profilePhoto } = req.body;
 
-    if (!name || !primaryPhone || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Name, Primary Phone, Email and Password are required' });
+    // 1. Required fields
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Full Name is required.' });
+    }
+    if (!primaryPhone || !primaryPhone.trim()) {
+      return res.status(400).json({ success: false, message: 'Primary Phone Number is required.' });
+    }
+
+    // 2. Validate primary phone format
+    const phoneValidation = validatePhoneNumber(primaryPhone);
+    if (!phoneValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: phoneValidation.error || 'Please enter a valid primary phone number.'
+      });
+    }
+
+    // Validate alternative phone if supplied
+    if (alternativePhone && alternativePhone.trim()) {
+      const altValidation = validatePhoneNumber(alternativePhone);
+      if (!altValidation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: altValidation.error || 'Please enter a valid alternative phone number.'
+        });
+      }
+    }
+
+    // 3. Email is optional; validate if provided
+    let cleanEmail = null;
+    if (email && email.trim()) {
+      cleanEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+      }
+    }
+
+    // 4. Password validation (optional if staff creates customer without portal access; required if setting portal password)
+    let hashedPassword = null;
+    if (password && password.trim()) {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Portal Password must be at least 6 characters long.' });
+      }
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    // 5. Phone normalization
+    const normalizedPhone = normalizePhoneNumber(primaryPhone) || primaryPhone.trim();
+    const phoneVariants = getPhoneSearchVariants(primaryPhone);
+
+    // 6. Check existing customer by phone variants OR email
+    const duplicateChecks = [
+      { primaryPhone: { in: phoneVariants } }
+    ];
+    if (cleanEmail) {
+      duplicateChecks.push({ email: cleanEmail });
     }
 
     const existingCustomer = await prisma.customer.findFirst({
       where: {
-        OR: [
-          { primaryPhone: primaryPhone },
-          { email: email }
-        ]
+        OR: duplicateChecks
       }
     });
 
+    let customerResult;
     if (existingCustomer) {
-      return res.status(409).json({ success: false, message: 'Customer with this Phone or Email already exists.' });
+      // If customer exists and already has a portal password, check if it's duplicate
+      if (existingCustomer.password && hashedPassword) {
+        return res.status(409).json({
+          success: false,
+          message: 'A customer account with this phone number or email already has portal access. Please log in or use password reset.'
+        });
+      }
+
+      // Pre-existing customer created during in-store order without password: link and activate portal
+      const updateData = {
+        name: name.trim() || existingCustomer.name,
+        address: address !== undefined ? (address ? address.trim() : null) : existingCustomer.address,
+        alternativePhone: alternativePhone !== undefined ? (alternativePhone ? alternativePhone.trim() : null) : existingCustomer.alternativePhone
+      };
+      if (cleanEmail && !existingCustomer.email) {
+        updateData.email = cleanEmail;
+      }
+      if (profilePhoto && !existingCustomer.profilePhoto) {
+        updateData.profilePhoto = profilePhoto;
+      }
+      if (hashedPassword && !existingCustomer.password) {
+        updateData.password = hashedPassword;
+      }
+
+      customerResult = await prisma.customer.update({
+        where: { id: existingCustomer.id },
+        data: updateData
+      });
+    } else {
+      // Create new customer
+      customerResult = await prisma.customer.create({
+        data: {
+          name: name.trim(),
+          primaryPhone: normalizedPhone,
+          alternativePhone: alternativePhone ? alternativePhone.trim() : null,
+          email: cleanEmail,
+          password: hashedPassword,
+          address: address ? address.trim() : null,
+          profilePhoto: profilePhoto || null
+        }
+      });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newCustomer = await prisma.customer.create({
-      data: {
-        name,
-        primaryPhone,
-        alternativePhone: alternativePhone || null,
-        email: email || null,
-        password: hashedPassword,
-        address: address || null
-      }
-    });
+    // 7. Sanitize response: NEVER return password hash
+    const { password: _pwd, ...sanitizedCustomer } = customerResult;
 
     return res.status(201).json({
       success: true,
-      message: 'Customer registered successfully. They can now login to the Customer Portal.',
+      message: hashedPassword
+        ? 'Customer profile created and portal account activated successfully.'
+        : 'Customer profile created successfully.',
       data: {
-        customer: newCustomer
+        customer: sanitizedCustomer
       }
     });
 

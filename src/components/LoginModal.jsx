@@ -8,11 +8,15 @@ import {
   User,
   Scissors,
   ArrowRight,
+  ArrowLeft,
   X,
   ShieldCheck,
   Sparkles,
-  Award
+  Award,
+  CheckCircle2,
+  KeyRound
 } from 'lucide-react';
+import { API_URL } from '../config/api';
 
 export const LoginModal = () => {
   const { isLoginOpen, login, user } = useAuth();
@@ -22,6 +26,13 @@ export const LoginModal = () => {
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const videoRef = useRef(null);
+
+  // Forgot password state
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState('');
+  const [forgotError, setForgotError] = useState('');
 
   useEffect(() => {
     if (videoRef.current) {
@@ -46,6 +57,35 @@ export const LoginModal = () => {
     setLoginLoading(false);
     if (!result.success) {
       setLoginError(result.message || 'Login failed. Please check your credentials.');
+    }
+  };
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      setForgotError('Please enter your email address.');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError('');
+    setForgotSuccess('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() })
+      });
+      const data = await res.json();
+      setForgotLoading(false);
+      if (data.success) {
+        setForgotSuccess(data.message || 'If an active account exists with that email, a password reset link has been sent.');
+      } else {
+        setForgotError(data.message || 'Failed to request password reset.');
+      }
+    } catch (err) {
+      setForgotLoading(false);
+      setForgotError('Network error. Please try again.');
     }
   };
 
@@ -285,228 +325,369 @@ export const LoginModal = () => {
             </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSignIn} autoComplete="off">
-            {/* Email / Username Input */}
-            <div style={{ position: 'relative', marginBottom: '14px' }}>
-              <Mail
-                size={19}
-                color="#d90429"
-                style={{
-                  position: 'absolute',
-                  left: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <input
-                type="text"
-                name="jb_account_identifier"
-                id="jb_account_identifier"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email / Username"
-                required
-                autoComplete="off"
-                spellCheck="false"
-                style={{
-                  width: '100%',
-                  padding: '14px 16px 14px 48px',
+          {/* Check if Forgot Password view is active */}
+          {isForgotPassword ? (
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
                   borderRadius: '14px',
-                  border: '1.5px solid #cbd5e1',
-                  backgroundColor: '#f8fafc',
-                  fontSize: '0.925rem',
-                  color: '#0f172a',
-                  fontWeight: 600,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'all 0.2s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0052cc';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(0, 82, 204, 0.18)';
-                  e.target.style.backgroundColor = '#ffffff';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#cbd5e1';
-                  e.target.style.boxShadow = 'none';
-                  e.target.style.backgroundColor = '#f8fafc';
-                }}
-              />
-            </div>
+                  backgroundColor: '#eff6ff',
+                  color: '#0052cc',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '10px'
+                }}>
+                  <KeyRound size={24} />
+                </div>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+                  Forgot Password?
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
+                  Enter your registered work email to receive a secure password setup link.
+                </p>
+              </div>
 
-            {/* Password Input */}
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
-              <Lock
-                size={19}
-                color="#0052cc"
-                style={{
-                  position: 'absolute',
-                  left: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none'
-                }}
-              />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="jb_account_credential"
-                id="jb_account_credential"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-                autoComplete="new-password"
-                style={{
-                  width: '100%',
-                  padding: '14px 48px 14px 48px',
-                  borderRadius: '14px',
-                  border: '1.5px solid #cbd5e1',
-                  backgroundColor: '#f8fafc',
-                  fontSize: '0.925rem',
-                  color: '#0f172a',
-                  fontWeight: 600,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'all 0.2s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0052cc';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(0, 82, 204, 0.18)';
-                  e.target.style.backgroundColor = '#ffffff';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#cbd5e1';
-                  e.target.style.boxShadow = 'none';
-                  e.target.style.backgroundColor = '#f8fafc';
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute',
-                  right: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  color: '#64748b',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                {showPassword ? <Eye size={19} /> : <EyeOff size={19} />}
-              </button>
-            </div>
+              <form onSubmit={handleForgotSubmit}>
+                <div style={{ position: 'relative', marginBottom: '16px' }}>
+                  <Mail
+                    size={19}
+                    color="#0052cc"
+                    style={{
+                      position: 'absolute',
+                      left: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="Enter your registered email"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px 14px 48px',
+                      borderRadius: '14px',
+                      border: '1.5px solid #cbd5e1',
+                      backgroundColor: '#f8fafc',
+                      fontSize: '0.925rem',
+                      color: '#0f172a',
+                      fontWeight: 600,
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
 
-            {/* Checkbox & Forgot Link Row */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '22px'
-            }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.85rem',
-                color: '#1e293b',
-                fontWeight: 700,
-                cursor: 'pointer',
-                userSelect: 'none'
-              }}>
-                <input
-                  type="checkbox"
-                  defaultChecked
+                {forgotError && (
+                  <div style={{
+                    marginBottom: '14px',
+                    padding: '10px 14px',
+                    backgroundColor: '#FEE2E2',
+                    border: '1px solid #FCA5A5',
+                    borderRadius: '10px',
+                    color: '#DC2626',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    textAlign: 'center'
+                  }}>
+                    {forgotError}
+                  </div>
+                )}
+
+                {forgotSuccess && (
+                  <div style={{
+                    marginBottom: '14px',
+                    padding: '12px 14px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '10px',
+                    color: '#065f46',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <CheckCircle2 size={18} color="#059669" />
+                    <span>{forgotSuccess}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
                   style={{
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '4px',
-                    accentColor: '#0052cc',
-                    cursor: 'pointer'
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '999px',
+                    backgroundColor: '#0052cc',
+                    color: '#ffffff',
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    letterSpacing: '1px',
+                    border: 'none',
+                    cursor: forgotLoading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 6px 18px rgba(0, 82, 204, 0.35)',
+                    marginBottom: '16px'
+                  }}
+                >
+                  {forgotLoading ? 'Sending Reset Link...' : 'Send Reset Link'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setForgotError('');
+                    setForgotSuccess('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <ArrowLeft size={16} /> Back to Sign In
+                </button>
+              </form>
+            </div>
+          ) : (
+            <form onSubmit={handleSignIn} autoComplete="off">
+              {/* Email / Username Input */}
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <Mail
+                  size={19}
+                  color="#d90429"
+                  style={{
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none'
                   }}
                 />
-                Keep me logged in
-              </label>
+                <input
+                  type="text"
+                  name="jb_account_identifier"
+                  id="jb_account_identifier"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email / Username"
+                  required
+                  autoComplete="off"
+                  spellCheck="false"
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px 14px 48px',
+                    borderRadius: '14px',
+                    border: '1.5px solid #cbd5e1',
+                    backgroundColor: '#f8fafc',
+                    fontSize: '0.925rem',
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0052cc';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(0, 82, 204, 0.18)';
+                    e.target.style.backgroundColor = '#ffffff';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#cbd5e1';
+                    e.target.style.boxShadow = 'none';
+                    e.target.style.backgroundColor = '#f8fafc';
+                  }}
+                />
+              </div>
 
-              <a
-                href="#forgot"
-                onClick={(e) => e.preventDefault()}
-                style={{
-                  fontSize: '0.85rem',
-                  color: '#0052cc',
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  transition: 'color 0.2s ease'
-                }}
-              >
-                Forgot password?
-              </a>
-            </div>
+              {/* Password Input */}
+              <div style={{ position: 'relative', marginBottom: '16px' }}>
+                <Lock
+                  size={19}
+                  color="#0052cc"
+                  style={{
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    pointerEvents: 'none'
+                  }}
+                />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="jb_account_credential"
+                  id="jb_account_credential"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  autoComplete="new-password"
+                  style={{
+                    width: '100%',
+                    padding: '14px 48px 14px 48px',
+                    borderRadius: '14px',
+                    border: '1.5px solid #cbd5e1',
+                    backgroundColor: '#f8fafc',
+                    fontSize: '0.925rem',
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0052cc';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(0, 82, 204, 0.18)';
+                    e.target.style.backgroundColor = '#ffffff';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#cbd5e1';
+                    e.target.style.boxShadow = 'none';
+                    e.target.style.backgroundColor = '#f8fafc';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute',
+                    right: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {showPassword ? <Eye size={19} /> : <EyeOff size={19} />}
+                </button>
+              </div>
 
-            {/* 🌟 Luxury Shimmer Gradient LOGIN Button with Animated Nudge Arrow */}
-            <button
-              type="submit"
-              className="shine-button"
-              style={{
-                width: '100%',
-                padding: '15px',
-                borderRadius: '999px',
-                background: 'linear-gradient(90deg, #0042b3 0%, #0052cc 40%, #d90429 100%)',
-                color: '#ffffff',
-                fontSize: '1.05rem',
-                fontWeight: 800,
-                letterSpacing: '2px',
-                border: 'none',
-                cursor: 'pointer',
+              {/* Checkbox & Forgot Link Row */}
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 8px 24px -4px rgba(0, 66, 179, 0.5), 0 8px 24px -4px rgba(217, 4, 41, 0.5)',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px) scale(1.01)';
-                e.currentTarget.style.boxShadow = '0 14px 32px -4px rgba(0, 66, 179, 0.7), 0 14px 32px -4px rgba(217, 4, 41, 0.7)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 8px 24px -4px rgba(0, 66, 179, 0.5), 0 8px 24px -4px rgba(217, 4, 41, 0.5)';
-              }}
-              disabled={loginLoading}
-            >
-              <span>{loginLoading ? 'Signing In...' : 'LOGIN'}</span>
-              {!loginLoading && (
-                <div className="animate-arrow-nudge" style={{ display: 'flex', alignItems: 'center' }}>
-                  <ArrowRight size={20} />
+                justifyContent: 'space-between',
+                marginBottom: '22px'
+              }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.85rem',
+                  color: '#1e293b',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}>
+                  <input
+                    type="checkbox"
+                    defaultChecked
+                    style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '4px',
+                      accentColor: '#0052cc',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  Keep me logged in
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotEmail(email);
+                    setIsForgotPassword(true);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '0.85rem',
+                    color: '#0052cc',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: 0,
+                    transition: 'color 0.2s ease'
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              {/* 🌟 Luxury Shimmer Gradient LOGIN Button with Animated Nudge Arrow */}
+              <button
+                type="submit"
+                className="shine-button"
+                style={{
+                  width: '100%',
+                  padding: '15px',
+                  borderRadius: '999px',
+                  background: 'linear-gradient(90deg, #0042b3 0%, #0052cc 40%, #d90429 100%)',
+                  color: '#ffffff',
+                  fontSize: '1.05rem',
+                  fontWeight: 800,
+                  letterSpacing: '2px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 8px 24px -4px rgba(0, 66, 179, 0.5), 0 8px 24px -4px rgba(217, 4, 41, 0.5)',
+                  transition: 'all 0.2s ease'
+                }}
+                disabled={loginLoading}
+              >
+                <span>{loginLoading ? 'Signing In...' : 'LOGIN'}</span>
+                {!loginLoading && (
+                  <div className="animate-arrow-nudge" style={{ display: 'flex', alignItems: 'center' }}>
+                    <ArrowRight size={20} />
+                  </div>
+                )}
+              </button>
+
+              {/* Login Error Message */}
+              {loginError && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 14px',
+                  backgroundColor: '#FEE2E2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '10px',
+                  color: '#DC2626',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  textAlign: 'center'
+                }}>
+                  {loginError}
                 </div>
               )}
-            </button>
-
-            {/* Login Error Message */}
-            {loginError && (
-              <div style={{
-                marginTop: '12px',
-                padding: '10px 14px',
-                backgroundColor: '#FEE2E2',
-                border: '1px solid #FCA5A5',
-                borderRadius: '10px',
-                color: '#DC2626',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                textAlign: 'center'
-              }}>
-                {loginError}
-              </div>
-            )}
-          </form>
+            </form>
+          )}
 
           {/* Form Divider */}
           <div style={{

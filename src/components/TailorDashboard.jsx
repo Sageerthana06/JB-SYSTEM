@@ -5,61 +5,48 @@ import {
   Scissors,
   Clock,
   CheckCircle,
-  AlertCircle,
   RefreshCw,
   LogOut,
-  User,
   Calendar,
   Layers,
-  Sparkles,
   Search,
-  Check,
   X,
-  FileText,
   Ruler,
-  Building,
-  ShieldCheck,
-  MessageCircle,
-  Eye,
-  SlidersHorizontal,
-  ChevronRight
+  PlayCircle,
+  CheckCircle2,
+  CreditCard
 } from 'lucide-react';
+import { TailorSalaryPanel } from './TailorSalaryPanel';
 import {
   getStatusLabel,
-  getStatusColors,
-  getNextStageInfo
+  getStatusColors
 } from '../utils/orderStatus';
 
-const normalizePhoneForWhatsApp = (phone) => {
-  if (!phone) return '';
-  const raw = phone.toString().replace(/[^0-9]/g, '');
-  if (raw.startsWith('94')) return raw;
-  if (raw.startsWith('00')) return raw.slice(2);
-  if (raw.startsWith('0')) return '94' + raw.slice(1);
-  return raw;
-};
 
-const generateOrderReadyWhatsAppMessage = (order) => {
-  if (!order) return '';
-  const customerName = order.customer?.name || order.customerName || 'Customer';
-  const orderNumber = order.orderNumber || (order.id ? `ORD-${order.id}` : 'N/A');
 
-  return `Dear ${customerName},\n\nYour order ${orderNumber} from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!`;
+const TASK_ICONS = {
+  CUTTING: '✂️',
+  AARI_EMBROIDERY: '✨',
+  STITCHING: '🧵',
+  FITTING_ALTERATION: '📐',
+  FINISHING: '👔',
+  QUALITY_CHECK: '🛡️'
 };
 
 export const TailorDashboard = () => {
   const { user, logout, getAuthHeaders } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'attendance'
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [_error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'orders' | 'attendance'
+  const [taskFilter, setTaskFilter] = useState('ALL'); // 'ALL' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED'
   const [stageFilter, setStageFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrderForSpecs, setSelectedOrderForSpecs] = useState(null);
-  const [rejectingOrder, setRejectingOrder] = useState(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [submittingAction, setSubmittingAction] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
+  const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Attendance state
@@ -74,6 +61,26 @@ export const TailorDashboard = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch Tailor's assigned production tasks
+  const fetchMyTasks = async () => {
+    try {
+      setLoadingTasks(true);
+      const res = await fetch(`${API_URL}/api/orders/tasks/my-tasks`, {
+        headers: getAuthHeaders ? getAuthHeaders() : {
+          'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.tasks)) {
+        setTasks(data.tasks);
+      }
+    } catch (err) {
+      console.error('Tailor tasks fetch error:', err);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
 
   // Fetch Tailor's own assigned orders
   const fetchMyOrders = async () => {
@@ -139,9 +146,37 @@ export const TailorDashboard = () => {
   };
 
   useEffect(() => {
+    fetchMyTasks();
     fetchMyOrders();
     fetchMyAttendance();
   }, [user?.id]);
+
+  // Update Task Status (ASSIGNED -> IN_PROGRESS -> COMPLETED) — NO ACCEPTANCE STEP
+  const handleUpdateTaskStatus = async (taskId, targetStatus) => {
+    try {
+      setUpdatingTaskId(taskId);
+      const token = localStorage.getItem('jb_token');
+      const res = await fetch(`${API_URL}/api/orders/tasks/${taskId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: targetStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, ...data.task, status: targetStatus } : t)));
+        fetchMyOrders(); // refresh order statuses
+      } else {
+        alert(data.message || 'Failed to update task status');
+      }
+    } catch {
+      alert('Network error updating task status');
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
 
   // Clock In Action
   const handleClockIn = async () => {
@@ -168,7 +203,7 @@ export const TailorDashboard = () => {
       } else {
         setAttendanceFeedback({ type: 'error', message: data.message || 'Clock-in failed.' });
       }
-    } catch (err) {
+    } catch {
       setAttendanceFeedback({ type: 'error', message: 'Network error recording clock-in.' });
     } finally {
       setActionLoading(false);
@@ -200,72 +235,14 @@ export const TailorDashboard = () => {
       } else {
         setAttendanceFeedback({ type: 'error', message: data.message || 'Check-out failed.' });
       }
-    } catch (err) {
+    } catch {
       setAttendanceFeedback({ type: 'error', message: 'Network error recording check-out.' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  // Accept Order Assignment
-  const handleAcceptOrder = async (orderId) => {
-    try {
-      setUpdatingOrderId(orderId);
-      const token = localStorage.getItem('jb_token');
-      const res = await fetch(`${API_URL}/api/orders/${orderId}/tailor-accept`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...(data.order || {}), tailorAccepted: true, status: 'IN_PROGRESS' } : o)));
-      } else {
-        alert(data.message || 'Failed to accept order');
-      }
-    } catch (err) {
-      alert('Network error accepting order');
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  };
-
-  // Reject Order Assignment
-  const handleRejectOrder = async () => {
-    if (!rejectingOrder) return;
-    if (!rejectionReason.trim()) {
-      alert('Please provide a brief reason for declining this order assignment.');
-      return;
-    }
-    try {
-      setSubmittingAction(true);
-      const token = localStorage.getItem('jb_token');
-      const res = await fetch(`${API_URL}/api/orders/${rejectingOrder.id}/tailor-reject`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ reason: rejectionReason.trim() })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setOrders(prev => prev.filter(o => o.id !== rejectingOrder.id));
-        setRejectingOrder(null);
-        setRejectionReason('');
-      } else {
-        alert(data.message || 'Failed to reject order');
-      }
-    } catch (err) {
-      alert('Network error rejecting order');
-    } finally {
-      setSubmittingAction(false);
-    }
-  };
-
-  // Advance Order Workflow Stage (Cutting -> Stitching -> Finishing -> Ready)
+  // Advance Order Workflow Stage (Direct — no acceptance required)
   const handleAdvanceStatus = async (orderId, targetStatus) => {
     try {
       setUpdatingOrderId(orderId);
@@ -282,20 +259,10 @@ export const TailorDashboard = () => {
       if (data.success) {
         const updated = data.order || {};
         setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...updated, status: targetStatus } : o)));
-
-        // If marked READY, open WhatsApp message to notify customer
-        if (targetStatus === 'READY') {
-          const targetOrd = data.order || orders.find(o => o.id === orderId) || {};
-          const phone = targetOrd.customer?.primaryPhone || targetOrd.phone;
-          if (phone) {
-            const waUrl = `https://wa.me/${normalizePhoneForWhatsApp(phone)}?text=${encodeURIComponent(generateOrderReadyWhatsAppMessage(targetOrd))}`;
-            window.open(waUrl, '_blank');
-          }
-        }
       } else {
         alert(data.message || 'Failed to update order status');
       }
-    } catch (err) {
+    } catch {
       alert('Network error updating order status');
     } finally {
       setUpdatingOrderId(null);
@@ -303,23 +270,31 @@ export const TailorDashboard = () => {
   };
 
   // Computed Personal KPIs
-  const totalAssigned = orders.length;
-  const pendingAcceptanceCount = orders.filter(o => !o.tailorAccepted && !['DELIVERED', 'COMPLETED', 'READY'].includes(o.status)).length;
-  const inProgressCount = orders.filter(o => o.tailorAccepted && ['IN_PROGRESS', 'CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK'].includes(o.status)).length;
-  const readyCompletedCount = orders.filter(o => ['READY', 'DELIVERED', 'COMPLETED'].includes(o.status)).length;
+  const assignedTasksCount = tasks.filter(t => t.status === 'ASSIGNED').length;
+  const inProgressTasksCount = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+  const completedTasksCount = tasks.filter(t => t.status === 'COMPLETED').length;
+
+  // Filtered Tasks
+  const displayedTasks = tasks.filter(t => {
+    if (taskFilter !== 'ALL' && t.status !== taskFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchNo = (t.order?.orderNumber || '').toLowerCase().includes(q);
+      const matchName = (t.taskName || '').toLowerCase().includes(q);
+      const matchDress = (t.order?.garmentDetails?.dressType || '').toLowerCase().includes(q);
+      const matchCust = (t.order?.customer?.name || '').toLowerCase().includes(q);
+      return matchNo || matchName || matchDress || matchCust;
+    }
+    return true;
+  });
 
   // Filtered Orders
   const displayedOrders = orders.filter(o => {
-    // Stage Filter
-    if (stageFilter === 'WAITING_ACCEPTANCE') {
-      if (o.tailorAccepted || ['READY', 'DELIVERED', 'COMPLETED'].includes(o.status)) return false;
-    } else if (stageFilter === 'IN_PROGRESS') {
-      if (!o.tailorAccepted || !['IN_PROGRESS', 'CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK'].includes(o.status)) return false;
+    if (stageFilter === 'IN_PROGRESS') {
+      if (!['IN_PROGRESS', 'CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK'].includes(o.status)) return false;
     } else if (stageFilter === 'READY') {
       if (!['READY', 'DELIVERED', 'COMPLETED'].includes(o.status)) return false;
     }
-
-    // Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchNo = (o.orderNumber || '').toLowerCase().includes(q);
@@ -327,7 +302,6 @@ export const TailorDashboard = () => {
       const matchCust = (o.customer?.name || '').toLowerCase().includes(q);
       return matchNo || matchDress || matchCust;
     }
-
     return true;
   });
 
@@ -400,73 +374,72 @@ export const TailorDashboard = () => {
               borderRadius: '50%',
               backgroundColor: '#ef4444',
               color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: '0.85rem'
             }}>
               {(user?.name || 'T')[0].toUpperCase()}
             </div>
             <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ffffff' }}>
-                {user?.name || 'Tailor Craftsman'}
+              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#ffffff' }}>
+                {user?.name || 'Master Craftsman'}
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
-                {user?.branch?.name || 'JB Group (Main)'} • Tailor
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                Role: {user?.role || 'TAILOR'} • {user?.branchName || 'Branch 1'}
               </div>
             </div>
           </div>
 
           <button
             onClick={logout}
+            title="Log Out"
             style={{
-              display: 'inline-flex',
+              background: 'none',
+              border: 'none',
+              color: '#ef4444',
+              cursor: 'pointer',
+              display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 14px',
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#fca5a5',
+              padding: '8px 12px',
               borderRadius: '8px',
               fontSize: '0.82rem',
               fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              transition: 'all 0.15s ease'
             }}
-            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
-            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'; e.currentTarget.style.color = '#fca5a5'; }}
           >
-            <LogOut size={15} />
+            <LogOut size={16} />
             <span>Sign Out</span>
           </button>
         </div>
       </header>
 
-      {/* Main Content Body */}
-      <main style={{ flex: 1, padding: '24px 28px', maxWidth: '1440px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-        {/* Attendance Banner / Live Clock Strip */}
+      {/* Main Workspace Area */}
+      <main style={{ flex: 1, padding: '24px', maxWidth: '1440px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        {/* Welcome & Attendance Strip */}
         <div style={{
           backgroundColor: '#ffffff',
-          borderRadius: '14px',
+          borderRadius: '16px',
           border: '1px solid #e2e8f0',
-          padding: '16px 20px',
+          padding: '18px 24px',
           marginBottom: '20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '16px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+          boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
         }}>
-          {/* Welcome & Live Time */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
-              width: '46px',
-              height: '46px',
+              width: '44px',
+              height: '44px',
               borderRadius: '12px',
               backgroundColor: '#fee2e2',
-              color: '#dc2626',
+              color: '#ef4444',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -579,7 +552,7 @@ export const TailorDashboard = () => {
           </div>
         </div>
 
-        {/* Attendance Feedback Alert */}
+        {/* Feedback Alert */}
         {attendanceFeedback && (
           <div style={{
             padding: '10px 16px',
@@ -604,74 +577,54 @@ export const TailorDashboard = () => {
           </div>
         )}
 
-        {/* Personal Overview Stat Cards (No company sales, ONLY tailor's personal workload) */}
+        {/* Workload Stat Cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '16px',
           marginBottom: '24px'
         }}>
-          {/* Card 1: Total Assigned */}
+          {/* Card 1: Assigned Tasks */}
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
             border: '1px solid #e2e8f0',
             padding: '18px 20px',
-            borderLeft: '4px solid #3b82f6',
+            borderLeft: '4px solid #7c3aed',
             boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
           }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
-              My Assigned Garments
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', marginTop: '6px' }}>
-              {totalAssigned}
-            </div>
-            <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
-              Assigned directly to you
-            </div>
-          </div>
-
-          {/* Card 2: Waiting Acceptance */}
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            padding: '18px 20px',
-            borderLeft: `4px solid ${pendingAcceptanceCount > 0 ? '#f59e0b' : '#94a3b8'}`,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
-              Waiting My Acceptance
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: pendingAcceptanceCount > 0 ? '#b45309' : '#0f172a', marginTop: '6px' }}>
-              {pendingAcceptanceCount}
-            </div>
-            <div style={{ fontSize: '0.78rem', color: pendingAcceptanceCount > 0 ? '#b45309' : '#64748b', marginTop: '4px', fontWeight: 700 }}>
-              {pendingAcceptanceCount > 0 ? 'Requires your acceptance to begin' : 'All assignments accepted'}
-            </div>
-          </div>
-
-          {/* Card 3: In Production */}
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            padding: '18px 20px',
-            borderLeft: '4px solid #8b5cf6',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
-              Active Cutting & Stitching
+              Assigned Tasks (Ready)
             </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#6d28d9', marginTop: '6px' }}>
-              {inProgressCount}
+              {assignedTasksCount}
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>
-              Garments in progress right now
+            <div style={{ fontSize: '0.78rem', color: '#7c3aed', marginTop: '4px', fontWeight: 700 }}>
+              Immediate active tasks
             </div>
           </div>
 
-          {/* Card 4: Finished / Ready */}
+          {/* Card 2: Tasks In Progress */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            padding: '18px 20px',
+            borderLeft: '4px solid #2563eb',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
+              In Progress
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#1d4ed8', marginTop: '6px' }}>
+              {inProgressTasksCount}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#2563eb', marginTop: '4px', fontWeight: 700 }}>
+              Under active production
+            </div>
+          </div>
+
+          {/* Card 3: Tasks Completed */}
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
@@ -681,13 +634,33 @@ export const TailorDashboard = () => {
             boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
           }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
-              Finished / Ready
+              Tasks Completed
             </div>
             <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#047857', marginTop: '6px' }}>
-              {readyCompletedCount}
+              {completedTasksCount}
             </div>
             <div style={{ fontSize: '0.78rem', color: '#047857', marginTop: '4px', fontWeight: 700 }}>
-              Completed & ready for collection
+              Finished craftsmanship
+            </div>
+          </div>
+
+          {/* Card 4: Total Garments */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            padding: '18px 20px',
+            borderLeft: '4px solid #f59e0b',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b' }}>
+              Total Garments
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#b45309', marginTop: '6px' }}>
+              {orders.length}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#b45309', marginTop: '4px', fontWeight: 700 }}>
+              Bespoke customer orders
             </div>
           </div>
         </div>
@@ -699,6 +672,28 @@ export const TailorDashboard = () => {
           borderBottom: '2px solid #e2e8f0',
           marginBottom: '20px'
         }}>
+          <button
+            onClick={() => setActiveTab('tasks')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 20px',
+              fontSize: '0.925rem',
+              fontWeight: 800,
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              borderBottom: activeTab === 'tasks' ? '3px solid #7c3aed' : '3px solid transparent',
+              color: activeTab === 'tasks' ? '#7c3aed' : '#64748b',
+              marginBottom: '-2px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Layers size={18} />
+            <span>My Assigned Tasks ({tasks.length})</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('orders')}
             style={{
@@ -718,7 +713,7 @@ export const TailorDashboard = () => {
             }}
           >
             <Scissors size={18} />
-            <span>My Production Orders ({orders.length})</span>
+            <span>Full Garments ({orders.length})</span>
           </button>
 
           <button
@@ -742,9 +737,314 @@ export const TailorDashboard = () => {
             <Clock size={18} />
             <span>My Attendance & Hours Log</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('salary')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 20px',
+              fontSize: '0.925rem',
+              fontWeight: 800,
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              borderBottom: activeTab === 'salary' ? '3px solid #059669' : '3px solid transparent',
+              color: activeTab === 'salary' ? '#059669' : '#64748b',
+              marginBottom: '-2px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <CreditCard size={18} />
+            <span>My Salary &amp; Earnings</span>
+          </button>
         </div>
 
-        {/* TAB 1: MY PRODUCTION ORDERS */}
+        {/* TAB 1: MY ASSIGNED TASKS (TASK ASSIGNMENT ONLY - NO ACCEPTANCE STEP) */}
+        {activeTab === 'tasks' && (
+          <div>
+            {/* Filter Pills and Search Bar */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              marginBottom: '18px'
+            }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'ALL', label: `All Tasks (${tasks.length})` },
+                  { key: 'ASSIGNED', label: `Assigned — Ready (${assignedTasksCount})` },
+                  { key: 'IN_PROGRESS', label: `In Progress (${inProgressTasksCount})` },
+                  { key: 'COMPLETED', label: `Completed (${completedTasksCount})` }
+                ].map(pill => (
+                  <button
+                    key={pill.key}
+                    onClick={() => setTaskFilter(pill.key)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      border: taskFilter === pill.key ? '1px solid #7c3aed' : '1px solid #cbd5e1',
+                      backgroundColor: taskFilter === pill.key ? '#7c3aed' : '#ffffff',
+                      color: taskFilter === pill.key ? '#ffffff' : '#475569',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Box */}
+              <div style={{ position: 'relative', width: '280px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  placeholder="Search tasks, order #, dress..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px 8px 36px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.82rem',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Tasks List */}
+            {loadingTasks ? (
+              <div style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
+                <RefreshCw size={28} className="animate-spin" style={{ margin: '0 auto 12px auto' }} />
+                <div style={{ fontWeight: 700 }}>Loading your assigned production tasks...</div>
+              </div>
+            ) : displayedTasks.length === 0 ? (
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                border: '1px dashed #cbd5e1',
+                padding: '60px 20px',
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  backgroundColor: '#f5f3ff',
+                  color: '#7c3aed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto'
+                }}>
+                  <Layers size={28} />
+                </div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>
+                  No tasks match this filter.
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
+                  When CEO or Manager assigns production tasks (Cutting, Stitching, Aari, etc.) to you, they will immediately appear here.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {displayedTasks.map(task => {
+                  const ord = task.order || {};
+                  const gDetails = ord.garmentDetails || {};
+                  const isUpdating = updatingTaskId === task.id;
+                  const taskIcon = TASK_ICONS[task.taskType] || '✂️';
+
+                  return (
+                    <div
+                      key={task.id}
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '14px',
+                        border: task.status === 'ASSIGNED' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                        padding: '20px 22px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {/* Top Row: Task Name & Order # */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        paddingBottom: '14px',
+                        borderBottom: '1px solid #f1f5f9'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '1.6rem' }}>{taskIcon}</span>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0f172a' }}>
+                                {task.taskName}
+                              </span>
+                              <span style={{
+                                backgroundColor: task.status === 'COMPLETED' ? '#dcfce7' : task.status === 'IN_PROGRESS' ? '#dbeafe' : '#f5f3ff',
+                                color: task.status === 'COMPLETED' ? '#15803d' : task.status === 'IN_PROGRESS' ? '#1d4ed8' : '#6d28d9',
+                                border: `1px solid ${task.status === 'COMPLETED' ? '#bbf7d0' : task.status === 'IN_PROGRESS' ? '#bfdbfe' : '#ddd6fe'}`,
+                                padding: '3px 10px',
+                                borderRadius: '999px',
+                                fontSize: '0.76rem',
+                                fontWeight: 800
+                              }}>
+                                {task.status === 'ASSIGNED' ? '⚡ ASSIGNED (Ready to Start)' : task.status}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+                              Order: <strong style={{ color: '#0f172a' }}>{ord.orderNumber || `ORD-${ord.id}`}</strong> • {gDetails.dressType || 'Garment'} • Customer: <strong>{ord.customer?.name || 'Customer'}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Assigner Info */}
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', textAlign: 'right' }}>
+                          <div>Assigned by: <strong>{task.assignedBy || 'Manager'}</strong></div>
+                          <div>{task.assignedAt ? new Date(task.assignedAt).toLocaleDateString() : ''}</div>
+                        </div>
+                      </div>
+
+                      {/* Middle Details */}
+                      <div style={{ padding: '14px 0', display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.82rem', color: '#334155' }}>
+                        {gDetails.fabricType && (
+                          <div>
+                            <span style={{ color: '#64748b' }}>Fabric:</span> <strong>{gDetails.fabricType} {gDetails.fabricColour ? `(${gDetails.fabricColour})` : ''}</strong>
+                          </div>
+                        )}
+                        {gDetails.occasion && (
+                          <div>
+                            <span style={{ color: '#64748b' }}>Occasion:</span> <strong>{gDetails.occasion}</strong>
+                          </div>
+                        )}
+                        {task.notes && (
+                          <div style={{ width: '100%', backgroundColor: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', color: '#1e293b' }}>
+                            <strong>📌 Instructions for this Task:</strong> {task.notes}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bottom Controls — NO ACCEPT OR REJECT BUTTONS */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid #f1f5f9'
+                      }}>
+                        {/* Specs & Measurements Modal Button */}
+                        <button
+                          onClick={() => setSelectedOrderForSpecs(ord)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '7px 14px',
+                            borderRadius: '8px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#334155',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Ruler size={15} color="#2563eb" />
+                          <span>View Body Measurements & Reference Photos 📐</span>
+                        </button>
+
+                        {/* Task Progression Action */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {task.status === 'ASSIGNED' && (
+                            <button
+                              onClick={() => handleUpdateTaskStatus(task.id, 'IN_PROGRESS')}
+                              disabled={isUpdating}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 18px',
+                                borderRadius: '8px',
+                                backgroundColor: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: '0.84rem',
+                                fontWeight: 800,
+                                cursor: isUpdating ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 2px 6px rgba(37,99,235,0.25)'
+                              }}
+                            >
+                              {isUpdating ? <RefreshCw size={15} className="animate-spin" /> : <PlayCircle size={15} />}
+                              <span>Start Task 🚀</span>
+                            </button>
+                          )}
+
+                          {task.status === 'IN_PROGRESS' && (
+                            <button
+                              onClick={() => handleUpdateTaskStatus(task.id, 'COMPLETED')}
+                              disabled={isUpdating}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 18px',
+                                borderRadius: '8px',
+                                backgroundColor: '#16a34a',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: '0.84rem',
+                                fontWeight: 800,
+                                cursor: isUpdating ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 2px 6px rgba(22,163,74,0.25)'
+                              }}
+                            >
+                              {isUpdating ? <RefreshCw size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                              <span>Mark Task Completed ✓</span>
+                            </button>
+                          )}
+
+                          {task.status === 'COMPLETED' && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              borderRadius: '8px',
+                              backgroundColor: '#dcfce7',
+                              color: '#15803d',
+                              fontWeight: 800,
+                              fontSize: '0.82rem'
+                            }}>
+                              <CheckCircle size={16} />
+                              <span>Completed {task.completedAt ? `on ${new Date(task.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: FULL PRODUCTION ORDERS */}
         {activeTab === 'orders' && (
           <div>
             {/* Filter Pills and Search Bar */}
@@ -756,40 +1056,38 @@ export const TailorDashboard = () => {
               gap: '12px',
               marginBottom: '18px'
             }}>
-              {/* Stage Pills */}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {[
-                  { id: 'ALL', label: `All My Orders (${orders.length})` },
-                  { id: 'WAITING_ACCEPTANCE', label: `⏳ Waiting Acceptance (${pendingAcceptanceCount})` },
-                  { id: 'IN_PROGRESS', label: `✂️ In Progress (${inProgressCount})` },
-                  { id: 'READY', label: `✅ Finished / Ready (${readyCompletedCount})` }
-                ].map(p => (
+                  { key: 'ALL', label: `All Orders (${orders.length})` },
+                  { key: 'IN_PROGRESS', label: `In Production (${orders.filter(o => ['IN_PROGRESS', 'CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK'].includes(o.status)).length})` },
+                  { key: 'READY', label: `Ready for Collection (${orders.filter(o => ['READY', 'DELIVERED', 'COMPLETED'].includes(o.status)).length})` }
+                ].map(pill => (
                   <button
-                    key={p.id}
-                    onClick={() => setStageFilter(p.id)}
+                    key={pill.key}
+                    onClick={() => setStageFilter(pill.key)}
                     style={{
-                      padding: '7px 14px',
+                      padding: '8px 16px',
                       borderRadius: '8px',
                       fontSize: '0.82rem',
-                      fontWeight: 700,
-                      border: stageFilter === p.id ? '2px solid #0a192f' : '1px solid #cbd5e1',
-                      backgroundColor: stageFilter === p.id ? '#0a192f' : '#ffffff',
-                      color: stageFilter === p.id ? '#ffffff' : '#475569',
+                      fontWeight: 800,
                       cursor: 'pointer',
+                      border: stageFilter === pill.key ? '1px solid #0a192f' : '1px solid #cbd5e1',
+                      backgroundColor: stageFilter === pill.key ? '#0a192f' : '#ffffff',
+                      color: stageFilter === pill.key ? '#ffffff' : '#475569',
                       transition: 'all 0.15s ease'
                     }}
                   >
-                    {p.label}
+                    {pill.label}
                   </button>
                 ))}
               </div>
 
-              {/* Search */}
-              <div style={{ position: 'relative', minWidth: '260px' }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#94a3b8' }} />
+              {/* Search Box */}
+              <div style={{ position: 'relative', width: '280px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                 <input
                   type="text"
-                  placeholder="Search order no, dress, customer..."
+                  placeholder="Search order #, customer, dress..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -797,67 +1095,20 @@ export const TailorDashboard = () => {
                     padding: '8px 12px 8px 36px',
                     borderRadius: '8px',
                     border: '1px solid #cbd5e1',
-                    fontSize: '0.84rem',
+                    fontSize: '0.82rem',
                     backgroundColor: '#ffffff',
+                    outline: 'none',
                     boxSizing: 'border-box'
                   }}
                 />
               </div>
             </div>
 
-            {/* Orders Loading */}
-            {loading && (
-              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '48px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <RefreshCw size={28} className="animate-spin" style={{ color: '#0a192f', margin: '0 auto 12px auto' }} />
-                <p style={{ color: '#64748b', fontWeight: 600 }}>Loading your assigned orders...</p>
-              </div>
-            )}
-
-            {/* Error */}
-            {!loading && error && (
-              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '32px', textAlign: 'center', border: '1px solid #fca5a5' }}>
-                <AlertCircle size={32} color="#dc2626" style={{ margin: '0 auto 12px auto' }} />
-                <h3 style={{ fontSize: '1rem', color: '#991b1b', margin: '0 0 6px 0' }}>{error}</h3>
-                <button
-                  onClick={fetchMyOrders}
-                  style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: '#0a192f', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700 }}
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!loading && !error && displayedOrders.length === 0 && (
-              <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '60px 24px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  backgroundColor: '#f1f5f9',
-                  color: '#94a3b8',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px auto'
-                }}>
-                  <Scissors size={28} />
-                </div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>
-                  No garments match this filter.
-                </h3>
-                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
-                  When Manager or CEO assigns new garments to you, they will appear right here.
-                </p>
-              </div>
-            )}
-
             {/* Orders Cards Grid */}
-            {!loading && !error && displayedOrders.length > 0 && (
+            {!loading && displayedOrders.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {displayedOrders.map(order => {
                   const statusColors = getStatusColors(order.status);
-                  const isPendingAccept = !order.tailorAccepted;
                   const gDetails = order.garmentDetails || {};
                   const isUpdating = updatingOrderId === order.id;
 
@@ -879,13 +1130,12 @@ export const TailorDashboard = () => {
                       style={{
                         backgroundColor: '#ffffff',
                         borderRadius: '14px',
-                        border: isPendingAccept ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                        border: '1px solid #e2e8f0',
                         padding: '20px 22px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      {/* Top Order Row */}
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -910,78 +1160,45 @@ export const TailorDashboard = () => {
                           }}>
                             {getStatusLabel(order.status)}
                           </span>
-
-                          {isPendingAccept && (
-                            <span style={{
-                              backgroundColor: '#fffbeb',
-                              color: '#b45309',
-                              border: '1px solid #fde68a',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.72rem',
-                              fontWeight: 800
-                            }}>
-                              ⏳ New Assignment Waiting Acceptance
-                            </span>
-                          )}
                         </div>
 
-                        {/* Customer & Branch info */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.82rem', color: '#64748b' }}>
-                          <span>Customer: <strong style={{ color: '#0f172a' }}>{order.customer?.name || 'Customer'}</strong></span>
+                          <span>Customer: <strong style={{ color: '#1e293b' }}>{order.customer?.name || 'Customer'}</strong></span>
                           <span>•</span>
-                          <span>Branch: <strong style={{ color: '#0f172a' }}>{order.branch?.name || 'Main Branch'}</strong></span>
-                          <span>•</span>
-                          <span>Date: {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : 'N/A'}</span>
+                          <span>Branch: <strong style={{ color: '#1e293b' }}>{order.branch?.name || 'Main'}</strong></span>
                         </div>
                       </div>
 
-                      {/* Middle Garment Details Row */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                        gap: '14px',
-                        padding: '14px 0',
-                        fontSize: '0.85rem'
-                      }}>
+                      {/* Middle Details */}
+                      <div style={{ padding: '14px 0', display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.82rem', color: '#334155' }}>
                         <div>
-                          <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Garment / Dress Type</div>
-                          <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem', marginTop: '3px' }}>
-                            {gDetails.dressType || 'Bespoke Garment'} (Qty: {gDetails.quantity || 1})
-                          </div>
+                          <span style={{ color: '#64748b' }}>Dress Type:</span> <strong>{gDetails.dressType || 'Bespoke Garment'} (Qty: {gDetails.quantity || 1})</strong>
                         </div>
-
-                        <div>
-                          <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Fabric & Occasion</div>
-                          <div style={{ fontWeight: 600, color: '#334155', marginTop: '3px' }}>
-                            {gDetails.fabricType || 'Supplied'} {gDetails.fabricColour ? `(${gDetails.fabricColour})` : ''} • {gDetails.occasion || 'Standard'}
+                        {gDetails.fabricType && (
+                          <div>
+                            <span style={{ color: '#64748b' }}>Fabric:</span> <strong>{gDetails.fabricType} {gDetails.fabricColour ? `(${gDetails.fabricColour})` : ''}</strong>
                           </div>
-                        </div>
-
-                        <div>
-                          <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>Special Work / Alteration</div>
-                          <div style={{ fontWeight: 600, color: '#334155', marginTop: '3px' }}>
-                            {gDetails.workDetails || (gDetails.workRequired ? 'Work Required' : 'None')}
+                        )}
+                        {order.tasks && order.tasks.length > 0 && (
+                          <div style={{ width: '100%', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <span style={{ color: '#64748b', fontSize: '0.78rem' }}>Assigned Tasks:</span>
+                            {order.tasks.map(t => (
+                              <span key={t.id} style={{
+                                backgroundColor: t.status === 'COMPLETED' ? '#dcfce7' : t.status === 'IN_PROGRESS' ? '#dbeafe' : '#f5f3ff',
+                                color: t.status === 'COMPLETED' ? '#15803d' : t.status === 'IN_PROGRESS' ? '#1d4ed8' : '#6d28d9',
+                                fontSize: '0.72rem',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontWeight: 700
+                              }}>
+                                {t.taskName} ({t.assignedTailor?.name || 'Assigned'}) — {t.status}
+                              </span>
+                            ))}
                           </div>
-                        </div>
+                        )}
                       </div>
 
-                      {/* Instructions if any */}
-                      {gDetails.specialDesignInstructions && (
-                        <div style={{
-                          backgroundColor: '#f8fafc',
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          border: '1px solid #e2e8f0',
-                          fontSize: '0.82rem',
-                          color: '#334155',
-                          marginBottom: '14px'
-                        }}>
-                          <strong>📌 Craftsman Instructions:</strong> {gDetails.specialDesignInstructions}
-                        </div>
-                      )}
-
-                      {/* Bottom Action Bar */}
+                      {/* Bottom Controls */}
                       <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -991,7 +1208,6 @@ export const TailorDashboard = () => {
                         paddingTop: '12px',
                         borderTop: '1px solid #f1f5f9'
                       }}>
-                        {/* Specs & Measurements Modal Button */}
                         <button
                           onClick={() => setSelectedOrderForSpecs(order)}
                           style={{
@@ -1012,98 +1228,47 @@ export const TailorDashboard = () => {
                           <span>View Body Measurements & Reference Photos 📐</span>
                         </button>
 
-                        {/* Tailor Workflow Controls */}
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          {/* If Waiting for Acceptance: Show Accept and Decline buttons */}
-                          {isPendingAccept && (
-                            <>
-                              <button
-                                onClick={() => handleAcceptOrder(order.id)}
-                                disabled={isUpdating}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '8px 16px',
-                                  borderRadius: '8px',
-                                  backgroundColor: '#16a34a',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 800,
-                                  cursor: isUpdating ? 'not-allowed' : 'pointer',
-                                  boxShadow: '0 2px 4px rgba(22,163,74,0.2)'
-                                }}
-                              >
-                                <Check size={15} />
-                                <span>Accept Order</span>
-                              </button>
-
-                              <button
-                                onClick={() => setRejectingOrder(order)}
-                                disabled={isUpdating}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '8px 14px',
-                                  borderRadius: '8px',
-                                  backgroundColor: '#fee2e2',
-                                  color: '#dc2626',
-                                  border: '1px solid #fca5a5',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 700,
-                                  cursor: isUpdating ? 'not-allowed' : 'pointer'
-                                }}
-                              >
-                                <X size={15} />
-                                <span>Decline</span>
-                              </button>
-                            </>
-                          )}
-
-                          {/* If Accepted: Show Next Stage Button */}
-                          {!isPendingAccept && nextAction && (
-                            <button
-                              onClick={() => handleAdvanceStatus(order.id, nextAction.targetStatus)}
-                              disabled={isUpdating}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 16px',
-                                borderRadius: '8px',
-                                backgroundColor: nextAction.bg,
-                                color: nextAction.text,
-                                border: 'none',
-                                fontSize: '0.84rem',
-                                fontWeight: 800,
-                                cursor: isUpdating ? 'not-allowed' : 'pointer',
-                                boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                              }}
-                            >
-                              {isUpdating ? <RefreshCw size={15} className="animate-spin" /> : null}
-                              <span>{nextAction.label}</span>
-                            </button>
-                          )}
-
-                          {/* Completed / Ready indicator */}
-                          {(order.status === 'READY' || order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
-                            <span style={{
+                        {/* Direct Next Action Button — No Accept/Reject Barrier */}
+                        {nextAction && (
+                          <button
+                            onClick={() => handleAdvanceStatus(order.id, nextAction.targetStatus)}
+                            disabled={isUpdating}
+                            style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
-                              padding: '6px 12px',
+                              padding: '8px 16px',
                               borderRadius: '8px',
-                              backgroundColor: '#dcfce7',
-                              color: '#15803d',
+                              backgroundColor: nextAction.bg,
+                              color: nextAction.text,
+                              border: 'none',
+                              fontSize: '0.84rem',
                               fontWeight: 800,
-                              fontSize: '0.82rem'
-                            }}>
-                              <CheckCircle size={15} /> Garment Finished & Ready
-                            </span>
-                          )}
-                        </div>
+                              cursor: isUpdating ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                            }}
+                          >
+                            {isUpdating ? <RefreshCw size={15} className="animate-spin" /> : null}
+                            <span>{nextAction.label}</span>
+                          </button>
+                        )}
+
+                        {(order.status === 'READY' || order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            backgroundColor: '#dcfce7',
+                            color: '#15803d',
+                            fontWeight: 800,
+                            fontSize: '0.82rem'
+                          }}>
+                            <CheckCircle size={15} />
+                            <span>{order.status === 'DELIVERED' ? 'Delivered to Customer' : 'Ready for Collection'}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -1113,186 +1278,65 @@ export const TailorDashboard = () => {
           </div>
         )}
 
-        {/* TAB 2: MY ATTENDANCE & HOURS */}
+        {/* TAB 3: ATTENDANCE & HOURS */}
         {activeTab === 'attendance' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-            {/* Clock-In Card */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <Clock size={20} color="#0a192f" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-                  Today's Attendance Clock
-                </h3>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 16px 0', color: '#0f172a' }}>
+              Your Attendance History & Working Log
+            </h3>
+            {attendanceLoading ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 8px auto' }} />
+                <div>Loading attendance history...</div>
               </div>
-
-              <div style={{ textAlign: 'center', padding: '24px 0', borderBottom: '1px solid #f1f5f9' }}>
-                <div style={{ fontSize: '2.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '1px' }}>
-                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </div>
-                <div style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>
-                  {currentTime.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </div>
-              </div>
-
-              <div style={{ padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: '#64748b' }}>Status Today:</span>
-                  <span style={{ fontWeight: 800, color: todayAttendance?.status === 'Present' ? '#16a34a' : '#64748b' }}>
-                    {todayAttendance?.status || 'Not Marked Yet'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: '#64748b' }}>Clock-In Time:</span>
-                  <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                    {todayAttendance?.inTime ? new Date(todayAttendance.inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: '#64748b' }}>Check-Out Time:</span>
-                  <span style={{ fontWeight: 700, color: '#0f172a' }}>
-                    {todayAttendance?.outTime ? new Date(todayAttendance.outTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                  <span style={{ color: '#64748b' }}>Hours Worked:</span>
-                  <span style={{ fontWeight: 800, color: '#2563eb' }}>
-                    {todayAttendance?.workingHours ? `${todayAttendance.workingHours} hrs` : '—'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                {!isClockedIn && !isCompletedToday && (
-                  <button
-                    onClick={handleClockIn}
-                    disabled={attendanceLoading}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: '10px',
-                      backgroundColor: '#16a34a',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: '0.9rem',
-                      fontWeight: 800,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Clock In for Today
-                  </button>
-                )}
-
-                {isClockedIn && (
-                  <button
-                    onClick={handleCheckOut}
-                    disabled={attendanceLoading}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      borderRadius: '10px',
-                      backgroundColor: '#ea580c',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: '0.9rem',
-                      fontWeight: 800,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Check Out / End Shift
-                  </button>
-                )}
-
-                {isCompletedToday && (
-                  <div style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    backgroundColor: '#f0fdf4',
-                    color: '#166534',
-                    textAlign: 'center',
-                    fontSize: '0.85rem',
-                    fontWeight: 700
-                  }}>
-                    ✓ Shift Completed for Today
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Attendance History */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Calendar size={20} color="#0a192f" />
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-                    My Past 14-Day Attendance Log
-                  </h3>
-                </div>
-                <button
-                  onClick={fetchMyAttendance}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
-                >
-                  <RefreshCw size={15} />
-                </button>
-              </div>
-
-              {attendanceHistory.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '36px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                  No past attendance history recorded yet.
-                </div>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
-                        <th style={{ padding: '8px' }}>Date</th>
-                        <th style={{ padding: '8px' }}>Status</th>
-                        <th style={{ padding: '8px' }}>In Time</th>
-                        <th style={{ padding: '8px' }}>Out Time</th>
-                        <th style={{ padding: '8px' }}>Hours</th>
+            ) : attendanceHistory.length === 0 ? (
+              <div style={{ color: '#64748b', fontSize: '0.85rem' }}>No attendance logs found for your account.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
+                      <th style={{ padding: '10px 14px' }}>Date</th>
+                      <th style={{ padding: '10px 14px' }}>Check In</th>
+                      <th style={{ padding: '10px 14px' }}>Check Out</th>
+                      <th style={{ padding: '10px 14px' }}>Working Hours</th>
+                      <th style={{ padding: '10px 14px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendanceHistory.map((rec, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 14px', fontWeight: 700 }}>{rec.date}</td>
+                        <td style={{ padding: '10px 14px' }}>{rec.inTime ? new Date(rec.inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                        <td style={{ padding: '10px 14px' }}>{rec.outTime ? new Date(rec.outTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                        <td style={{ padding: '10px 14px' }}>{rec.workingHours ? `${rec.workingHours} hrs` : '—'}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span style={{
+                            backgroundColor: rec.status === 'Present' || rec.status === 'Checked Out' ? '#dcfce7' : '#fee2e2',
+                            color: rec.status === 'Present' || rec.status === 'Checked Out' ? '#15803d' : '#dc2626',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontWeight: 700
+                          }}>
+                            {rec.status}
+                          </span>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {attendanceHistory.slice(0, 14).map(rec => (
-                        <tr key={rec.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '8px', fontWeight: 600 }}>{rec.date}</td>
-                          <td style={{ padding: '8px' }}>
-                            <span style={{
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontWeight: 700,
-                              fontSize: '0.75rem',
-                              backgroundColor: rec.status === 'Present' ? '#dcfce7' : '#fee2e2',
-                              color: rec.status === 'Present' ? '#15803d' : '#dc2626'
-                            }}>
-                              {rec.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px', color: '#334155' }}>
-                            {rec.inTime ? new Date(rec.inTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                          </td>
-                          <td style={{ padding: '8px', color: '#334155' }}>
-                            {rec.outTime ? new Date(rec.outTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
-                          </td>
-                          <td style={{ padding: '8px', fontWeight: 700, color: '#2563eb' }}>
-                            {rec.workingHours ? `${rec.workingHours} hrs` : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* TAB 4: MY SALARY & EARNINGS STATEMENT */}
+        {activeTab === 'salary' && (
+          <TailorSalaryPanel />
         )}
       </main>
 
-      {/* MODAL: VIEW BODY MEASUREMENTS & DESIGN SPECS */}
+      {/* SPECS & MEASUREMENTS MODAL */}
       {selectedOrderForSpecs && (
         <div style={{
           position: 'fixed',
@@ -1311,169 +1355,94 @@ export const TailorDashboard = () => {
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '16px',
-            maxWidth: '680px',
+            maxWidth: '700px',
             width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: '24px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+            <div style={{
+              backgroundColor: '#0a192f',
+              color: '#fff',
+              padding: '16px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-                  📐 Garment Measurements & Stitching Specs
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
+                  Garment Technical Specifications & Measurements
                 </h3>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
-                  Order: <strong>{selectedOrderForSpecs.orderNumber || `ORD-${selectedOrderForSpecs.id}`}</strong> • Dress: <strong>{selectedOrderForSpecs.garmentDetails?.dressType}</strong>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                  {selectedOrderForSpecs.orderNumber || `ORD-${selectedOrderForSpecs.id}`} • {selectedOrderForSpecs.garmentDetails?.dressType}
                 </div>
               </div>
               <button
                 onClick={() => setSelectedOrderForSpecs(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Measurements Grid */}
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b', marginBottom: '10px' }}>
-                Body Measurement Points ({selectedOrderForSpecs.garmentDetails?.measurementUnit || 'Inches'})
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+              {/* Measurements grid */}
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#0f172a' }}>
+                📐 Body Measurements ({selectedOrderForSpecs.garmentDetails?.measurementUnit || 'Inches'})
               </h4>
-              {selectedOrderForSpecs.garmentDetails?.measurements && Object.keys(selectedOrderForSpecs.garmentDetails.measurements).length > 0 ? (
+              {selectedOrderForSpecs.garmentDetails?.measurements ? (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
                   gap: '10px',
                   backgroundColor: '#f8fafc',
-                  padding: '14px',
+                  padding: '12px',
                   borderRadius: '10px',
-                  border: '1px solid #e2e8f0'
+                  border: '1px solid #e2e8f0',
+                  marginBottom: '16px'
                 }}>
-                  {Object.entries(selectedOrderForSpecs.garmentDetails.measurements).map(([k, v]) => (
-                    <div key={k} style={{ backgroundColor: '#ffffff', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                        {k.replace(/([A-Z])/g, ' $1')}
-                      </div>
-                      <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>
-                        {v} {selectedOrderForSpecs.garmentDetails?.measurementUnit || 'in'}
-                      </div>
+                  {Object.entries(selectedOrderForSpecs.garmentDetails.measurements).map(([key, val]) => (
+                    <div key={key} style={{ padding: '6px 8px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1')}</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>{val || '—'}</div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', color: '#64748b', fontSize: '0.85rem', textAlign: 'center' }}>
-                  Standard sizing or fabric supplied as-is. Check craftsman instructions.
+                <div style={{ color: '#64748b', fontSize: '0.82rem', marginBottom: '16px' }}>No tailoring measurements recorded.</div>
+              )}
+
+              {/* Special Design Instructions */}
+              {selectedOrderForSpecs.garmentDetails?.specialDesignInstructions && (
+                <div style={{ marginBottom: '16px' }}>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#0f172a' }}>📌 Special Instructions</h4>
+                  <div style={{ padding: '10px 12px', backgroundColor: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a', fontSize: '0.82rem', color: '#78350f' }}>
+                    {selectedOrderForSpecs.garmentDetails.specialDesignInstructions}
+                  </div>
+                </div>
+              )}
+
+              {/* Reference Photo */}
+              {selectedOrderForSpecs.garmentDetails?.designReferenceImage && (
+                <div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#0f172a' }}>🖼️ Design Reference Image</h4>
+                  <img
+                    src={getImageUrl(selectedOrderForSpecs.garmentDetails.designReferenceImage)}
+                    alt="Design Reference"
+                    style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', border: '1px solid #cbd5e1', objectFit: 'contain' }}
+                  />
                 </div>
               )}
             </div>
 
-            {/* Design Reference Image */}
-            {selectedOrderForSpecs.garmentDetails?.designReferenceImage && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b', marginBottom: '10px' }}>
-                  🖼️ Design Reference Photo
-                </h4>
-                <a
-                  href={getImageUrl(selectedOrderForSpecs.garmentDetails.designReferenceImage)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <img
-                    src={getImageUrl(selectedOrderForSpecs.garmentDetails.designReferenceImage)}
-                    alt="Design Reference"
-                    style={{
-                      maxHeight: '260px',
-                      maxWidth: '100%',
-                      borderRadius: '10px',
-                      border: '1px solid #cbd5e1',
-                      objectFit: 'contain'
-                    }}
-                  />
-                </a>
-              </div>
-            )}
-
-            {/* Close Button */}
-            <div style={{ textAlign: 'right', marginTop: '16px' }}>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#f8fafc' }}>
               <button
                 onClick={() => setSelectedOrderForSpecs(null)}
-                style={{
-                  padding: '9px 18px',
-                  borderRadius: '8px',
-                  backgroundColor: '#0a192f',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  cursor: 'pointer'
-                }}
+                style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: '#0a192f', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}
               >
-                Close Specs
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: DECLINE / REJECT ORDER */}
-      {rejectingOrder && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(15,23,42,0.6)',
-          backdropFilter: 'blur(3px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            maxWidth: '460px',
-            width: '100%',
-            padding: '24px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-          }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 8px 0', color: '#dc2626' }}>
-              Decline Order Assignment
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.4 }}>
-              Decline order <strong>{rejectingOrder.orderNumber}</strong> back to management. Please enter a brief explanation (e.g. over capacity, fabric delay, specialized stitching needed).
-            </p>
-            <textarea
-              rows={3}
-              placeholder="Enter reason for declining..."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.85rem',
-                boxSizing: 'border-box',
-                marginBottom: '16px'
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => { setRejectingOrder(null); setRejectionReason(''); }}
-                style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRejectOrder}
-                disabled={submittingAction}
-                style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#dc2626', color: '#fff', cursor: 'pointer', fontWeight: 800, fontSize: '0.82rem' }}
-              >
-                {submittingAction ? 'Submitting...' : 'Confirm Decline'}
+                Close
               </button>
             </div>
           </div>

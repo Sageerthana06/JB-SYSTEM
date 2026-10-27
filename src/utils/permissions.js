@@ -32,11 +32,13 @@ const ROLE_PERMISSIONS = {
     'production.view', 'production.update',
     'inventory.view',
     'finance.view',
+    'payroll.view',
     'reports.view', 'reports.export',
     'staff.view',
     'upload.designImage',
     'pdf.generate',
-    'whatsapp.send'
+    'whatsapp.send',
+    'users.view', 'users.manage'
   ],
   MANAGER: [
     'dashboard.view',
@@ -44,10 +46,12 @@ const ROLE_PERMISSIONS = {
     'customers.view',
     'production.view', 'production.update',
     'inventory.view', 'inventory.manage',
+    'payroll.view', 'payroll.manage',
     'reports.view',
     'staff.view',
     'pdf.generate',
-    'whatsapp.send'
+    'whatsapp.send',
+    'users.view', 'users.manage'
   ],
   STAFF: [
     'orders.view', 'orders.create',
@@ -68,12 +72,19 @@ const ROLE_PERMISSIONS = {
     'production.view', 'production.update',
     'pdf.generate'
   ],
+  CASHIER: [
+    'orders.view',
+    'customers.view',
+    'finance.view',
+    'pdf.generate'
+  ],
   Manager: [
     'orders.view',
     'customers.view',
     'finance.view',
     'inventory.view', 'inventory.manage',
-    'pdf.generate'
+    'pdf.generate',
+    'users.view', 'users.manage'
   ]
 };
 
@@ -109,6 +120,7 @@ export const ROLE_LABELS = {
   TAILOR: 'Tailor — Production Access',
   CUTTING: 'Cutting — Production Access',
   EMBROIDERY: 'Embroidery — Production Access',
+  CASHIER: 'Cashier — Billing & Payments',
   Manager: 'Manager — Finance & Payment Access'
 };
 
@@ -126,10 +138,47 @@ export const MODULE_PERMISSIONS = {
   payroll: 'payroll.view',
   finance: 'finance.view',
   staff: 'staff.view',
+  users: 'users.view',
   marketing: 'dashboard.view',
   branches: 'dashboard.view',
   alerts: 'dashboard.view',
   bi: 'reports.view',
   mobile: 'dashboard.view',
   reports: 'reports.view'
+};
+
+/**
+ * Helper to check if a user role belongs to Executive / Operations Management.
+ * Management roles include CEO/SUPER_ADMIN, ADMIN, and MANAGER.
+ *
+ * @param {string|null|undefined} role - e.g. 'SUPER_ADMIN', 'CEO', 'MANAGER'
+ * @returns {boolean}
+ */
+export const isManagementRole = (role) => {
+  if (!role || typeof role !== 'string') return false;
+  const upper = role.trim().toUpperCase();
+  return upper === 'SUPER_ADMIN' || upper === 'CEO' || upper === 'ADMIN' || upper === 'MANAGER';
+};
+
+/**
+ * Helper to check if a user role belongs to Production Craftsmen.
+ * Craftsmen roles include TAILOR, CUTTING, and EMBROIDERY.
+ *
+ * @param {string|null|undefined} role - e.g. 'TAILOR', 'CUTTING', 'EMBROIDERY'
+ * @returns {boolean}
+ */
+export const isCraftsmanRole = (role) => {
+  if (!role || typeof role !== 'string') return false;
+  const upper = role.trim().toUpperCase();
+  return upper === 'TAILOR' || upper === 'CUTTING' || upper === 'EMBROIDERY';
+};
+
+/**
+ * Helper to check if a role is authorized to switch between branch views.
+ *
+ * @param {string|null|undefined} role
+ * @returns {boolean}
+ */
+export const canSwitchBranch = (role) => {
+  return isManagementRole(role);
 };

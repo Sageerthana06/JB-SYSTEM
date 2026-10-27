@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { RouterProvider, useRouter } from './utils/router';
@@ -7,8 +8,10 @@ import { ModuleRenderer } from './components/ModuleRenderer';
 import { LoginModal } from './components/LoginModal';
 import { StaffAttendanceDashboard } from './components/StaffAttendanceDashboard';
 import { TailorDashboard } from './components/TailorDashboard';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
 
 // Customer Portal Components
+import { isCraftsmanRole } from './utils/permissions';
 import { CustomerLogin } from './components/CustomerPortal/CustomerLogin';
 import { CustomerRegister } from './components/CustomerPortal/CustomerRegister';
 import { CustomerDashboard } from './components/CustomerPortal/CustomerDashboard';
@@ -21,34 +24,75 @@ function MainLayout() {
   const { currentPath, navigate } = useRouter();
 
   // Normalize path without trailing slash
-  const path = currentPath.length > 1 && currentPath.endsWith('/')
-    ? currentPath.slice(0, -1)
-    : currentPath;
+  const path =
+    currentPath.length > 1 && currentPath.endsWith('/')
+      ? currentPath.slice(0, -1)
+      : currentPath;
 
   const isCustomerRoute = path.startsWith('/customer');
 
-  // Guard: If customer is logged in and navigates to staff root, redirect to customer dashboard
+  // Password reset URL parameters
+  const searchParams = new URLSearchParams(
+    typeof window !== 'undefined' ? window.location.search : ''
+  );
+  const resetToken =
+    searchParams.get('resetToken') || searchParams.get('token');
+
+  // Hooks must run unconditionally and in the same order on every render.
   useEffect(() => {
-    if (!authLoading && user?.role === 'CUSTOMER' && !isCustomerRoute) {
+    if (
+      !authLoading &&
+      user?.role === 'CUSTOMER' &&
+      !isCustomerRoute
+    ) {
       navigate('/customer/dashboard');
     }
   }, [user, authLoading, isCustomerRoute, navigate]);
 
-  // Loading screen while restoring session from localStorage
+  // Password reset page
+  if (resetToken || path === '/reset-password') {
+    return (
+      <ResetPasswordPage
+        token={resetToken}
+        onComplete={() => {
+          window.history.pushState({}, '', '/');
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  // Loading screen while restoring the session
   if (authLoading) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh', backgroundColor: '#0B1F3A',
-        flexDirection: 'column', gap: '16px'
-      }}>
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%',
-          border: '3px solid rgba(255,255,255,0.2)',
-          borderTopColor: '#2563EB',
-          animation: 'spin 0.8s linear infinite'
-        }} />
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 600 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#0B1F3A',
+          flexDirection: 'column',
+          gap: '16px',
+        }}
+      >
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            border: '3px solid rgba(255,255,255,0.2)',
+            borderTopColor: '#2563EB',
+            animation: 'spin 0.8s linear infinite',
+          }}
+        />
+        <p
+          style={{
+            color: '#94a3b8',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+          }}
+        >
           Loading Bella Design Studio...
         </p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -63,6 +107,7 @@ function MainLayout() {
     if (user?.role === 'CUSTOMER') {
       return <CustomerDashboard />;
     }
+
     return <CustomerLogin />;
   }
 
@@ -70,42 +115,30 @@ function MainLayout() {
     if (user?.role === 'CUSTOMER') {
       return <CustomerDashboard />;
     }
+
     return <CustomerRegister />;
   }
 
   // ==========================================
   // 2. PROTECTED CUSTOMER PORTAL ROUTES
-  // (Unauthenticated users CANNOT access protected pages)
+  // Unauthenticated users cannot access protected pages
   // ==========================================
-  if (path === '/customer/dashboard') {
+  const PROTECTED_CUSTOMER_ROUTES = {
+    '/customer/dashboard': CustomerDashboard,
+    '/customer/new-order': CustomerNewOrder,
+    '/customer/orders': CustomerOrders,
+    '/customer/profile': CustomerProfile,
+  };
+
+  const ProtectedCustomerView = PROTECTED_CUSTOMER_ROUTES[path];
+  if (ProtectedCustomerView) {
     if (!user || user.role !== 'CUSTOMER') {
       return <CustomerLogin />;
     }
-    return <CustomerDashboard />;
+    return <ProtectedCustomerView />;
   }
 
-  if (path === '/customer/new-order') {
-    if (!user || user.role !== 'CUSTOMER') {
-      return <CustomerLogin />;
-    }
-    return <CustomerNewOrder />;
-  }
-
-  if (path === '/customer/orders') {
-    if (!user || user.role !== 'CUSTOMER') {
-      return <CustomerLogin />;
-    }
-    return <CustomerOrders />;
-  }
-
-  if (path === '/customer/profile') {
-    if (!user || user.role !== 'CUSTOMER') {
-      return <CustomerLogin />;
-    }
-    return <CustomerProfile />;
-  }
-
-  // If user is a customer on any other route, isolate them to Customer Dashboard
+  // Keep customers within the Customer Portal
   if (user?.role === 'CUSTOMER') {
     return <CustomerDashboard />;
   }
@@ -113,27 +146,41 @@ function MainLayout() {
   // ==========================================
   // 3. STAFF / ERP ROUTES
   // ==========================================
-  // Not authenticated as staff — show only the staff login modal
+
+  // Unauthenticated staff users see the login modal
   if (isLoginOpen || !user) {
     return <LoginModal />;
   }
 
-  // Dedicated Staff Attendance Dashboard for Staff (Pratheep)
+  // Dedicated Staff Attendance Dashboard
   if (user?.role === 'STAFF') {
     return <StaffAttendanceDashboard />;
   }
 
-  // Dedicated Tailor Workspace for Tailors (Pushpamalar, Uruththiradevi, Susitha)
-  if (['TAILOR', 'CUTTING', 'EMBROIDERY'].includes(user?.role)) {
+  // Dedicated Tailor Workspace
+  if (isCraftsmanRole(user?.role)) {
     return <TailorDashboard />;
   }
 
-  // Authenticated management / CEO / tailors — show full ERP layout
+  // Management / CEO ERP layout
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-main)' }}>
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-main)',
+      }}
+    >
       <Sidebar />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}
+      >
         <TopHeader />
 
         <main style={{ flex: 1 }}>

@@ -9,16 +9,14 @@ import {
   AlertCircle,
   HelpCircle,
   Search,
-  Filter,
   RefreshCw,
   Building,
   UserCheck,
-  ShieldCheck,
   Calendar
 } from 'lucide-react';
 
 export const CeoAttendanceCenter = () => {
-  const { getAuthHeaders, activeBranch } = useAuth();
+  const { getAuthHeaders } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [records, setRecords] = useState([]);

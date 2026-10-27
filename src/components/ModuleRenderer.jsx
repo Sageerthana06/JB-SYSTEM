@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { isCraftsmanRole, isManagementRole } from '../utils/permissions';
 import { SalesERP } from './SalesERP';
 import { ProductionERP } from './ProductionERP';
 import { TailorERP } from './TailorERP';
@@ -7,17 +8,44 @@ import { CustomerVaultERP } from './CustomerVaultERP';
 import { CeoAttendanceCenter } from './CeoAttendanceCenter';
 import { TailorDashboard } from './TailorDashboard';
 import { InventoryERP } from './InventoryERP';
-import { LayoutDashboard, ShoppingCart, Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
+import { UserManagement } from './UserManagement';
+import { WeeklySalaryERP } from './WeeklySalaryERP';
+import { Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
 
+/**
+ * ModuleRenderer — JB GROUP / Bella Design ERP
+ *
+ * Directs the user to the appropriate sub-dashboard based on `activeTab`:
+ * - 'overview' / 'sales':  Sales & Orders live kanban (<SalesERP />)
+ * - 'production':          Production journey stepper (<ProductionERP />)
+ * - 'tailors':             Tailor leaderboard & performance (<TailorERP />)
+ * - 'customers':           Customer 360 & measurement vault (<CustomerVaultERP />)
+ * - 'inventory':           Material & stock ledger (<InventoryERP />)
+ * - 'payroll':             Weekly tailor salary calculations (<WeeklySalaryERP />)
+ * - 'users':               Role management & user accounts (<UserManagement />)
+ * - 'staff':               Staff attendance & clock-in records (<CeoAttendanceCenter />)
+ */
 export const ModuleRenderer = () => {
   const { activeTab, activeBranch, user } = useAuth();
 
   // If a tailor craftsman accesses ModuleRenderer, render their dedicated workspace exclusively
-  if (['TAILOR', 'CUTTING', 'EMBROIDERY'].includes(user?.role)) {
+  if (isCraftsmanRole(user?.role)) {
     return <TailorDashboard />;
   }
 
   // Route active tab to dedicated sub-dashboards
+  if (activeTab === 'users') {
+    if (!isManagementRole(user?.role)) {
+      return (
+        <div style={{ padding: '48px', textAlign: 'center', color: '#dc2626' }}>
+          <h3>Access Denied</h3>
+          <p>You do not have permission to access User Management.</p>
+        </div>
+      );
+    }
+    return <UserManagement />;
+  }
+
   if (activeTab === 'sales' || activeTab === 'overview') {
     return <SalesERP />;
   }
@@ -36,6 +64,10 @@ export const ModuleRenderer = () => {
 
   if (activeTab === 'inventory') {
     return <InventoryERP />;
+  }
+
+  if (activeTab === 'payroll') {
+    return <WeeklySalaryERP />;
   }
 
   if (activeTab === 'staff') {

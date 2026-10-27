@@ -4,25 +4,20 @@ import { useRouter } from '../../utils/router';
 import { CustomerPortalLayout } from './CustomerPortalLayout';
 import {
   ShoppingBag,
-  FileText,
-  Calendar,
   CheckCircle2,
   Clock,
   Scissors,
   Download,
   X,
-  ExternalLink,
   ChevronRight,
   Sparkles,
   RefreshCw,
   Upload,
-  CreditCard,
-  AlertCircle,
-  Eye,
-  Check
+  CreditCard
 } from 'lucide-react';
-import { getStatusLabel, cleanActivityNote, cleanActorName } from '../../utils/orderStatus';
+import { getStatusLabel, cleanActivityNote } from '../../utils/orderStatus';
 import { API_URL, getImageUrl } from '../../config/api';
+import { ImageUploadCapture } from '../common/ImageUploadCapture';
 
 export const CustomerOrders = () => {
   const { getAuthHeaders, token } = useAuth();
@@ -32,7 +27,7 @@ export const CustomerOrders = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [_loadingDetail, setLoadingDetail] = useState(false);
   const [processingPriceAction, setProcessingPriceAction] = useState(false);
   const [showDeclineInput, setShowDeclineInput] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
@@ -980,7 +975,7 @@ export const CustomerOrders = () => {
                     'APPROVED', 'PRICE_SET', 'WAITING_CUSTOMER_APPROVAL', 'CUSTOMER_APPROVED', 'PRICE_REVISION_REQUIRED', 'PRICE_DECLINED',
                     'ORDER_CONFIRMED', 'PENDING_PRODUCTION', 'TAILOR_ASSIGNED', 'IN_PROGRESS',
                     'CUTTING', 'STITCHING', 'AARI_EMBROIDERY', 'EMBROIDERY_AARI',
-                    'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK', 'ALTERATION', 
+                    'FITTING_ALTERATION', 'FINISHING', 'QUALITY_CHECK', 'ALTERATION',
                     'READY', 'DELIVERED', 'COMPLETED'
                   ];
 
@@ -1553,10 +1548,10 @@ export const CustomerOrders = () => {
                 <CreditCard size={14} /> Official Atelier Bank Account Details
               </div>
               <div style={{ fontSize: '0.8rem', color: '#1e3a8a', lineHeight: 1.5 }}>
-                <div><strong>Bank:</strong> Commercial Bank of Ceylon</div>
-                <div><strong>Account Name:</strong> JB Group / Bella Designs</div>
-                <div><strong>Account No:</strong> 8012 3456 7890</div>
-                <div><strong>Branch:</strong> Main Branch</div>
+                <div><strong>Bank:</strong>  HNB </div>
+                <div><strong>Account Name:</strong> W J Joseph </div>
+                <div><strong>Account No:</strong> 031020691989</div>
+                <div><strong>Branch:</strong> JB /Bella </div>
               </div>
               <div style={{ fontSize: '0.74rem', color: '#3b82f6', marginTop: '6px' }}>
                 * Transfer the amount via CDM, Online Banking, or Counter deposit, then attach your deposit receipt below.
@@ -1680,95 +1675,24 @@ export const CustomerOrders = () => {
 
               {/* File Upload Zone */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#0f172a', marginBottom: '6px' }}>
-                  Upload Payment Receipt / Deposit Slip Photo *
-                </label>
-                
-                {slipPreview ? (
-                  <div style={{
-                    position: 'relative',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    border: '2px solid #0052cc',
-                    backgroundColor: '#f8fafc',
-                    textAlign: 'center',
-                    padding: '12px'
-                  }}>
-                    <img
-                      src={slipPreview}
-                      alt="Slip Preview"
-                      style={{
-                        maxHeight: '180px',
-                        maxWidth: '100%',
-                        borderRadius: '8px',
-                        objectFit: 'contain'
-                      }}
-                    />
-                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSlipFile(null);
-                          setSlipPreview(null);
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          border: '1px solid #fca5a5',
-                          backgroundColor: '#fee2e2',
-                          color: '#dc2626',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Remove / Change Photo
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <label style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 16px',
-                    borderRadius: '12px',
-                    border: '2px dashed #93c5fd',
-                    backgroundColor: '#f8fafc',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.2s',
-                    textAlign: 'center'
-                  }}>
-                    <Upload size={28} color="#0052cc" style={{ marginBottom: '8px' }} />
-                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: '3px' }}>
-                      Click to browse or take photo of bank receipt
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      Supports JPG, PNG, WEBP (Max 5MB)
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      required
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 5 * 1024 * 1024) {
-                            alert('File exceeds 5MB size limit.');
-                            return;
-                          }
-                          setSlipFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => setSlipPreview(reader.result);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                )}
+                <ImageUploadCapture
+                  label="Upload Payment Receipt / Deposit Slip Photo"
+                  sublabel="Upload bank transfer receipt or take a photo of deposit slip (Max 20 MB • JPG, PNG, WebP, GIF, BMP)"
+                  previewUrl={slipPreview}
+                  file={slipFile}
+                  onFileSelected={(file) => {
+                    setSlipFile(file);
+                    setSlipPreview(URL.createObjectURL(file));
+                  }}
+                  onFileRemoved={() => {
+                    setSlipFile(null);
+                    setSlipPreview(null);
+                  }}
+                  onError={(err) => alert(err)}
+                  cameraTitle="Take Payment Slip Photo"
+                  required={true}
+                  compact={false}
+                />
               </div>
 
               {/* Customer Notes */}

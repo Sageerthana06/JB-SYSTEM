@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Real login — calls POST /api/auth/login with email + password.
-   * Returns { success, message } 
+   * Returns { success, message }
    */
   const login = async (email, password) => {
     try {
@@ -184,6 +184,50 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const [pendingOrders, setPendingOrders] = useState([]);
+
+  /**
+   * Centralized 10-second pending orders polling for authorized Management (CEO, Admin, Manager).
+   * Strictly runs ONLY when authenticated with a management role.
+   * Cleans up automatically on unmount, logout, or role switch.
+   */
+  useEffect(() => {
+    const userRole = user?.role ? String(user.role).trim().toUpperCase() : '';
+    const isManagement = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(userRole);
+
+    if (!token || !user || !isManagement) {
+      setPendingOrders([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchPendingOrders = async () => {
+      try {
+        const storedToken = token || localStorage.getItem('jb_token');
+        if (!storedToken) return;
+        const res = await fetch(`${API_URL}/api/orders`, {
+          headers: { 'Authorization': `Bearer ${storedToken}` }
+        });
+        const data = await res.json();
+        if (isMounted && data.success && Array.isArray(data.orders)) {
+          const pending = data.orders.filter(o => o.status === 'PENDING_APPROVAL');
+          setPendingOrders(pending);
+        }
+      } catch {
+        // Quietly ignore network errors
+      }
+    };
+
+    fetchPendingOrders();
+    const interval = setInterval(fetchPendingOrders, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user, token]);
+
   /**
    * Logout — clear token and reset state.
    */
@@ -193,6 +237,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('jb_user');
     setToken(null);
     setUser(null);
+    setPendingOrders([]);
     setIsLoginOpen(true);
     setActiveTab('overview');
 
@@ -227,7 +272,9 @@ export const AuthProvider = ({ children }) => {
       isLoginOpen,
       setIsLoginOpen,
       isMobileMenuOpen,
-      setIsMobileMenuOpen
+      setIsMobileMenuOpen,
+      pendingOrders,
+      pendingApprovalsCount: pendingOrders.length
     }}>
       {children}
     </AuthContext.Provider>

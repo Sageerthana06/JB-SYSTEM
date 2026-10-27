@@ -4,34 +4,24 @@ import {
   Search,
   Plus,
   Ruler,
-  FileText,
-  Calendar,
   Phone,
   Mail,
   MapPin,
-  Clock,
-  Sparkles,
   Scissors,
-  CheckCircle2,
   TrendingUp,
   History,
-  Tag,
-  ShieldCheck,
-  Edit3,
   Camera,
-  Upload,
   User,
   X,
-  CreditCard,
   MessageCircle,
-  AlertCircle,
-  ExternalLink,
   Loader2
 } from 'lucide-react';
 import { API_URL, getImageUrl } from '../config/api';
 import { getStatusLabel, STATUS_COLORS } from '../utils/orderStatus';
 import { OrderCreationModal } from './OrderCreationModal';
 import { CustomerCreationModal } from './CustomerCreationModal';
+import { ImageUploadCapture } from './common/ImageUploadCapture';
+import { validateImageFileClient } from '../utils/imageUploadHelper';
 
 const normalizePhoneForWhatsApp = (phone) => {
   if (!phone) return '';
@@ -55,6 +45,7 @@ export const CustomerVaultERP = () => {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   // 1. Fetch real customers list from PostgreSQL
   const fetchCustomers = async (query = '') => {
@@ -114,17 +105,13 @@ export const CustomerVaultERP = () => {
     }
   }, [selectedCustomerId]);
 
-  // 3. Handle direct photo change/upload for selected customer
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
+  // 3. Handle direct photo change/upload for selected customer with 20 MB limit
+  const processPhotoUpload = async (file) => {
     if (!file || !selectedCustomerId) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Photo must be 5MB or smaller.');
-      return;
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
-      setUploadError('Invalid format. JPG, JPEG, PNG, or WEBP only.');
+    const validation = validateImageFileClient(file);
+    if (!validation.valid) {
+      setUploadError(validation.error);
       return;
     }
 
@@ -166,11 +153,12 @@ export const CustomerVaultERP = () => {
         setUploadSuccess('Profile photo updated successfully!');
         setCustomerDetails(prev => prev ? { ...prev, profilePhoto: photoUrl } : prev);
         setCustomers(prev => prev.map(c => c.id === selectedCustomerId ? { ...c, profilePhoto: photoUrl } : c));
+        setIsPhotoModalOpen(false);
         setTimeout(() => setUploadSuccess(''), 4000);
       } else {
         setUploadError(patchData.message || 'Failed to update customer record.');
       }
-    } catch (err) {
+    } catch {
       setUploadError('Network error uploading customer photo.');
     } finally {
       setUploadingPhoto(false);
@@ -198,7 +186,7 @@ export const CustomerVaultERP = () => {
 
   return (
     <div className="erp-page-container" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      
+
       {/* 📌 Header Banner */}
       <div style={{
         display: 'flex',
@@ -283,7 +271,7 @@ export const CustomerVaultERP = () => {
 
       {/* 🔍 Main Vault Grid */}
       <div className="grid-vault-main">
-        
+
         {/* Left Column: Real Customer Directory */}
         <div style={{
           backgroundColor: '#ffffff',
@@ -388,7 +376,7 @@ export const CustomerVaultERP = () => {
 
         {/* Right Column: Customer 360 Workspace with Real PostgreSQL Data */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {loadingDetails && (
             <div style={{
               backgroundColor: '#ffffff',
@@ -444,8 +432,10 @@ export const CustomerVaultERP = () => {
                         </div>
                       )}
 
-                      <label
-                        title="Upload / Change Photo"
+                      <button
+                        type="button"
+                        onClick={() => setIsPhotoModalOpen(true)}
+                        title="Upload Image or Take Photo (Max 20 MB)"
                         style={{
                           position: 'absolute',
                           bottom: '-2px',
@@ -464,14 +454,7 @@ export const CustomerVaultERP = () => {
                         }}
                       >
                         <Camera size={14} />
-                        <input
-                          type="file"
-                          accept="image/jpeg, image/png, image/webp, image/jpg"
-                          onChange={handlePhotoUpload}
-                          disabled={uploadingPhoto}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
+                      </button>
                     </div>
 
                     <div>
@@ -698,7 +681,6 @@ export const CustomerVaultERP = () => {
                         {currentOrders.map((ord) => {
                           const statusColors = STATUS_COLORS[ord.status] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
                           const total = Number(ord.totalAmount) || 0;
-                          const paid = Number(ord.advancePayment) || 0;
                           const balance = Number(ord.balanceAmount) || 0;
                           return (
                             <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -765,6 +747,41 @@ export const CustomerVaultERP = () => {
 
         </div>
       </div>
+
+      {/* Update Customer Profile Photo Modal */}
+      {isPhotoModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', width: '100%', maxWidth: '480px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0f172a' }}>
+                  Customer Profile Photo
+                </h3>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#64748b' }}>
+                  {customerDetails?.name} • ID #{customerDetails?.id}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPhotoModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <ImageUploadCapture
+              label="Select or Take Profile Photo"
+              sublabel="Upload an existing photo or take a new photo with camera (Max 20 MB)"
+              currentImageUrl={customerDetails?.profilePhoto ? getImageUrl(customerDetails.profilePhoto) : null}
+              onFileSelected={(file) => processPhotoUpload(file)}
+              isUploading={uploadingPhoto}
+              cameraTitle="Take Customer Photo"
+              onError={(err) => setUploadError(err)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* New Order / Customer Creation Modal */}
       <OrderCreationModal
