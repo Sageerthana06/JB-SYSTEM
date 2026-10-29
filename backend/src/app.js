@@ -11,6 +11,7 @@ const customerPortalRoutes = require('./routes/customerPortalRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const salaryRoutes = require('./routes/salaryRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/customer-portal', customerPortalRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/salary', salaryRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.use(errorHandler);
 

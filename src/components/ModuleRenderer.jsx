@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { isCraftsmanRole, isManagementRole } from '../utils/permissions';
+import { isCraftsmanRole, isManagementRole, hasPermission } from '../utils/permissions';
 import { SalesERP } from './SalesERP';
 import { ProductionERP } from './ProductionERP';
 import { TailorERP } from './TailorERP';
@@ -10,6 +10,7 @@ import { TailorDashboard } from './TailorDashboard';
 import { InventoryERP } from './InventoryERP';
 import { UserManagement } from './UserManagement';
 import { WeeklySalaryERP } from './WeeklySalaryERP';
+import { DailyReportsERP } from './DailyReportsERP';
 import { Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
 
 /**
@@ -68,6 +69,18 @@ export const ModuleRenderer = () => {
 
   if (activeTab === 'payroll') {
     return <WeeklySalaryERP />;
+  }
+
+  if (activeTab === 'reports') {
+    if (!hasPermission(user?.role, 'reports.view')) {
+      return (
+        <div style={{ padding: '48px', textAlign: 'center', color: '#dc2626' }}>
+          <h3>Access Denied</h3>
+          <p>You do not have permission to access Daily Reports.</p>
+        </div>
+      );
+    }
+    return <DailyReportsERP />;
   }
 
   if (activeTab === 'staff') {

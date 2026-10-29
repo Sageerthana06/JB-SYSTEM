@@ -47,7 +47,7 @@ const ROLE_PERMISSIONS = {
     'production.view', 'production.update',
     'inventory.view', 'inventory.manage',
     'payroll.view', 'payroll.manage',
-    'reports.view',
+    'reports.view', 'reports.export',
     'staff.view',
     'pdf.generate',
     'whatsapp.send',
@@ -83,9 +83,25 @@ const ROLE_PERMISSIONS = {
     'customers.view',
     'finance.view',
     'inventory.view', 'inventory.manage',
+    'reports.view', 'reports.export',
     'pdf.generate',
     'users.view', 'users.manage'
   ]
+};
+
+// Aliases for role naming consistency
+ROLE_PERMISSIONS.CEO = ROLE_PERMISSIONS.SUPER_ADMIN;
+
+/**
+ * Normalizes role string to canonical form
+ * @param {string} role
+ * @returns {string}
+ */
+const normalizeRoleKey = (role) => {
+  if (!role || typeof role !== 'string') return '';
+  const upper = role.trim().toUpperCase();
+  if (upper === 'CEO') return 'SUPER_ADMIN';
+  return upper;
 };
 
 /**
@@ -96,7 +112,8 @@ const ROLE_PERMISSIONS = {
  */
 export const hasPermission = (role, permission) => {
   if (!role) return false;
-  const perms = ROLE_PERMISSIONS[role] || [];
+  const normalized = normalizeRoleKey(role);
+  const perms = ROLE_PERMISSIONS[normalized] || ROLE_PERMISSIONS[role] || [];
   return perms.includes(permission);
 };
 
@@ -106,7 +123,9 @@ export const hasPermission = (role, permission) => {
  * @returns {string[]}
  */
 export const getPermissions = (role) => {
-  return ROLE_PERMISSIONS[role] || [];
+  if (!role) return [];
+  const normalized = normalizeRoleKey(role);
+  return ROLE_PERMISSIONS[normalized] || ROLE_PERMISSIONS[role] || [];
 };
 
 /**
