@@ -125,6 +125,38 @@ exports.assignOrderTasks = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide at least one task to assign.' });
     }
 
+    // Validate task types and assignee IDs, deduplicating by canonical taskType
+    const incomingByType = new Map();
+    for (const rawTask of tasks) {
+      const taskType = rawTask?.taskType ? String(rawTask.taskType).trim().toUpperCase() : '';
+      if (!taskType || !TASK_DEFINITIONS[taskType]) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid task type: "${rawTask?.taskType || ''}". Allowed types: ${Object.keys(TASK_DEFINITIONS).join(', ')}`
+        });
+      }
+
+      const parsedTailorId = parseInt(rawTask.assignedTailorId, 10);
+      if (isNaN(parsedTailorId) || parsedTailorId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Valid assignedTailorId is required for task "${TASK_DEFINITIONS[taskType].name}".`
+        });
+      }
+
+      incomingByType.set(taskType, {
+        taskType,
+        assignedTailorId: parsedTailorId,
+        notes: rawTask.notes !== undefined && rawTask.notes !== null && String(rawTask.notes).trim() !== ''
+          ? String(rawTask.notes)
+          : null
+      });
+    }
+
+    const normalizedTasks = Array.from(incomingByType.values()).sort(
+      (a, b) => TASK_DEFINITIONS[a.taskType].defaultSequence - TASK_DEFINITIONS[b.taskType].defaultSequence
+    );
+
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { garmentDetails: true, branch: true }
@@ -135,7 +167,7 @@ exports.assignOrderTasks = async (req, res, next) => {
     }
 
     // Branch restriction for Managers
-    if (req.user?.role === 'MANAGER' && order.branchId && order.branchId !== req.user.branchId) {
+    if (req.user?.role === 'MANAGER' && order.branchId && Number(order.branchId) !== Number(req.user.branchId)) {
       return res.status(403).json({
         success: false,
         message: 'Permission denied: Managers can only assign tasks within their authorized branch.'
@@ -143,7 +175,7 @@ exports.assignOrderTasks = async (req, res, next) => {
     }
 
     // Validate assigned tailors
-    const tailorIds = [...new Set(tasks.map(t => parseInt(t.assignedTailorId, 10)).filter(Boolean))];
+    const tailorIds = [...new Set(normalizedTasks.map(t => t.assignedTailorId))];
     const tailors = await prisma.user.findMany({
       where: {
         id: { in: tailorIds },
@@ -161,7 +193,7 @@ exports.assignOrderTasks = async (req, res, next) => {
 
     // For managers, verify all tailors belong to the authorized branch
     if (req.user?.role === 'MANAGER') {
-      const crossBranchTailor = tailors.find(t => t.branchId && t.branchId !== req.user.branchId);
+      const crossBranchTailor = tailors.find(t => t.branchId && Number(t.branchId) !== Number(req.user.branchId));
       if (crossBranchTailor) {
         return res.status(403).json({
           success: false,
@@ -171,67 +203,125 @@ exports.assignOrderTasks = async (req, res, next) => {
     }
 
     const tailorMap = new Map(tailors.map(t => [t.id, t]));
-    const assignerName = req.user.name || (req.user.role === 'SUPER_ADMIN' ? 'CEO' : 'Manager');
+    const assignerName = req.user.name || (['SUPER_ADMIN', 'CEO'].includes(req.user.role) ? 'CEO' : 'Manager');
     const now = new Date();
+    const targetBranchId = order.branchId || req.user.branchId || null;
 
-    // Prepare tasks to insert/update
-    const taskRecords = [];
-    let sequence = 1;
-
-    for (const t of tasks) {
-      const def = TASK_DEFINITIONS[t.taskType] || {
-        name: t.taskName || t.taskType,
-        type: t.taskType,
-        defaultSequence: sequence
-      };
-
-      const tailorId = t.assignedTailorId ? parseInt(t.assignedTailorId, 10) : null;
-
-      taskRecords.push({
-        orderId,
-        taskType: t.taskType,
-        taskName: def.name,
-        assignedTailorId: tailorId,
-        assignedById: req.user.id,
-        assignedBy: assignerName,
-        assignedAt: now,
-        status: 'ASSIGNED', // Immediately ASSIGNED — NO tailor acceptance required
-        notes: t.notes || null,
-        sequence: sequence++,
-        branchId: order.branchId || req.user.branchId || null
-      });
-    }
-
-    // Replace existing tasks for this order with the newly configured tasks
+    // Safe per-task-type update/insert inside transaction (preserves existing IDs, statuses, timestamps & notes)
     await prisma.$transaction(async (tx) => {
-      // Delete previous tasks for this order
-      await tx.orderTask.deleteMany({
-        where: { orderId }
+      const existingTasks = await tx.orderTask.findMany({
+        where: { orderId },
+        orderBy: { id: 'asc' }
       });
 
-      // Insert new tasks
-      await tx.orderTask.createMany({
-        data: taskRecords
+      const existingByType = new Map();
+      for (const existing of existingTasks) {
+        if (!existingByType.has(existing.taskType)) {
+          existingByType.set(existing.taskType, existing);
+        }
+      }
+
+      const historySummaryParts = [];
+
+      for (const t of normalizedTasks) {
+        const def = TASK_DEFINITIONS[t.taskType];
+        const canonicalSequence = def.defaultSequence;
+        const existing = existingByType.get(t.taskType);
+
+        if (existing) {
+          const isLockedProgress = existing.status === 'IN_PROGRESS' || existing.status === 'COMPLETED';
+          const resolvedNotes = t.notes !== null ? t.notes : existing.notes;
+          const sameTailor = Number(existing.assignedTailorId) === Number(t.assignedTailorId);
+
+          if (isLockedProgress || sameTailor) {
+            // Preserve existing ID, craftsman, status (ASSIGNED / IN_PROGRESS / COMPLETED), startedAt, completedAt & notes
+            if (existing.sequence !== canonicalSequence || resolvedNotes !== existing.notes) {
+              await tx.orderTask.update({
+                where: { id: existing.id },
+                data: {
+                  sequence: canonicalSequence,
+                  notes: resolvedNotes
+                }
+              });
+            }
+          } else {
+            // Task is still ASSIGNED (not started/completed) and craftsman changed: update in place keeping ID
+            await tx.orderTask.update({
+              where: { id: existing.id },
+              data: {
+                taskName: def.name,
+                assignedTailorId: t.assignedTailorId,
+                assignedById: req.user.id,
+                assignedBy: assignerName,
+                assignedAt: now,
+                status: 'ASSIGNED',
+                notes: resolvedNotes,
+                sequence: canonicalSequence,
+                branchId: existing.branchId || targetBranchId
+              }
+            });
+            historySummaryParts.push(`${def.name} → ${tailorMap.get(t.assignedTailorId)?.name || 'Tailor'}`);
+          }
+        } else {
+          // Insert newly assigned task with canonical sequence and status ASSIGNED
+          await tx.orderTask.create({
+            data: {
+              orderId,
+              taskType: t.taskType,
+              taskName: def.name,
+              assignedTailorId: t.assignedTailorId,
+              assignedById: req.user.id,
+              assignedBy: assignerName,
+              assignedAt: now,
+              status: 'ASSIGNED',
+              notes: t.notes,
+              sequence: canonicalSequence,
+              branchId: targetBranchId
+            }
+          });
+          historySummaryParts.push(`${def.name} → ${tailorMap.get(t.assignedTailorId)?.name || 'Tailor'}`);
+        }
+      }
+
+      // Ensure any untouched existing tasks also carry their canonical sequence from TASK_DEFINITIONS
+      for (const existing of existingTasks) {
+        if (!incomingByType.has(existing.taskType)) {
+          const canonicalSeq = TASK_DEFINITIONS[existing.taskType]?.defaultSequence;
+          if (canonicalSeq && existing.sequence !== canonicalSeq) {
+            await tx.orderTask.update({
+              where: { id: existing.id },
+              data: { sequence: canonicalSeq }
+            });
+          }
+        }
+      }
+
+      const allSavedTasks = await tx.orderTask.findMany({
+        where: { orderId },
+        include: {
+          assignedTailor: { select: { id: true, name: true } }
+        },
+        orderBy: { sequence: 'asc' }
       });
 
-      // Update Order record
-      // Primary tailor is stitching tailor or first assigned tailor
-      const primaryTailorTask = taskRecords.find(t => t.taskType === 'STITCHING' && t.assignedTailorId) || taskRecords.find(t => t.assignedTailorId);
+      // Primary tailor is stitching tailor or first assigned tailor across all saved tasks
+      const primaryTailorTask =
+        allSavedTasks.find(t => t.taskType === 'STITCHING' && t.assignedTailorId) ||
+        allSavedTasks.find(t => t.assignedTailorId);
       const primaryTailorId = primaryTailorTask ? primaryTailorTask.assignedTailorId : order.assignedTailorId;
 
-      // Determine initial stage based on first assigned task (e.g. CUTTING or IN_PROGRESS)
-      const firstTask = taskRecords[0];
-      const initialStage = (firstTask && TASK_DEFINITIONS[firstTask.taskType]?.stage) || 'IN_PROGRESS';
+      // Determine active stage based on canonical task sequence
+      const initialStage = determineOrderProductionStage(allSavedTasks);
 
       // Update Order: bypass tailor acceptance, set tailorAccepted: true
       await tx.order.update({
         where: { id: orderId },
         data: {
           assignedTailorId: primaryTailorId,
-          assignedBy: assignerName,
-          assignedAt: now,
+          assignedBy: order.assignedBy || assignerName,
+          assignedAt: order.assignedAt || now,
           tailorAccepted: true,        // Acceptance step bypassed
-          tailorAcceptedAt: now,      // Immediately active
+          tailorAcceptedAt: order.tailorAcceptedAt || now,
           tailorRejectedAt: null,
           tailorRejectionReason: null,
           status: ['CUSTOMER_APPROVED', 'APPROVED', 'ORDER_CONFIRMED', 'PENDING_PRODUCTION', 'TAILOR_ASSIGNED'].includes(order.status)
@@ -241,10 +331,12 @@ exports.assignOrderTasks = async (req, res, next) => {
       });
 
       // Record production history
-      const assignedSummary = taskRecords
-        .filter(t => t.assignedTailorId)
-        .map(t => `${t.taskName} → ${tailorMap.get(t.assignedTailorId)?.name || 'Tailor'}`)
-        .join(', ');
+      const assignedSummary = (historySummaryParts.length > 0
+        ? historySummaryParts
+        : allSavedTasks
+            .filter(t => t.assignedTailorId)
+            .map(t => `${t.taskName} → ${t.assignedTailor?.name || tailorMap.get(t.assignedTailorId)?.name || 'Tailor'}`)
+      ).join(', ');
 
       await tx.productionHistory.create({
         data: {

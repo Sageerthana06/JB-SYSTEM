@@ -1965,10 +1965,74 @@ const ViewOrderModal = ({
   );
 };
 
+const COLOMBO_OFFSET_MS = 330 * 60 * 1000;
+const SALES_EXCLUDED_STATUSES = new Set(['CANCELLED', 'REJECTED', 'PRICE_DECLINED']);
+
+const toColomboDateKey = (value) => {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const shifted = new Date(parsed.getTime() + COLOMBO_OFFSET_MS);
+  const yr = shifted.getUTCFullYear();
+  const mo = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const dt = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${yr}-${mo}-${dt}`;
+};
+
+const shiftColomboDateKey = (dateKey, offsetDays) => {
+  const [yr, mo, dt] = dateKey.split('-').map(Number);
+  const shifted = new Date(Date.UTC(yr, mo - 1, dt + offsetDays));
+  const rYr = shifted.getUTCFullYear();
+  const rMo = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const rDt = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${rYr}-${rMo}-${rDt}`;
+};
+
+const getColomboDayMeta = (dateKey) => {
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const [yr, mo, dt] = dateKey.split('-').map(Number);
+  const utcDate = new Date(Date.UTC(yr, mo - 1, dt));
+  return {
+    day: dayNames[utcDate.getUTCDay()],
+    formattedDate: `${String(dt).padStart(2, '0')} ${monthNames[utcDate.getUTCMonth()]}`
+  };
+};
+
+const toMoneyCents = (val) => Math.round((Number(val) || 0) * 100);
+const fromMoneyCents = (cents) => Number((cents / 100).toFixed(2));
+
+const formatExactLKR = (value) => {
+  const num = Number(value) || 0;
+  const hasCents = Math.round(num * 100) % 100 !== 0;
+  return num.toLocaleString('en-LK', {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: hasCents ? 2 : 0
+  });
+};
+
+const computeNiceChartMax = (maxVal) => {
+  const numericMax = Number(maxVal) || 0;
+  if (numericMax <= 0) return 2000;
+  const rawStep = numericMax / 4;
+  if (rawStep <= 1) return 4;
+  const exp = Math.floor(Math.log10(rawStep));
+  const mag = Math.pow(10, exp);
+  const norm = rawStep / mag;
+  const candidates = exp >= 2
+    ? [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
+    : [1, 2, 3, 4, 5, 6, 8, 10];
+  const niceNorm = candidates.find(c => c >= norm - 1e-9) || 10;
+  return niceNorm * mag * 4;
+};
+
 export const SalesERP = () => {
   const { activeBranch, setActiveBranch, getAuthHeaders, user, setActiveTab } = useAuth();
-  const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes((user?.role || '').toUpperCase());
-  const canSwitchBranch = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes((user?.role || '').toUpperCase());
+  const userRole = (user?.role || '').toUpperCase();
+  const isSuperOrAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+  const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(userRole);
+  const canSwitchBranch = isSuperOrAdmin;
+  const effectiveBranch = (userRole === 'MANAGER' && user?.branchId) ? String(user.branchId) : activeBranch;
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState(null);
@@ -1981,6 +2045,10 @@ export const SalesERP = () => {
   const [error, setError] = useState(null);
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [dashboardSummary, setDashboardSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState(null);
+  const [activeBarIdx, setActiveBarIdx] = useState(null);
+  const summaryReqSeqRef = useRef(0);
   const [pricingOrder, setPricingOrder] = useState(null);
   const [taskModalOrder, setTaskModalOrder] = useState(null);
   const [finishedNotificationOrder, setFinishedNotificationOrder] = useState(null);
@@ -1998,7 +2066,7 @@ export const SalesERP = () => {
     try {
       setLoading(true);
       setError(null);
-      const branchParam = activeBranch && activeBranch !== 'ALL' ? `?branchId=${activeBranch}` : '';
+      const branchParam = effectiveBranch && effectiveBranch !== 'ALL' ? `?branchId=${effectiveBranch}` : '';
       const res = await fetch(`${API_URL}/api/orders${branchParam}`, {
         headers: getAuthHeaders ? getAuthHeaders() : {
           'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
@@ -2035,10 +2103,13 @@ export const SalesERP = () => {
   };
 
   const fetchDashboardSummary = async (customDate = trendReferenceDate) => {
+    const reqId = ++summaryReqSeqRef.current;
     try {
+      setSummaryLoading(true);
+      setSummaryError(null);
       const params = new URLSearchParams();
-      if (activeBranch && activeBranch !== 'ALL') {
-        params.append('branchId', activeBranch);
+      if (effectiveBranch && effectiveBranch !== 'ALL') {
+        params.append('branchId', effectiveBranch);
       }
       if (customDate) {
         params.append('date', customDate);
@@ -2050,12 +2121,30 @@ export const SalesERP = () => {
           'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
         }
       });
-      const data = await res.json();
-      if (data.success && data.summary) {
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      if (reqId !== summaryReqSeqRef.current) return;
+      if (res.ok && data?.success && data?.summary) {
         setDashboardSummary(data.summary);
+        setSummaryError(null);
+      } else {
+        setDashboardSummary(null);
+        setSummaryError(data?.message || 'Unable to load 7-day sales summary. Please retry.');
       }
     } catch (err) {
       console.error('Error fetching dashboard summary:', err);
+      if (reqId === summaryReqSeqRef.current) {
+        setDashboardSummary(null);
+        setSummaryError('Network error loading 7-day sales summary. Please retry.');
+      }
+    } finally {
+      if (reqId === summaryReqSeqRef.current) {
+        setSummaryLoading(false);
+      }
     }
   };
 
@@ -2067,7 +2156,7 @@ export const SalesERP = () => {
 
   useEffect(() => {
     refreshAll();
-  }, [activeBranch, trendReferenceDate, user]);
+  }, [effectiveBranch, trendReferenceDate, user]);
 
   const handleApproveOrder = async (orderId) => {
     try {
@@ -2388,62 +2477,106 @@ export const SalesERP = () => {
     }
   };
 
-  // Compute metrics from real PostgreSQL data
-  const now = trendReferenceDate ? new Date(trendReferenceDate) : new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-  const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  // Compute metrics from real PostgreSQL data using Asia/Colombo (UTC+05:30) date boundaries
+  const defaultColomboTodayKey = toColomboDateKey(new Date());
+  const refDateKey = (trendReferenceDate && /^\d{4}-\d{2}-\d{2}$/.test(trendReferenceDate))
+    ? trendReferenceDate
+    : defaultColomboTodayKey;
+  const yesterdayDateKey = shiftColomboDateKey(refDateKey, -1);
+  const monthPrefixKey = refDateKey.slice(0, 7);
 
-  const todayOrdersList = orders.filter(o => {
-    const d = new Date(o.orderDate || o.createdAt);
-    return d >= startOfToday && d < endOfToday;
-  });
+  const validClientOrders = orders.filter(
+    o => !SALES_EXCLUDED_STATUSES.has(String(o.status || '').toUpperCase())
+  );
+
+  const clientRevenueCentsByDate = new Map();
+  const clientOrdersByDate = new Map();
+
+  for (const o of validClientOrders) {
+    const oDateKey = toColomboDateKey(o.orderDate || o.createdAt);
+    if (oDateKey) {
+      if (!clientOrdersByDate.has(oDateKey)) {
+        clientOrdersByDate.set(oDateKey, []);
+      }
+      clientOrdersByDate.get(oDateKey).push(o);
+    }
+
+    let orderVerifiedPaidCents = 0;
+    if (Array.isArray(o.payments)) {
+      for (const p of o.payments) {
+        const pStatus = p.status ? String(p.status).trim().toUpperCase() : 'VERIFIED';
+        if (pStatus !== 'VERIFIED') continue;
+        const pCents = toMoneyCents(p.amount);
+        if (pCents <= 0) continue;
+        orderVerifiedPaidCents += pCents;
+        const pDateKey = toColomboDateKey(p.createdAt);
+        if (pDateKey) {
+          clientRevenueCentsByDate.set(pDateKey, (clientRevenueCentsByDate.get(pDateKey) || 0) + pCents);
+        }
+      }
+    }
+
+    const residualAdvCents = Math.max(0, toMoneyCents(o.advancePayment) - orderVerifiedPaidCents);
+    if (residualAdvCents > 0 && oDateKey) {
+      clientRevenueCentsByDate.set(oDateKey, (clientRevenueCentsByDate.get(oDateKey) || 0) + residualAdvCents);
+    }
+  }
+
+  const todayOrdersList = clientOrdersByDate.get(refDateKey) || [];
   const todayOrders = dashboardSummary ? dashboardSummary.todayOrders : todayOrdersList.length;
-  const todaySales = dashboardSummary ? dashboardSummary.todaySales : todayOrdersList.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
+  const todaySales = dashboardSummary
+    ? dashboardSummary.todaySales
+    : fromMoneyCents(clientRevenueCentsByDate.get(refDateKey) || 0);
 
-  const yesterdayOrdersList = orders.filter(o => {
-    const d = new Date(o.orderDate || o.createdAt);
-    return d >= startOfYesterday && d < startOfToday;
-  });
+  const yesterdayOrdersList = clientOrdersByDate.get(yesterdayDateKey) || [];
   const yesterdayOrders = dashboardSummary ? dashboardSummary.yesterdayOrders : yesterdayOrdersList.length;
-  const yesterdaySales = dashboardSummary ? dashboardSummary.yesterdaySales : yesterdayOrdersList.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
+  const yesterdaySales = dashboardSummary
+    ? dashboardSummary.yesterdaySales
+    : fromMoneyCents(clientRevenueCentsByDate.get(yesterdayDateKey) || 0);
 
-  const monthlyOrdersList = orders.filter(o => {
-    const d = new Date(o.orderDate || o.createdAt);
-    return d >= startOfMonth;
-  });
-  const monthlyOrders = dashboardSummary ? dashboardSummary.monthlyOrders : monthlyOrdersList.length;
-  const monthlySales = dashboardSummary ? dashboardSummary.monthlySales : monthlyOrdersList.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
+  let fallbackMonthlyOrders = 0;
+  for (const [dk, list] of clientOrdersByDate.entries()) {
+    if (dk.startsWith(monthPrefixKey) && dk <= refDateKey) {
+      fallbackMonthlyOrders += list.length;
+    }
+  }
+  let fallbackMonthlySalesCents = 0;
+  for (const [dk, cents] of clientRevenueCentsByDate.entries()) {
+    if (dk.startsWith(monthPrefixKey) && dk <= refDateKey) {
+      fallbackMonthlySalesCents += cents;
+    }
+  }
+  const monthlyOrders = dashboardSummary ? dashboardSummary.monthlyOrders : fallbackMonthlyOrders;
+  const monthlySales = dashboardSummary ? dashboardSummary.monthlySales : fromMoneyCents(fallbackMonthlySalesCents);
 
-  const pricedOrders = orders.filter(o => Number(o.totalAmount) > 0);
+  const getOrderValueCents = (o) => (toMoneyCents(o.agreedTotal) > 0 ? toMoneyCents(o.agreedTotal) : toMoneyCents(o.totalAmount));
+
+  const pricedOrders = validClientOrders.filter(o => getOrderValueCents(o) > 0);
   const pricedOrdersCount = dashboardSummary ? dashboardSummary.pricedOrdersCount : pricedOrders.length;
-  const aov = dashboardSummary ? dashboardSummary.averageOrderValue : (pricedOrdersCount > 0 ? Math.round(pricedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0) / pricedOrdersCount) : 0);
+  const aov = dashboardSummary
+    ? dashboardSummary.averageOrderValue
+    : (pricedOrdersCount > 0
+        ? Math.round(fromMoneyCents(pricedOrders.reduce((sum, o) => sum + getOrderValueCents(o), 0)) / pricedOrdersCount)
+        : 0);
 
-  const dueOrders = orders.filter(o => Number(o.totalAmount) > 0 && Number(o.balanceAmount) > 0);
+  const dueOrders = validClientOrders.filter(o => getOrderValueCents(o) > 0 && toMoneyCents(o.balanceAmount) > 0);
   const paymentsDueCount = dashboardSummary ? dashboardSummary.paymentsDueCount : dueOrders.length;
-  const paymentsDueAmount = dashboardSummary ? dashboardSummary.paymentsDueAmount : dueOrders.reduce((sum, o) => sum + Number(o.balanceAmount), 0);
+  const paymentsDueAmount = dashboardSummary
+    ? dashboardSummary.paymentsDueAmount
+    : fromMoneyCents(dueOrders.reduce((sum, o) => sum + toMoneyCents(o.balanceAmount), 0));
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const revenueTrendData = dashboardSummary?.weeklySales || (() => {
     const arr = [];
     for (let i = 6; i >= 0; i--) {
-      const dStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0, 0);
-      const dEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i + 1, 0, 0, 0, 0);
-      const dayOrds = orders.filter(o => {
-        const d = new Date(o.orderDate || o.createdAt);
-        return d >= dStart && d < dEnd;
-      });
-      const yr = dStart.getFullYear();
-      const mo = String(dStart.getMonth() + 1).padStart(2, '0');
-      const dt = String(dStart.getDate()).padStart(2, '0');
+      const dk = shiftColomboDateKey(refDateKey, -i);
+      const { day, formattedDate } = getColomboDayMeta(dk);
+      const dayOrds = clientOrdersByDate.get(dk) || [];
       arr.push({
-        date: `${yr}-${mo}-${dt}`,
-        formattedDate: `${dt} ${monthNames[dStart.getMonth()]}`,
-        day: dayNames[dStart.getDay()],
-        revenue: dayOrds.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0),
-        orderValue: dayOrds.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0),
+        date: dk,
+        formattedDate,
+        day,
+        revenue: fromMoneyCents(clientRevenueCentsByDate.get(dk) || 0),
+        orderValue: fromMoneyCents(dayOrds.reduce((sum, o) => sum + getOrderValueCents(o), 0)),
         orders: dayOrds.length
       });
     }
@@ -2677,13 +2810,13 @@ export const SalesERP = () => {
             </div>
           </div>
           <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-main)', marginTop: '8px' }}>
-            LKR {todaySales.toLocaleString()}
+            LKR {formatExactLKR(todaySales)}
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: yesterdaySales > 0 ? (todaySales >= yesterdaySales ? '#10b981' : '#ef4444') : '#64748b', marginTop: '6px', fontWeight: 700 }}>
             {yesterdaySales > 0 ? (
               <>
                 <ArrowUpRight size={14} style={{ transform: todaySales < yesterdaySales ? 'rotate(90deg)' : 'none' }} />
-                <span>{todaySales >= yesterdaySales ? '+' : ''}{Math.round(((todaySales - yesterdaySales) / yesterdaySales) * 100)}% vs yesterday (LKR {yesterdaySales.toLocaleString()})</span>
+                <span>{todaySales >= yesterdaySales ? '+' : ''}{Math.round(((todaySales - yesterdaySales) / yesterdaySales) * 100)}% vs yesterday (LKR {formatExactLKR(yesterdaySales)})</span>
               </>
             ) : (
               <span>LKR 0 sales yesterday</span>
@@ -2724,7 +2857,7 @@ export const SalesERP = () => {
             </div>
           </div>
           <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-main)', marginTop: '8px' }}>
-            LKR {monthlySales.toLocaleString()}
+            LKR {formatExactLKR(monthlySales)}
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#64748b', marginTop: '6px', fontWeight: 600 }}>
             {monthlyOrders} {monthlyOrders === 1 ? 'order' : 'orders'} recorded this month
@@ -2742,7 +2875,7 @@ export const SalesERP = () => {
             </div>
           </div>
           <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-main)', marginTop: '8px' }}>
-            LKR {aov.toLocaleString()}
+            LKR {formatExactLKR(aov)}
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#64748b', marginTop: '6px', fontWeight: 600 }}>
             Based on {pricedOrdersCount} priced {pricedOrdersCount === 1 ? 'order' : 'orders'}
@@ -2760,7 +2893,7 @@ export const SalesERP = () => {
             </div>
           </div>
           <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: paymentsDueAmount > 0 ? '#dc2626' : '#10b981', marginTop: '8px' }}>
-            LKR {paymentsDueAmount.toLocaleString()}
+            LKR {formatExactLKR(paymentsDueAmount)}
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: paymentsDueAmount > 0 ? '#dc2626' : '#10b981', marginTop: '6px', fontWeight: 700 }}>
             {paymentsDueCount === 0 ? 'All orders settled' : `${paymentsDueCount} Unpaid / Partial Order${paymentsDueCount === 1 ? '' : 's'}`}
@@ -2770,9 +2903,9 @@ export const SalesERP = () => {
 
       {/* Custom Clean Executive Charts Row */}
       <div className="sales-charts-row">
-        {/* Weekly Revenue Trend Bar Visualizer */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        {/* Last 7 Days Daily Sales Bar Chart */}
+        <div className="card jb-sales-barchart-card" data-testid="sales-barchart-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
@@ -2781,22 +2914,22 @@ export const SalesERP = () => {
                 <span style={{
                   fontSize: '0.72rem',
                   fontWeight: 800,
-                  color: activeBranch === '1' ? '#0052cc' : activeBranch === '2' ? '#d90429' : '#0f172a',
-                  backgroundColor: activeBranch === '1' ? '#eff6ff' : activeBranch === '2' ? '#fff1f2' : '#f8fafc',
+                  color: effectiveBranch === '1' ? '#2563eb' : effectiveBranch === '2' ? '#dc2626' : 'var(--text-main)',
+                  backgroundColor: effectiveBranch === '1' ? 'rgba(37, 99, 235, 0.1)' : effectiveBranch === '2' ? 'rgba(220, 38, 38, 0.1)' : 'var(--bg-main)',
                   padding: '2px 8px',
                   borderRadius: '6px',
-                  border: `1px solid ${activeBranch === '1' ? '#bfdbfe' : activeBranch === '2' ? '#fecdd3' : '#e2e8f0'}`
+                  border: `1px solid ${effectiveBranch === '1' ? 'rgba(37, 99, 235, 0.3)' : effectiveBranch === '2' ? 'rgba(220, 38, 38, 0.3)' : 'var(--border-color)'}`
                 }}>
-                  {activeBranch === '1' ? '🏢 JB Group (Main)' : activeBranch === '2' ? '🪡 Bella Design' : '✨ All Branches'}
+                  {effectiveBranch === '1' ? '🏢 JB Group (Main)' : effectiveBranch === '2' ? '🪡 Bella Design' : '✨ All Branches'}
                 </span>
                 <span style={{
                   fontSize: '0.68rem',
                   fontWeight: 800,
                   color: '#15803d',
-                  backgroundColor: '#f0fdf4',
+                  backgroundColor: 'rgba(34, 197, 94, 0.12)',
                   padding: '2px 8px',
                   borderRadius: '6px',
-                  border: '1px solid #bbf7d0',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px'
@@ -2806,63 +2939,35 @@ export const SalesERP = () => {
                 </span>
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-                Daily sales performance & real order volume by date
+                Daily verified LKR sales &amp; order volume across the last 7 days (Asia/Colombo)
               </p>
             </div>
 
             {/* Branch and Date Controls for CEO and Manager only */}
             {canSwitchBranch ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {/* Branch Switcher Pills */}
-                <div style={{ display: 'inline-flex', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px', gap: '2px' }}>
+                <div className="jb-barchart-controls-bar" role="group" aria-label="Branch filter">
                   <button
                     type="button"
+                    data-testid="chart-branch-all"
                     onClick={() => setActiveBranch('ALL')}
-                    style={{
-                      padding: '4px 9px',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: activeBranch === 'ALL' ? '#ffffff' : 'transparent',
-                      color: activeBranch === 'ALL' ? '#0f172a' : '#64748b',
-                      boxShadow: activeBranch === 'ALL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                      cursor: 'pointer'
-                    }}
+                    className={`jb-barchart-branch-btn ${activeBranch === 'ALL' ? 'active' : ''}`}
                   >
-                    All
+                    All Branches
                   </button>
                   <button
                     type="button"
+                    data-testid="chart-branch-1"
                     onClick={() => setActiveBranch('1')}
-                    style={{
-                      padding: '4px 9px',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: activeBranch === '1' ? '#ffffff' : 'transparent',
-                      color: activeBranch === '1' ? '#0052cc' : '#64748b',
-                      boxShadow: activeBranch === '1' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                      cursor: 'pointer'
-                    }}
+                    className={`jb-barchart-branch-btn ${activeBranch === '1' ? 'active-jb' : ''}`}
                   >
                     JB Group
                   </button>
                   <button
                     type="button"
+                    data-testid="chart-branch-2"
                     onClick={() => setActiveBranch('2')}
-                    style={{
-                      padding: '4px 9px',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: activeBranch === '2' ? '#ffffff' : 'transparent',
-                      color: activeBranch === '2' ? '#d90429' : '#64748b',
-                      boxShadow: activeBranch === '2' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                      cursor: 'pointer'
-                    }}
+                    className={`jb-barchart-branch-btn ${activeBranch === '2' ? 'active-bella' : ''}`}
                   >
                     Bella Design
                   </button>
@@ -2872,33 +2977,25 @@ export const SalesERP = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <input
                     type="date"
-                    value={trendReferenceDate || (now.toISOString().split('T')[0])}
+                    data-testid="chart-date-input"
+                    value={trendReferenceDate || refDateKey}
                     onChange={(e) => setTrendReferenceDate(e.target.value)}
-                    title="Select reference date for 7-day trend"
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      borderRadius: '7px',
-                      border: '1px solid #cbd5e1',
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
-                      cursor: 'pointer',
-                      outline: 'none'
-                    }}
+                    title="Select reference date for 7-day sales bar chart (Asia/Colombo)"
+                    className="jb-barchart-date-input"
                   />
                   {trendReferenceDate && (
                     <button
                       type="button"
+                      data-testid="chart-date-today-btn"
                       onClick={() => setTrendReferenceDate('')}
                       style={{
                         padding: '4px 8px',
                         fontSize: '0.7rem',
                         fontWeight: 700,
                         borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#64748b',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-muted)',
                         cursor: 'pointer'
                       }}
                     >
@@ -2908,133 +3005,262 @@ export const SalesERP = () => {
                 </div>
               </div>
             ) : (
-              <span className="badge badge-navy">Weekly Trend</span>
+              <span className="badge badge-navy">Last 7 Days</span>
             )}
           </div>
 
-          {/* 7-Day Summary Header Bar */}
-          {(() => {
-            const periodTotalRev = revenueTrendData.reduce((sum, d) => sum + (d.revenue || 0), 0);
-            const periodTotalOrd = revenueTrendData.reduce((sum, d) => sum + (d.orders || 0), 0);
-            const firstDate = revenueTrendData[0]?.formattedDate || '';
-            const lastDate = revenueTrendData[revenueTrendData.length - 1]?.formattedDate || '';
-
-            return (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: 'var(--bg-main)',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                marginBottom: '14px',
-                fontSize: '0.75rem',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}>
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Period: <strong>{firstDate} – {lastDate}</strong>
-                </span>
-                <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                  <span>
-                    7-Day Sales: <strong style={{ color: periodTotalRev > 0 ? '#16a34a' : 'var(--text-main)', fontSize: '0.85rem' }}>LKR {periodTotalRev.toLocaleString()}</strong>
-                  </span>
-                  <span>
-                    Orders: <strong>{periodTotalOrd}</strong>
-                  </span>
-                </div>
+          {summaryLoading ? (
+            <div data-testid="sales-chart-loading" className="jb-barchart-wrapper" aria-busy="true">
+              <div className="jb-barchart-summary-strip">
+                <span style={{ color: 'var(--text-muted)' }}>Loading 7-day PostgreSQL sales data...</span>
               </div>
-            );
-          })()}
-
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '220px', padding: '16px 8px 0 8px', borderBottom: '2px solid var(--border-color)', gap: '8px' }}>
-            {(() => {
-              const maxRev = Math.max(...revenueTrendData.map(d => d.revenue || 0), 1000);
-              return revenueTrendData.map((d, i) => {
-                const isToday = i === revenueTrendData.length - 1;
-                const hasRev = (d.revenue || 0) > 0;
-                const heightPercent = hasRev ? Math.min(100, Math.max(16, ((d.revenue || 0) / maxRev) * 100)) : 4;
-                const formattedRev = hasRev
-                  ? ((d.revenue || 0) >= 1000 ? `${((d.revenue || 0) / 1000).toFixed(0)}k` : `${d.revenue || 0}`)
-                  : (d.orders > 0 ? `${d.orders} ord` : '0');
-                const dateLabel = d.formattedDate || (d.date ? new Date(d.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '');
-
-                return (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '6px', height: '100%', justifyContent: 'flex-end' }}>
-                    <span style={{
-                      fontSize: '0.72rem',
-                      fontWeight: hasRev ? 800 : 600,
-                      color: hasRev ? (isToday ? 'var(--jb-blue-accent)' : '#1e3a8a') : '#94a3b8'
-                    }}>
-                      {hasRev ? `LKR ${formattedRev}` : formattedRev}
-                    </span>
-
-                    <div
-                      style={{
-                        width: '100%',
-                        maxWidth: '38px',
-                        height: hasRev ? `${heightPercent}%` : '4px',
-                        background: hasRev
-                          ? (isToday
-                              ? 'linear-gradient(180deg, #0052cc 0%, #003399 100%)'
-                              : 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)')
-                          : '#e2e8f0',
-                        borderRadius: hasRev ? '8px 8px 0 0' : '2px',
-                        boxShadow: hasRev && isToday ? '0 4px 12px rgba(0, 82, 204, 0.35)' : 'none',
-                        cursor: 'pointer',
-                        transition: 'all 0.25s ease'
-                      }}
-                      title={`${d.day} (${dateLabel}): LKR ${(d.revenue || 0).toLocaleString()} across ${d.orders || 0} order${(d.orders || 0) === 1 ? '' : 's'}`}
-                      onMouseEnter={(e) => {
-                        if (hasRev) {
-                          e.currentTarget.style.transform = 'scaleY(1.05)';
-                          e.currentTarget.style.filter = 'brightness(1.15)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (hasRev) {
-                          e.currentTarget.style.transform = 'scaleY(1)';
-                          e.currentTarget.style.filter = 'brightness(1)';
-                        }
-                      }}
-                    />
-
-                    <div style={{ textAlign: 'center', marginTop: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                      <span style={{
-                        fontSize: '0.78rem',
-                        fontWeight: isToday ? 900 : 800,
-                        color: isToday ? 'var(--jb-blue-accent)' : 'var(--text-main)',
-                        display: 'block'
-                      }}>
-                        {d.day}
-                      </span>
-                      <span style={{
-                        fontSize: '0.67rem',
-                        fontWeight: 700,
-                        color: isToday ? '#0052cc' : '#64748b',
-                        backgroundColor: isToday ? '#eff6ff' : '#f1f5f9',
-                        padding: '1px 5px',
-                        borderRadius: '4px',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {dateLabel}
-                      </span>
-                      <span style={{
-                        fontSize: '0.64rem',
-                        fontWeight: 700,
-                        color: d.orders > 0 ? '#16a34a' : '#94a3b8',
-                        backgroundColor: d.orders > 0 ? '#f0fdf4' : 'transparent',
-                        padding: d.orders > 0 ? '1px 4px' : '0',
-                        borderRadius: '4px'
-                      }}>
-                        {d.orders || 0} ord
-                      </span>
+              <div className="jb-barchart-grid">
+                <div className="jb-yaxis-headroom">
+                  <div className="jb-yaxis-zone" />
+                </div>
+                <div className="jb-plot-headroom">
+                  <div className="jb-plot-zone">
+                    <div className="jb-bars-row">
+                      {[38, 62, 26, 78, 48, 34, 68].map((pct, idx) => (
+                        <div key={idx} className="jb-bar-slot">
+                          <div
+                            className="jb-barchart-skeleton-bar"
+                            style={{ height: `${pct}%`, animationDelay: `${idx * 0.08}s` }}
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
-                );
-              });
-            })()}
-          </div>
+                </div>
+              </div>
+            </div>
+          ) : summaryError ? (
+            <div
+              data-testid="sales-chart-error"
+              style={{
+                padding: '28px 18px',
+                borderRadius: '10px',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                gap: '10px',
+                minHeight: '220px'
+              }}
+            >
+              <AlertCircle size={24} style={{ color: '#dc2626' }} />
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                {summaryError}
+              </div>
+              <button
+                type="button"
+                data-testid="sales-chart-retry-btn"
+                onClick={() => fetchDashboardSummary(trendReferenceDate)}
+                className="btn-primary"
+                style={{ padding: '7px 16px', fontSize: '0.78rem' }}
+              >
+                Retry Loading Sales Data
+              </button>
+            </div>
+          ) : (
+            (() => {
+              const periodTotalRev = fromMoneyCents(
+                revenueTrendData.reduce((sum, d) => sum + toMoneyCents(d.revenue), 0)
+              );
+              const periodTotalOrd = revenueTrendData.reduce((sum, d) => sum + (Number(d.orders) || 0), 0);
+              const periodTotalOrderVal = fromMoneyCents(
+                revenueTrendData.reduce((sum, d) => sum + toMoneyCents(d.orderValue), 0)
+              );
+              const firstDate = revenueTrendData[0]?.formattedDate || '';
+              const lastDate = revenueTrendData[revenueTrendData.length - 1]?.formattedDate || '';
+
+              const rawMaxRev = Math.max(...revenueTrendData.map(d => Number(d.revenue) || 0), 0);
+              const yAxisMax = computeNiceChartMax(rawMaxRev);
+              const yTicks = [0, 0.25, 0.5, 0.75, 1].map(ratio => ({
+                pct: ratio * 100,
+                value: Math.round(yAxisMax * ratio)
+              }));
+
+              return (
+                <div className="jb-barchart-wrapper" data-testid="sales-barchart">
+                  {/* 7-Day Summary Header Strip */}
+                  <div className="jb-barchart-summary-strip" data-testid="sales-barchart-summary">
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      Period: <strong style={{ color: 'var(--text-main)' }}>{firstDate} – {lastDate}</strong>
+                    </span>
+                    <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span data-testid="sales-barchart-total-sales">
+                        7-Day Sales:{' '}
+                        <strong style={{ color: periodTotalRev > 0 ? '#16a34a' : 'var(--text-main)', fontSize: '0.86rem' }}>
+                          LKR {formatExactLKR(periodTotalRev)}
+                        </strong>
+                      </span>
+                      <span data-testid="sales-barchart-total-orders">
+                        Orders: <strong style={{ color: 'var(--text-main)' }}>{periodTotalOrd}</strong>
+                      </span>
+                      {periodTotalOrderVal > 0 && periodTotalOrderVal !== periodTotalRev && (
+                        <span style={{ color: 'var(--text-muted)' }} data-testid="sales-barchart-order-value">
+                          Order Value: <strong style={{ color: 'var(--text-main)' }}>LKR {formatExactLKR(periodTotalOrderVal)}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contextual Banner for Unpaid Orders (LKR 0 collected) or Empty Branch Period */}
+                  {periodTotalRev === 0 && periodTotalOrd > 0 && (
+                    <div className="jb-barchart-ZeroBanner" data-testid="sales-chart-unpaid-note">
+                      <span>
+                        <strong>LKR 0 collected sales</strong> — {periodTotalOrd} {periodTotalOrd === 1 ? 'order' : 'orders'} created in this period (billed value LKR {formatExactLKR(periodTotalOrderVal)}) currently {periodTotalOrd === 1 ? 'has' : 'have'} no verified customer payments.
+                      </span>
+                    </div>
+                  )}
+                  {periodTotalRev === 0 && periodTotalOrd === 0 && (
+                    <div className="jb-barchart-ZeroBanner" data-testid="sales-chart-empty-note">
+                      <span>
+                        No orders or sales recorded for this branch during {firstDate} – {lastDate}.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Calibrated 7-Day Vertical Bar Chart */}
+                  <div className="jb-barchart-grid" role="img" aria-label={`Last 7 days sales bar chart from ${firstDate} to ${lastDate}`}>
+                    {/* Left Y-Axis Scale (LKR) */}
+                    <div className="jb-yaxis-headroom">
+                      <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-muted)', textAlign: 'right', paddingRight: '2px', marginTop: '-22px', marginBottom: '8px' }}>
+                        LKR
+                      </div>
+                      <div className="jb-yaxis-zone">
+                        {yTicks.map((t) => (
+                          <span
+                            key={t.pct}
+                            className="jb-yaxis-tick"
+                            style={{ bottom: `${t.pct}%` }}
+                          >
+                            {formatExactLKR(t.value)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right Plot Area (Gridlines + 7 Daily Bars) */}
+                    <div className="jb-plot-headroom">
+                      <div className="jb-plot-zone">
+                        {yTicks.map((t) => (
+                          <div
+                            key={t.pct}
+                            className={`jb-gridline ${t.pct === 0 ? 'zero' : ''}`}
+                            style={{ bottom: `${t.pct}%` }}
+                          />
+                        ))}
+
+                        <div className="jb-bars-row">
+                          {revenueTrendData.map((d, i) => {
+                            const isToday = i === revenueTrendData.length - 1;
+                            const rev = Number(d.revenue) || 0;
+                            const ordCount = Number(d.orders) || 0;
+                            const ordVal = Number(d.orderValue) || 0;
+                            const hasRev = rev > 0;
+                            const rawPct = hasRev ? Math.min(100, (rev / yAxisMax) * 100) : 0;
+                            const dateLabel = d.formattedDate || d.date || '';
+                            const isHovered = activeBarIdx === i;
+
+                            return (
+                              <div
+                                key={d.date || i}
+                                className="jb-bar-slot"
+                                data-testid={`sales-bar-slot-${i}`}
+                                data-date={d.date}
+                                data-revenue={rev}
+                                data-orders={ordCount}
+                                tabIndex={0}
+                                onMouseEnter={() => setActiveBarIdx(i)}
+                                onMouseLeave={() => setActiveBarIdx(prev => (prev === i ? null : prev))}
+                                onFocus={() => setActiveBarIdx(i)}
+                                onBlur={() => setActiveBarIdx(prev => (prev === i ? null : prev))}
+                                onClick={() => setActiveBarIdx(prev => (prev === i ? null : i))}
+                              >
+                                <div className="jb-bar-track" />
+
+                                {/* Exact LKR Sales Value Label Above Bar */}
+                                <span
+                                  className={`jb-bar-value-label ${isToday ? 'is-today' : ''} ${!hasRev ? 'is-zero' : ''}`}
+                                  data-testid={`sales-bar-value-${i}`}
+                                  style={{
+                                    bottom: hasRev ? `calc(max(${rawPct}%, 8px) + 6px)` : '9px'
+                                  }}
+                                >
+                                  <span className="jb-bar-curr">LKR</span>
+                                  <span>{formatExactLKR(rev)}</span>
+                                </span>
+
+                                {/* Daily Sales Vertical Bar */}
+                                <div
+                                  className={`jb-bar-fill ${hasRev ? 'has-sales' : 'zero-sales'} ${isToday ? 'is-today' : ''} ${!hasRev && ordCount > 0 ? 'has-unpaid-orders' : ''}`}
+                                  data-testid={`sales-bar-fill-${i}`}
+                                  style={hasRev ? { height: `${rawPct}%`, minHeight: '8px' } : undefined}
+                                />
+
+                                {/* Interactive Hover / Focus / Tap Tooltip */}
+                                {isHovered && (
+                                  <div className="jb-bar-tooltip" role="tooltip">
+                                    <div style={{ fontWeight: 800, marginBottom: '2px', color: '#93c5fd' }}>
+                                      {d.day}, {dateLabel} ({d.date})
+                                    </div>
+                                    <div>
+                                      Sales: <strong>LKR {formatExactLKR(rev)}</strong>
+                                    </div>
+                                    <div>
+                                      Orders: <strong>{ordCount} {ordCount === 1 ? 'order' : 'orders'}</strong>
+                                    </div>
+                                    {ordVal > 0 && ordVal !== rev && (
+                                      <div style={{ color: '#cbd5e1' }}>
+                                        Order Value: LKR {formatExactLKR(ordVal)}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* X-Axis Row Aligned Beneath Plot Area */}
+                    <div className="jb-xaxis-spacer" />
+                    <div className="jb-xaxis-row">
+                      {revenueTrendData.map((d, i) => {
+                        const isToday = i === revenueTrendData.length - 1;
+                        const ordCount = Number(d.orders) || 0;
+                        const dateLabel = d.formattedDate || d.date || '';
+
+                        return (
+                          <div key={d.date || i} className="jb-xaxis-cell" data-testid={`sales-bar-xaxis-${i}`}>
+                            <span className={`jb-xaxis-day ${isToday ? 'is-today' : ''}`}>
+                              {d.day}
+                            </span>
+                            <span className={`jb-xaxis-date ${isToday ? 'is-today' : ''}`}>
+                              {dateLabel}
+                            </span>
+                            <span
+                              className={`jb-xaxis-orders ${ordCount > 0 ? 'has-orders' : ''}`}
+                              data-testid={`sales-bar-orders-${i}`}
+                            >
+                              <span className="jb-ord-full">{ordCount} {ordCount === 1 ? 'order' : 'orders'}</span>
+                              <span className="jb-ord-short">{ordCount} ord</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
         </div>
 
         {/* Garment Category Distribution */}

@@ -1,3 +1,4 @@
+
 /**
  * Weekly Tailor Salary Calculation Engine — JB GROUP (PVT) LTD
  *
@@ -157,22 +158,96 @@ function roundLKR(num) {
 }
 
 /**
+ * Convert LKR amounts into integer cents accurately using rounding
+ */
+function toCents(amount) {
+  if (amount === null || amount === undefined || amount === '' || typeof amount === 'boolean') {
+    return 0;
+  }
+  const num = Number(amount);
+  if (!Number.isFinite(num) || num === 0) return 0;
+  const sign = num < 0 ? -1 : 1;
+  const absStr = String(Math.abs(num));
+  const scaled = absStr.includes('e') || absStr.includes('E')
+    ? Math.abs(num) * 100
+    : Number(`${absStr}e2`);
+  const cents = sign * Math.round(scaled);
+  return cents === 0 ? 0 : cents;
+}
+
+const VALID_SALARY_STATUSES = new Set([
+  'PAYABLE',
+  'ON_HOLD_CUSTOMER_PAYMENT',
+  'WORK_PENDING',
+  'PAID'
+]);
+
+/**
+ * Check whether an allocation status matches the requested salary status filter.
+ * Supports: ALL, PAYABLE, ON_HOLD_CUSTOMER_PAYMENT, WORK_PENDING, PAID
+ */
+function matchesSalaryStatusFilter(allocationStatus, filterStatus) {
+  if (filterStatus === undefined || filterStatus === null || filterStatus === '') {
+    return true;
+  }
+  if (typeof filterStatus !== 'string') return false;
+
+  const normalizedFilter = filterStatus.trim().toUpperCase();
+  if (!normalizedFilter || normalizedFilter === 'ALL') return true;
+  if (!VALID_SALARY_STATUSES.has(normalizedFilter)) return false;
+
+  if (typeof allocationStatus !== 'string') return false;
+  return allocationStatus.trim().toUpperCase() === normalizedFilter;
+}
+
+/**
  * Check if order price is valid and agreed/approved.
  * Safely handles price-pending, declined, and zero-price orders.
  */
 function isOrderPriceApproved(order) {
   if (!order) return false;
 
-  const total = Number(order.agreedTotal || order.totalAmount || 0);
-  if (total <= 0) return false;
-
-  // If order is still pending approval or rejected
-  if (['PENDING_APPROVAL', 'REJECTED'].includes(order.status)) {
+  // Explicit customer rejection must never be treated as approval.
+  if (order.priceAcceptedByCustomer === false) {
     return false;
   }
 
-  // If price is pending or declined
-  if (order.priceStatus === 'PENDING' || order.priceStatus === 'DECLINED' || order.priceStatus === 'PRICE_REVISION_REQUIRED') {
+  // Customer approval is still pending.
+  if (order.status === 'WAITING_CUSTOMER_APPROVAL') {
+    return false;
+  }
+
+  // A quote sent to the customer is not approved until the customer accepts it.
+  if (
+    order.priceStatus === 'SENT' &&
+    order.priceAcceptedByCustomer !== true
+  ) {
+    return false;
+  }
+
+  const total = Number(order.agreedTotal || order.totalAmount || 0);
+  if (total <= 0) return false;
+
+  // If order is still pending approval, rejected, or cancelled
+  if ([
+    'PENDING_APPROVAL',
+    'REJECTED',
+    'CANCELLED',
+    'CHANGES_REQUIRED',
+    'PRICE_DECLINED',
+    'PRICE_REVISION_REQUIRED'
+  ].includes(order.status)) {
+    return false;
+  }
+
+  // If price is pending, declined, or sent back for revision
+  if ([
+    'PENDING',
+    'DECLINED',
+    'PRICE_DECLINED',
+    'PRICE_REVISION_REQUIRED',
+    'REVISION_REQUESTED'
+  ].includes(order.priceStatus)) {
     return false;
   }
 
@@ -478,5 +553,7 @@ module.exports = {
   calculateCustomerPayments,
   extractWorkCompletion,
   calculateOrderSalaryAllocations,
+  toCents,
+  matchesSalaryStatusFilter,
   computeWeeklySalaryMetrics
 };

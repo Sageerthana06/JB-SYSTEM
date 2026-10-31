@@ -97,6 +97,7 @@ export const CeoAttendanceCenter = () => {
     return records.filter(item => {
       // Role filter
       if (roleFilter !== 'ALL') {
+        if (roleFilter === 'ADMIN' && item.role !== 'ADMIN') return false;
         if (roleFilter === 'MANAGER' && item.role !== 'MANAGER') return false;
         if (roleFilter === 'STAFF' && item.role !== 'STAFF') return false;
         if (roleFilter === 'TAILOR' && item.role !== 'TAILOR') return false;
@@ -330,6 +331,7 @@ export const CeoAttendanceCenter = () => {
               <div style={{ display: 'inline-flex', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
                 {[
                   { id: 'ALL', label: 'All Roles' },
+                  { id: 'ADMIN', label: 'Admin' },
                   { id: 'MANAGER', label: 'Manager' },
                   { id: 'STAFF', label: 'Staff' },
                   { id: 'TAILOR', label: 'Tailor' }
@@ -445,6 +447,7 @@ export const CeoAttendanceCenter = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Date</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Check-In</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Check-Out</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Working Hours</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Status</th>
                 </tr>
               </thead>
@@ -498,8 +501,8 @@ export const CeoAttendanceCenter = () => {
                           borderRadius: '6px',
                           fontSize: '0.75rem',
                           fontWeight: 700,
-                          backgroundColor: emp.role === 'MANAGER' ? '#fef3c7' : (emp.role === 'TAILOR' ? '#e0e7ff' : '#f1f5f9'),
-                          color: emp.role === 'MANAGER' ? '#92400e' : (emp.role === 'TAILOR' ? '#3730a3' : '#334155')
+                          backgroundColor: emp.role === 'ADMIN' ? '#ede9fe' : (emp.role === 'MANAGER' ? '#fef3c7' : (emp.role === 'TAILOR' ? '#e0e7ff' : '#f1f5f9')),
+                          color: emp.role === 'ADMIN' ? '#5b21b6' : (emp.role === 'MANAGER' ? '#92400e' : (emp.role === 'TAILOR' ? '#3730a3' : '#334155'))
                         }}>
                           {emp.roleLabel || emp.role}
                         </span>
@@ -535,6 +538,11 @@ export const CeoAttendanceCenter = () => {
                           <LogOut size={14} style={{ opacity: emp.checkOut ? 1 : 0.4 }} />
                           {formatTime(emp.checkOut)}
                         </span>
+                      </td>
+
+                      {/* Working Hours */}
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: emp.workingHours && emp.workingHours !== '—' ? '#2563eb' : 'var(--text-muted)' }}>
+                        {emp.workingHours || '—'}
                       </td>
 
                       {/* Status Badge */}

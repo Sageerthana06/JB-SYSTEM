@@ -3,6 +3,8 @@ const {
   getColomboWeekRange,
   calculateOrderSalaryAllocations,
   computeWeeklySalaryMetrics,
+  matchesSalaryStatusFilter,
+  toCents,
   roundLKR
 } = require('../utils/salaryCalculator');
 const { logAudit } = require('../utils/auditLogger');
@@ -13,10 +15,16 @@ const { logAudit } = require('../utils/auditLogger');
 async function fetchAllSalaryPayments(whereClause = {}) {
   try {
     let sql = `
-      SELECT p.*, o."branchId", o."orderNumber" as "orderRef", b."name" as "branchName"
+      SELECT p.*,
+             o."branchId",
+             o."orderNumber" as "orderRef",
+             b."name" as "branchName",
+             u."name" as "tailorName",
+             u."email" as "tailorEmail"
       FROM "TailorSalaryPayment" p
       LEFT JOIN "Order" o ON p."orderId" = o."id"
       LEFT JOIN "Branch" b ON o."branchId" = b."id"
+      LEFT JOIN "User" u ON p."tailorId" = u."id"
     `;
     const params = [];
     const conditions = [];
@@ -105,29 +113,49 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 4. Fetch all recorded salary payment disbursements
-    const allSalaryPayments = await fetchAllSalaryPayments();
+    // 4. Fetch recorded salary payment disbursements strictly scoped by branch
+    const salaryPaymentsWhere = {};
+    if (orderWhere.branchId) {
+      salaryPaymentsWhere.branchId = orderWhere.branchId;
+    }
+    const allSalaryPayments = await fetchAllSalaryPayments(salaryPaymentsWhere);
 
-    // 5. Generate allocations for each order
+    const startMs = weekRange.startOfWeek.getTime();
+    const endMs = weekRange.endOfWeek.getTime();
+
+    // 5. Generate allocations for each order (up to selected week's end)
+    //    IMPORTANT: Agreed order price & Office 50% share are counted ONCE per unique order, NEVER per work row.
     const allRawAllocations = [];
-    let totalOfficeAllocation = 0;
-    let totalCuttingAllocation = 0;
-    let totalStitchingAllocation = 0;
+    const uniqueOrdersMap = new Map();
+    let totalAgreedOrderCents = 0;
+    let totalOfficeCents = 0;
+    let totalCuttingCents = 0;
+    let totalStitchingCents = 0;
 
     for (const order of orders) {
+      const orderDateVal = order.orderDate || order.createdAt;
+      const orderTimeMs = orderDateVal ? new Date(orderDateVal).getTime() : null;
+      if (orderTimeMs !== null && !isNaN(orderTimeMs) && orderTimeMs > endMs) {
+        continue; // Do not leak orders created in future weeks into an earlier selected week
+      }
+
       const orderSalary = calculateOrderSalaryAllocations(order, allSalaryPayments);
-      if (orderSalary && orderSalary.allocations) {
-        totalOfficeAllocation += Number(orderSalary.officeAllocation || 0);
+      if (orderSalary && Array.isArray(orderSalary.allocations) && orderSalary.allocations.length > 0) {
+        if (!uniqueOrdersMap.has(order.id)) {
+          uniqueOrdersMap.set(order.id, orderSalary.agreedPrice);
+          totalAgreedOrderCents += toCents(orderSalary.agreedPrice);
+          totalOfficeCents += toCents(orderSalary.officeAllocation);
+        }
 
         for (const alloc of orderSalary.allocations) {
-          if (alloc.workType === 'CUTTING') totalCuttingAllocation += alloc.allocatedAmount;
-          if (alloc.workType === 'STITCHING') totalStitchingAllocation += alloc.allocatedAmount;
+          if (alloc.workType === 'CUTTING') totalCuttingCents += toCents(alloc.allocatedAmount);
+          if (alloc.workType === 'STITCHING') totalStitchingCents += toCents(alloc.allocatedAmount);
           allRawAllocations.push(alloc);
         }
       }
     }
 
-    // 6. Compute weekly metrics across all allocations
+    // 6. Compute weekly metrics across all allocations for the selected Asia/Colombo week
     const { summary, weeklyAllocationsList, carriedForwardList } = computeWeeklySalaryMetrics(
       allRawAllocations,
       allSalaryPayments,
@@ -138,8 +166,12 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
     let filteredAllocations = [...allRawAllocations];
 
     if (tailorId && tailorId !== 'ALL') {
-      const targetId = parseInt(tailorId, 10);
-      filteredAllocations = filteredAllocations.filter(a => Number(a.tailorId) === targetId);
+      if (tailorId === 'UNASSIGNED') {
+        filteredAllocations = filteredAllocations.filter(a => !a.tailorId);
+      } else {
+        const targetId = parseInt(tailorId, 10);
+        filteredAllocations = filteredAllocations.filter(a => Number(a.tailorId) === targetId);
+      }
     }
 
     if (workType && workType !== 'ALL') {
@@ -147,7 +179,7 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
     }
 
     if (status && status !== 'ALL') {
-      filteredAllocations = filteredAllocations.filter(a => a.status === status);
+      filteredAllocations = filteredAllocations.filter(a => matchesSalaryStatusFilter(a.status, status));
     }
 
     if (search && search.trim()) {
@@ -155,7 +187,9 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
       filteredAllocations = filteredAllocations.filter(a =>
         (a.orderNumber && a.orderNumber.toLowerCase().includes(q)) ||
         (a.customerName && a.customerName.toLowerCase().includes(q)) ||
-        (a.tailorName && a.tailorName.toLowerCase().includes(q))
+        (a.tailorName && a.tailorName.toLowerCase().includes(q)) ||
+        (a.dressType && a.dressType.toLowerCase().includes(q)) ||
+        (a.workTypeName && a.workTypeName.toLowerCase().includes(q))
       );
     }
 
@@ -170,84 +204,124 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
           tailorName: alloc.tailorName,
           tailorEmail: alloc.tailorEmail,
           branchName: alloc.branchName,
-          totalEarnedInWeek: 0,
-          totalPayable: 0,
-          totalHeld: 0,
-          totalWorkPending: 0,
-          totalPaidInWeek: 0,
-          totalCarriedForward: 0,
+          earnedCents: 0,
+          payableCents: 0,
+          heldCents: 0,
+          workPendingCents: 0,
+          paidInWeekCents: 0,
+          carriedForwardCents: 0,
           jobsCount: 0,
           jobs: []
         });
       }
 
       const stmt = tailorMap.get(alloc.tailorId);
+      const allocCents = toCents(alloc.allocatedAmount);
       stmt.jobsCount += 1;
       stmt.jobs.push(alloc);
 
       const workCompletedMs = alloc.workCompletedAt ? new Date(alloc.workCompletedAt).getTime() : null;
-      const startMs = weekRange.startOfWeek.getTime();
-      const endMs = weekRange.endOfWeek.getTime();
 
-      if (workCompletedMs && workCompletedMs >= startMs && workCompletedMs <= endMs) {
-        stmt.totalEarnedInWeek += alloc.allocatedAmount;
+      if (alloc.isWorkCompleted && workCompletedMs !== null && workCompletedMs >= startMs && workCompletedMs <= endMs) {
+        stmt.earnedCents += allocCents;
       }
 
-      if (workCompletedMs && workCompletedMs < startMs && alloc.isCustomerFullyPaid && alloc.status !== 'PAID') {
-        stmt.totalCarriedForward += alloc.allocatedAmount;
+      if (alloc.isWorkCompleted && workCompletedMs !== null && workCompletedMs < startMs && alloc.isCustomerFullyPaid && alloc.status === 'PAYABLE') {
+        stmt.carriedForwardCents += allocCents;
       }
 
-      if (alloc.status === 'PAYABLE') stmt.totalPayable += alloc.allocatedAmount;
-      if (alloc.status === 'ON_HOLD_CUSTOMER_PAYMENT') stmt.totalHeld += alloc.allocatedAmount;
-      if (alloc.status === 'WORK_PENDING') stmt.totalWorkPending += alloc.allocatedAmount;
+      if (alloc.status === 'PAYABLE') stmt.payableCents += allocCents;
+      if (alloc.status === 'ON_HOLD_CUSTOMER_PAYMENT') stmt.heldCents += allocCents;
+      if (alloc.status === 'WORK_PENDING') stmt.workPendingCents += allocCents;
     }
 
-    // Add paid disbursements to tailor statements
+    // Add paid disbursements in selected week to tailor statements
     for (const sp of allSalaryPayments) {
-      const spDateMs = new Date(sp.paymentDate).getTime();
-      const startMs = weekRange.startOfWeek.getTime();
-      const endMs = weekRange.endOfWeek.getTime();
-
-      if (sp.tailorId && tailorMap.has(sp.tailorId) && spDateMs >= startMs && spDateMs <= endMs) {
+      const spDateMs = sp.paymentDate ? new Date(sp.paymentDate).getTime() : NaN;
+      if (sp.tailorId && !isNaN(spDateMs) && spDateMs >= startMs && spDateMs <= endMs) {
+        if (!tailorMap.has(sp.tailorId)) {
+          tailorMap.set(sp.tailorId, {
+            tailorId: sp.tailorId,
+            tailorName: sp.tailorName || `Tailor #${sp.tailorId}`,
+            tailorEmail: sp.tailorEmail || null,
+            branchName: sp.branchName || 'JB Group (Main)',
+            earnedCents: 0,
+            payableCents: 0,
+            heldCents: 0,
+            workPendingCents: 0,
+            paidInWeekCents: 0,
+            carriedForwardCents: 0,
+            jobsCount: 0,
+            jobs: []
+          });
+        }
         const stmt = tailorMap.get(sp.tailorId);
-        stmt.totalPaidInWeek += Number(sp.amountPaid || 0);
+        stmt.paidInWeekCents += toCents(sp.amountPaid || 0);
       }
     }
 
     const tailorStatements = Array.from(tailorMap.values()).map(stmt => ({
-      ...stmt,
-      totalEarnedInWeek: roundLKR(stmt.totalEarnedInWeek),
-      totalPayable: roundLKR(stmt.totalPayable),
-      totalHeld: roundLKR(stmt.totalHeld),
-      totalWorkPending: roundLKR(stmt.totalWorkPending),
-      totalPaidInWeek: roundLKR(stmt.totalPaidInWeek),
-      totalCarriedForward: roundLKR(stmt.totalCarriedForward),
-      outstandingBalance: roundLKR(stmt.totalPayable)
+      tailorId: stmt.tailorId,
+      tailorName: stmt.tailorName,
+      tailorEmail: stmt.tailorEmail,
+      branchName: stmt.branchName,
+      jobsCount: stmt.jobsCount,
+      jobs: stmt.jobs,
+      totalEarnedInWeek: stmt.earnedCents / 100,
+      totalPayable: stmt.payableCents / 100,
+      totalHeld: stmt.heldCents / 100,
+      totalWorkPending: stmt.workPendingCents / 100,
+      totalPaidInWeek: stmt.paidInWeekCents / 100,
+      totalCarriedForward: stmt.carriedForwardCents / 100,
+      outstandingBalance: stmt.payableCents / 100
     })).sort((a, b) => b.outstandingBalance - a.outstandingBalance);
 
-    // 9. Cutting vs Stitching Overview
+    // 9. Cutting (25%) vs Stitching (25%) vs Office (50%) Reconciliation Overview
     const cuttingAllocations = allRawAllocations.filter(a => a.workType === 'CUTTING');
     const stitchingAllocations = allRawAllocations.filter(a => a.workType === 'STITCHING');
 
+    const sumCents = (items) => items.reduce((s, a) => s + toCents(a.allocatedAmount), 0);
+
     const cuttingVsStitching = {
       cutting: {
-        totalAllocated: roundLKR(totalCuttingAllocation),
+        percent: 25.0,
+        totalAllocated: totalCuttingCents / 100,
         completedCount: cuttingAllocations.filter(a => a.isWorkCompleted).length,
-        payableAmount: roundLKR(cuttingAllocations.filter(a => a.status === 'PAYABLE').reduce((s, a) => s + a.allocatedAmount, 0)),
-        paidAmount: roundLKR(cuttingAllocations.filter(a => a.status === 'PAID').reduce((s, a) => s + a.allocatedAmount, 0))
+        pendingCount: cuttingAllocations.filter(a => a.status === 'WORK_PENDING').length,
+        heldAmount: sumCents(cuttingAllocations.filter(a => a.status === 'ON_HOLD_CUSTOMER_PAYMENT')) / 100,
+        payableAmount: sumCents(cuttingAllocations.filter(a => a.status === 'PAYABLE')) / 100,
+        paidAmount: sumCents(cuttingAllocations.filter(a => a.status === 'PAID')) / 100
       },
       stitching: {
-        totalAllocated: roundLKR(totalStitchingAllocation),
+        percent: 25.0,
+        totalAllocated: totalStitchingCents / 100,
         completedCount: stitchingAllocations.filter(a => a.isWorkCompleted).length,
-        payableAmount: roundLKR(stitchingAllocations.filter(a => a.status === 'PAYABLE').reduce((s, a) => s + a.allocatedAmount, 0)),
-        paidAmount: roundLKR(stitchingAllocations.filter(a => a.status === 'PAID').reduce((s, a) => s + a.allocatedAmount, 0))
+        pendingCount: stitchingAllocations.filter(a => a.status === 'WORK_PENDING').length,
+        heldAmount: sumCents(stitchingAllocations.filter(a => a.status === 'ON_HOLD_CUSTOMER_PAYMENT')) / 100,
+        payableAmount: sumCents(stitchingAllocations.filter(a => a.status === 'PAYABLE')) / 100,
+        paidAmount: sumCents(stitchingAllocations.filter(a => a.status === 'PAID')) / 100
       },
       office: {
-        totalAllocated: roundLKR(totalOfficeAllocation),
+        totalAllocated: totalOfficeCents / 100,
         percent: 50.0,
-        description: 'Office gross profit allocation (50% of agreed garment order prices)'
+        description: 'Office allocation (50% of unique agreed order prices)'
       }
     };
+
+    const orderTotals = {
+      uniqueOrdersCount: uniqueOrdersMap.size,
+      totalAgreedOrderValue: totalAgreedOrderCents / 100,
+      totalOfficeAllocation: totalOfficeCents / 100,
+      totalCuttingAllocation: totalCuttingCents / 100,
+      totalStitchingAllocation: totalStitchingCents / 100,
+      totalTailorAllocation: (totalCuttingCents + totalStitchingCents) / 100
+    };
+
+    // Filter recentPayments to selected week or return scoped disbursement history
+    const weekPayments = allSalaryPayments.filter(p => {
+      const pMs = p.paymentDate ? new Date(p.paymentDate).getTime() : NaN;
+      return !isNaN(pMs) && pMs <= endMs;
+    });
 
     // Log view audit trail
     logAudit({
@@ -277,13 +351,14 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
       },
       weekRange,
       summary,
+      orderTotals,
       allocations: filteredAllocations,
       allAllocationsCount: allRawAllocations.length,
       filteredCount: filteredAllocations.length,
       tailorStatements,
       cuttingVsStitching,
       carriedForwardList,
-      recentPayments: allSalaryPayments.slice(0, 50)
+      recentPayments: weekPayments.slice(0, 50)
     });
   } catch (error) {
     console.error('Error fetching weekly salary report:', error);
@@ -315,9 +390,10 @@ exports.getMySalary = async (req, res, next) => {
         customer: { select: { id: true, name: true } },
         garmentDetails: { select: { dressType: true, quantity: true } },
         branch: { select: { id: true, name: true } },
+        assignedTailor: { select: { id: true, name: true, email: true, role: true } },
         tasks: {
           include: {
-            assignedTailor: { select: { id: true, name: true, role: true } }
+            assignedTailor: { select: { id: true, name: true, email: true, role: true } }
           }
         },
         payments: true,
@@ -326,60 +402,68 @@ exports.getMySalary = async (req, res, next) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Fetch this tailor's recorded payments
-    const tailorPayments = await fetchAllSalaryPayments({ tailorId });
+    // Fetch recorded payments for orders in scope (so sibling paid status is accurate too)
+    const allOrderSalaryPayments = await fetchAllSalaryPayments();
+    const tailorPayments = allOrderSalaryPayments.filter(p => Number(p.tailorId) === Number(tailorId));
 
-    // Generate allocations and filter only for this tailor
+    // Generate allocations and filter strictly for this tailor
     const myAllocations = [];
-    let myEarnedInWeek = 0;
-    let myPayable = 0;
-    let myHeld = 0;
-    let myWorkPending = 0;
-    let myCarriedForward = 0;
-    let myPaidInWeek = 0;
+    let myEarnedCents = 0;
+    let myPayableCents = 0;
+    let myHeldCents = 0;
+    let myWorkPendingCents = 0;
+    let myCarriedForwardCents = 0;
+    let myPaidInWeekCents = 0;
 
     const startMs = weekRange.startOfWeek.getTime();
     const endMs = weekRange.endOfWeek.getTime();
 
     for (const order of orders) {
-      const orderSalary = calculateOrderSalaryAllocations(order, tailorPayments);
+      const orderDateVal = order.orderDate || order.createdAt;
+      const orderTimeMs = orderDateVal ? new Date(orderDateVal).getTime() : null;
+      if (orderTimeMs !== null && !isNaN(orderTimeMs) && orderTimeMs > endMs) {
+        continue;
+      }
+
+      const orderSalary = calculateOrderSalaryAllocations(order, allOrderSalaryPayments);
       if (orderSalary && orderSalary.allocations) {
         for (const alloc of orderSalary.allocations) {
           if (Number(alloc.tailorId) === Number(tailorId)) {
             myAllocations.push(alloc);
+            const allocCents = toCents(alloc.allocatedAmount);
 
             const workCompletedMs = alloc.workCompletedAt ? new Date(alloc.workCompletedAt).getTime() : null;
-            if (workCompletedMs && workCompletedMs >= startMs && workCompletedMs <= endMs) {
-              myEarnedInWeek += alloc.allocatedAmount;
+            if (alloc.isWorkCompleted && workCompletedMs !== null && workCompletedMs >= startMs && workCompletedMs <= endMs) {
+              myEarnedCents += allocCents;
             }
 
-            if (workCompletedMs && workCompletedMs < startMs && alloc.isCustomerFullyPaid && alloc.status !== 'PAID') {
-              myCarriedForward += alloc.allocatedAmount;
+            if (alloc.isWorkCompleted && workCompletedMs !== null && workCompletedMs < startMs && alloc.isCustomerFullyPaid && alloc.status === 'PAYABLE') {
+              myCarriedForwardCents += allocCents;
             }
 
-            if (alloc.status === 'PAYABLE') myPayable += alloc.allocatedAmount;
-            if (alloc.status === 'ON_HOLD_CUSTOMER_PAYMENT') myHeld += alloc.allocatedAmount;
-            if (alloc.status === 'WORK_PENDING') myWorkPending += alloc.allocatedAmount;
+            if (alloc.status === 'PAYABLE') myPayableCents += allocCents;
+            if (alloc.status === 'ON_HOLD_CUSTOMER_PAYMENT') myHeldCents += allocCents;
+            if (alloc.status === 'WORK_PENDING') myWorkPendingCents += allocCents;
           }
         }
       }
     }
 
     for (const sp of tailorPayments) {
-      const spDateMs = new Date(sp.paymentDate).getTime();
-      if (spDateMs >= startMs && spDateMs <= endMs) {
-        myPaidInWeek += Number(sp.amountPaid || 0);
+      const spDateMs = sp.paymentDate ? new Date(sp.paymentDate).getTime() : NaN;
+      if (!isNaN(spDateMs) && spDateMs >= startMs && spDateMs <= endMs) {
+        myPaidInWeekCents += toCents(sp.amountPaid || 0);
       }
     }
 
     const summary = {
-      totalEarnedInWeek: roundLKR(myEarnedInWeek),
-      totalPayable: roundLKR(myPayable),
-      totalHeldOnCustomerPayment: roundLKR(myHeld),
-      totalWorkPending: roundLKR(myWorkPending),
-      totalPaidInWeek: roundLKR(myPaidInWeek),
-      totalCarriedForward: roundLKR(myCarriedForward),
-      outstandingBalance: roundLKR(myPayable)
+      totalEarnedInWeek: myEarnedCents / 100,
+      totalPayable: myPayableCents / 100,
+      totalHeldOnCustomerPayment: myHeldCents / 100,
+      totalWorkPending: myWorkPendingCents / 100,
+      totalPaidInWeek: myPaidInWeekCents / 100,
+      totalCarriedForward: myCarriedForwardCents / 100,
+      outstandingBalance: myPayableCents / 100
     };
 
     res.json({
@@ -470,10 +554,10 @@ exports.recordSalaryPayment = async (req, res, next) => {
       }
     }
 
-    // Check existing disbursements for duplicate prevention
+    // Check existing disbursements for duplicate prevention on this (orderId, workType) allocation
     const existingCheck = await client.query(
-      `SELECT * FROM "TailorSalaryPayment" WHERE "orderId" = $1 AND "tailorId" = $2 AND "workType" = $3`,
-      [parsedOrderId, parsedTailorId, workType]
+      `SELECT * FROM "TailorSalaryPayment" WHERE "orderId" = $1 AND "workType" = $2`,
+      [parsedOrderId, workType]
     );
 
     if (existingCheck.rows.length > 0) {
@@ -507,7 +591,15 @@ exports.recordSalaryPayment = async (req, res, next) => {
     if (!targetAlloc.isCustomerFullyPaid) {
       return res.status(400).json({
         success: false,
-        message: `Cannot disburse salary: Customer has not settled the full agreed order amount (Balance due: LKR ${targetAlloc.customerBalanceDue.toLocaleString()}). Salary is on hold until full customer payment.`
+        message: `Cannot disburse salary: Customer has not settled the full agreed order amount (Balance due: LKR ${targetAlloc.customerBalanceDue.toFixed(2)}). Salary is on hold until full customer payment.`
+      });
+    }
+
+    // Enforce exact 25% allocated salary amount (in cents)
+    if (toCents(parsedAmount) !== toCents(targetAlloc.allocatedAmount)) {
+      return res.status(400).json({
+        success: false,
+        message: `Disbursement amount (LKR ${roundLKR(parsedAmount).toFixed(2)}) must match the 25% allocated salary (LKR ${targetAlloc.allocatedAmount.toFixed(2)}) for ${workType}.`
       });
     }
 

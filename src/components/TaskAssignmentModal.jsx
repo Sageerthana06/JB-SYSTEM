@@ -60,7 +60,7 @@ export const TaskAssignmentModal = ({ order, isOpen, onClose, onAssigned, user }
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  const isCeo = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const isCeo = ['SUPER_ADMIN', 'CEO', 'ADMIN'].includes((user?.role || '').toUpperCase());
   const orderBranchId = order?.branchId || user?.branchId;
 
   // Load tailors and order tasks
@@ -87,7 +87,7 @@ export const TaskAssignmentModal = ({ order, isOpen, onClose, onAssigned, user }
 
         // Filter tailors by branch for Managers
         if (!isCeo && orderBranchId) {
-          tailorsList = tailorsList.filter(t => !t.branchId || t.branchId === orderBranchId);
+          tailorsList = tailorsList.filter(t => !t.branchId || Number(t.branchId) === Number(orderBranchId));
         }
         setTailors(tailorsList);
 
@@ -97,31 +97,29 @@ export const TaskAssignmentModal = ({ order, isOpen, onClose, onAssigned, user }
 
         if (tasksData.success) {
           const req = tasksData.requiredTasks || [];
+          const savedTasks = Array.isArray(tasksData.tasks) ? tasksData.tasks : [];
           setRequiredTasks(req);
-          setExistingTasks(tasksData.tasks || []);
+          setExistingTasks(savedTasks);
 
-          // Initialize task selections
+          // Initialize task selections:
+          // 1. Always initialize all dynamically required tasks with empty assignee values
           const initSelected = {};
           const initNotes = {};
 
-          // Populate with existing tasks if present
-          if (tasksData.tasks && tasksData.tasks.length > 0) {
-            tasksData.tasks.forEach(t => {
-              initSelected[t.taskType] = t.assignedTailorId ? String(t.assignedTailorId) : '';
-              initNotes[t.taskType] = t.notes || '';
-            });
-          } else {
-            // Default to required tasks
-            req.forEach(t => {
-              // If order has legacy assignedTailorId, prefill stitching or first task
-              if (order.assignedTailorId && (t.taskType === 'STITCHING' || t.taskType === 'CUTTING')) {
-                initSelected[t.taskType] = String(order.assignedTailorId);
-              } else {
-                initSelected[t.taskType] = '';
-              }
-              initNotes[t.taskType] = '';
-            });
-          }
+          req.forEach(t => {
+            const typeKey = t.taskType || t.type;
+            if (typeKey) {
+              initSelected[typeKey] = '';
+              initNotes[typeKey] = '';
+            }
+          });
+
+          // 2. Overlay existing saved tasks and their assigned tailor IDs + preserve notes
+          savedTasks.forEach(t => {
+            if (!t.taskType) return;
+            initSelected[t.taskType] = t.assignedTailorId ? String(t.assignedTailorId) : '';
+            initNotes[t.taskType] = t.notes || '';
+          });
 
           setSelectedTasks(initSelected);
           setTaskNotes(initNotes);
@@ -370,7 +368,7 @@ export const TaskAssignmentModal = ({ order, isOpen, onClose, onAssigned, user }
           {/* Toggle All Tasks option */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#1e293b' }}>
-              Production Tasks Required for this Order ({displayedTaskDefs.length})
+              Production Tasks Required for this Order ({requiredTypes.size}){displayedTaskDefs.length !== requiredTypes.size ? ` • Showing ${displayedTaskDefs.length}` : ''}
             </div>
             <button
               type="button"

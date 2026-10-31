@@ -55,6 +55,21 @@ const path = require('path');
 const { VALID_STATUSES, ORDER_STATUS_LABELS, ALLOWED_STAGE_TRANSITIONS } = require('../config/orderStatus');
 
 // Clean user display title (Role or clean name, NEVER raw email)
+const toMoneyCents = (val) => Math.round((Number(val) || 0) * 100);
+const fromMoneyCents = (cents) => Number((cents / 100).toFixed(2));
+
+// Canonical order total value helper: prefers agreedTotal when positive, falls back to totalAmount
+const getOrderTotalCents = (order) => {
+  if (!order) return 0;
+  const agreedCents = toMoneyCents(order.agreedTotal);
+  if (agreedCents > 0) return agreedCents;
+  return toMoneyCents(order.totalAmount);
+};
+
+exports.toMoneyCents = toMoneyCents;
+exports.fromMoneyCents = fromMoneyCents;
+exports.getOrderTotalCents = getOrderTotalCents;
+
 const getActorDisplayName = (user) => {
   if (!user) return 'Manager';
   if (user.role === 'SUPER_ADMIN') return 'CEO';
@@ -324,9 +339,31 @@ exports.sanitizeTailorOrder = sanitizeTailorOrder;
 exports.getAllOrders = async (req, res, next) => {
   try {
     const where = {};
-    const branchId = req.query.branchId ? parseInt(req.query.branchId) : null;
-    if (branchId) {
-      where.branchId = branchId;
+    const userRole = String(req.user?.role || '').toUpperCase();
+    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+
+    if (isCrossBranch) {
+      if (req.query.branchId && String(req.query.branchId).trim().toUpperCase() !== 'ALL') {
+        const bInt = parseInt(req.query.branchId, 10);
+        if (bInt > 0) where.branchId = bInt;
+      }
+    } else if (userRole === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch) {
+        return res.status(403).json({ success: false, message: 'Access denied: Manager is not assigned to any branch.' });
+      }
+      if (req.query.branchId) {
+        const qBranch = String(req.query.branchId).trim();
+        if (qBranch.toUpperCase() === 'ALL') {
+          return res.status(403).json({ success: false, message: `Access denied. Managers cannot access all-branch orders. You are restricted to branch ${managerBranch}.` });
+        }
+        if (!/^\d+$/.test(qBranch) || parseInt(qBranch, 10) !== managerBranch) {
+          return res.status(403).json({ success: false, message: `Access denied: Managers are restricted to their assigned branch (${managerBranch}). Cannot access branch ${qBranch}.` });
+        }
+      }
+      where.branchId = managerBranch;
+    } else if (req.user?.branchId) {
+      where.branchId = Number(req.user.branchId);
     }
 
     // Tailor security: Tailor can ONLY see confirmed production orders assigned to them or their tasks
@@ -729,77 +766,94 @@ exports.recordPayment = async (req, res, next) => {
       });
     }
 
-    const effectiveTotal = Number(order.agreedTotal || order.totalAmount || 0);
-
-    // Calculate total already paid from actual payments or order.advancePayment
-    let existingPaid = 0;
-    if (order.payments && order.payments.length > 0) {
-      existingPaid = order.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    } else {
-      existingPaid = Number(order.advancePayment || 0);
+    // Branch authorization check: Manager is restricted strictly to orders in their assigned branch
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: Manager cannot record payments for order in branch ${order.branchId || 'unassigned'}. Your authorized branch is ${managerBranch || 'none'}.`
+        });
+      }
     }
 
-    const currentBalance = Math.max(0, effectiveTotal - existingPaid);
+    const effectiveTotalCents = getOrderTotalCents(order);
 
-    if (currentBalance <= 0) {
+    // Calculate total already paid using ONLY VERIFIED payments
+    // Handle legacy orders without Payment records carefully by checking residual advancePayment
+    const verifiedPayments = (order.payments || []).filter(p => !p.status || String(p.status).trim().toUpperCase() === 'VERIFIED');
+    const verifiedPaymentsCents = verifiedPayments.reduce((sum, p) => sum + toMoneyCents(p.amount), 0);
+    const legacyAdvanceCents = Math.max(0, toMoneyCents(order.advancePayment) - verifiedPaymentsCents);
+    const existingPaidCents = verifiedPaymentsCents + legacyAdvanceCents;
+
+    const currentBalanceCents = Math.max(0, effectiveTotalCents - existingPaidCents);
+
+    if (currentBalanceCents <= 0) {
       return res.status(400).json({ success: false, message: 'Order is already fully paid.' });
     }
 
-    if (paymentAmount > currentBalance) {
+    const paymentAmountCents = toMoneyCents(paymentAmount);
+    if (paymentAmountCents > currentBalanceCents) {
       return res.status(400).json({
         success: false,
-        message: `Payment amount (LKR ${paymentAmount.toLocaleString()}) cannot exceed balance due (LKR ${currentBalance.toLocaleString()}).`
+        message: `Payment amount (LKR ${paymentAmount.toLocaleString()}) cannot exceed balance due (LKR ${fromMoneyCents(currentBalanceCents).toLocaleString()}).`
       });
     }
 
-    // 1. Create real Payment record in PostgreSQL
     const recordedBy = getActorDisplayName(req.user);
     const method = paymentMethod || 'Cash';
 
-    await prisma.payment.create({
-      data: {
-        orderId,
-        amount: paymentAmount,
-        paymentMethod: method,
-        transactionRef: transactionRef || null,
-        slipImage: slipImage || null,
-        notes: notes || null,
-        recordedBy,
-        status: 'VERIFIED'
-      }
-    });
+    // Recalculate total paid & balance due
+    const newTotalPaidCents = existingPaidCents + paymentAmountCents;
+    const newBalanceCents = Math.max(0, effectiveTotalCents - newTotalPaidCents);
+    const newTotalPaid = fromMoneyCents(newTotalPaidCents);
+    const newBalance = fromMoneyCents(newBalanceCents);
+    const newPaymentStatus = newBalanceCents <= 0 && effectiveTotalCents > 0 ? 'Paid' : (newTotalPaidCents > 0 ? 'Partially Paid' : 'Unpaid');
 
-    // 2. Recalculate total paid & balance due
-    const newTotalPaid = existingPaid + paymentAmount;
-    const newBalance = Math.max(0, effectiveTotal - newTotalPaid);
-    const newPaymentStatus = newBalance <= 0 ? 'Paid' : (newTotalPaid > 0 ? 'Partially Paid' : 'Unpaid');
+    // Execute atomic update in database transaction
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // 1. Create real Payment record in PostgreSQL
+      await tx.payment.create({
+        data: {
+          orderId,
+          amount: paymentAmount,
+          paymentMethod: method,
+          transactionRef: transactionRef || null,
+          slipImage: slipImage || null,
+          notes: notes || null,
+          recordedBy,
+          status: 'VERIFIED'
+        }
+      });
 
-    // 3. Update Order record with new payment info
-    // Production status MUST NOT change (Requirement 6)
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        advancePayment: newTotalPaid,
-        balanceAmount: newBalance,
-        paymentStatus: newPaymentStatus
-      },
-      include: {
-        customer: true,
-        garmentDetails: true,
-        branch: true,
-        payments: { orderBy: { createdAt: 'asc' } },
-        assignedTailor: { select: { id: true, name: true, email: true } }
-      }
-    });
+      // 2. Update Order record with new payment info
+      const orderUpdate = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          advancePayment: newTotalPaid,
+          balanceAmount: newBalance,
+          paymentStatus: newPaymentStatus
+        },
+        include: {
+          customer: true,
+          garmentDetails: true,
+          branch: true,
+          payments: { orderBy: { createdAt: 'asc' } },
+          assignedTailor: { select: { id: true, name: true, email: true } }
+        }
+      });
 
-    // 4. Log in ProductionHistory for auditing without changing order stage
-    await prisma.productionHistory.create({
-      data: {
-        orderId,
-        stage: order.status,
-        previousStage: order.status,
-        notes: `Payment of LKR ${paymentAmount.toLocaleString()} recorded via ${method}. Payment Status: ${newPaymentStatus}. Total Paid: LKR ${newTotalPaid.toLocaleString()}, Balance Due: LKR ${newBalance.toLocaleString()}.`
-      }
+      // 3. Log in ProductionHistory for auditing without changing order stage
+      await tx.productionHistory.create({
+        data: {
+          orderId,
+          stage: order.status,
+          previousStage: order.status,
+          notes: `Payment of LKR ${paymentAmount.toLocaleString()} recorded via ${method}. Payment Status: ${newPaymentStatus}. Total Paid: LKR ${newTotalPaid.toLocaleString()}, Balance Due: LKR ${newBalance.toLocaleString()}.`
+        }
+      });
+
+      return orderUpdate;
     });
 
     res.status(200).json({
@@ -843,52 +897,75 @@ exports.verifyPaymentSlip = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
+    // Branch authorization check: Manager is restricted strictly to orders in their assigned branch
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: Manager cannot verify payments for order in branch ${order.branchId || 'unassigned'}. Your authorized branch is ${managerBranch || 'none'}.`
+        });
+      }
+    }
+
     const verifierName = getActorDisplayName(req.user);
     const now = new Date();
 
-    // 1. Mark payment as VERIFIED
-    const updatedPayment = await prisma.payment.update({
-      where: { id: paymentId },
-      data: {
-        status: 'VERIFIED',
-        verifiedBy: verifierName,
-        verifiedAt: now
-      }
-    });
+    const { updatedPayment, updatedOrder } = await prisma.$transaction(async (tx) => {
+      // 1. Mark payment as VERIFIED
+      const pUpdate = await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: 'VERIFIED',
+          verifiedBy: verifierName,
+          verifiedAt: now
+        }
+      });
 
-    // 2. Sum all verified payments for this order
-    const allVerified = await prisma.payment.findMany({
-      where: { orderId, status: 'VERIFIED' }
-    });
+      // 2. Sum all verified payments for this order, preserving legacy advancePayment without double counting
+      const allVerified = await tx.payment.findMany({
+        where: { orderId, status: 'VERIFIED' }
+      });
 
-    const totalPaid = allVerified.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const effectiveTotal = Number(order.agreedTotal || order.totalAmount || 0);
-    const newBalance = Math.max(0, effectiveTotal - totalPaid);
-    const newPaymentStatus = newBalance <= 0 && effectiveTotal > 0 ? 'Paid' : (totalPaid > 0 ? 'Partially Paid' : 'Unpaid');
+      const otherVerified = allVerified.filter(p => p.id !== paymentId);
+      const otherVerifiedCents = otherVerified.reduce((sum, p) => sum + toMoneyCents(p.amount), 0);
+      const legacyAdvanceCents = Math.max(0, toMoneyCents(order.advancePayment) - otherVerifiedCents);
 
-    // 3. Update Order financial balances
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        advancePayment: totalPaid,
-        balanceAmount: newBalance,
-        paymentStatus: newPaymentStatus
-      },
-      include: {
-        customer: true,
-        garmentDetails: true,
-        branch: true,
-        payments: { orderBy: { createdAt: 'desc' } }
-      }
-    });
+      const totalVerifiedCents = otherVerifiedCents + toMoneyCents(payment.amount);
+      const newTotalPaidCents = totalVerifiedCents + legacyAdvanceCents;
+      const effectiveTotalCents = getOrderTotalCents(order);
+      const newBalanceCents = Math.max(0, effectiveTotalCents - newTotalPaidCents);
 
-    // 4. Log in ProductionHistory
-    await prisma.productionHistory.create({
-      data: {
-        orderId,
-        stage: order.status,
-        notes: `Payment slip of LKR ${payment.amount.toLocaleString()} VERIFIED & APPROVED by ${verifierName}. Total Paid: LKR ${totalPaid.toLocaleString()}, Balance Due: LKR ${newBalance.toLocaleString()}.`
-      }
+      const totalPaid = fromMoneyCents(newTotalPaidCents);
+      const newBalance = fromMoneyCents(newBalanceCents);
+      const newPaymentStatus = newBalanceCents <= 0 && effectiveTotalCents > 0 ? 'Paid' : (newTotalPaidCents > 0 ? 'Partially Paid' : 'Unpaid');
+
+      // 3. Update Order financial balances
+      const oUpdate = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          advancePayment: totalPaid,
+          balanceAmount: newBalance,
+          paymentStatus: newPaymentStatus
+        },
+        include: {
+          customer: true,
+          garmentDetails: true,
+          branch: true,
+          payments: { orderBy: { createdAt: 'desc' } }
+        }
+      });
+
+      // 4. Log in ProductionHistory
+      await tx.productionHistory.create({
+        data: {
+          orderId,
+          stage: order.status,
+          notes: `Payment slip of LKR ${payment.amount.toLocaleString()} VERIFIED & APPROVED by ${verifierName}. Total Paid: LKR ${totalPaid.toLocaleString()}, Balance Due: LKR ${newBalance.toLocaleString()}.`
+        }
+      });
+
+      return { updatedPayment: pUpdate, updatedOrder: oUpdate };
     });
 
     res.status(200).json({
@@ -922,29 +999,78 @@ exports.rejectPaymentSlip = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Payment record not found for this order.' });
     }
 
+    if (payment.status === 'REJECTED') {
+      return res.status(400).json({ success: false, message: 'Payment is already rejected.' });
+    }
+
+    const orderRecord = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!orderRecord) {
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    // Branch authorization check: Manager is restricted strictly to orders in their assigned branch
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (orderRecord.branchId && orderRecord.branchId !== managerBranch)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: Manager cannot reject payments for order in branch ${orderRecord.branchId || 'unassigned'}. Your authorized branch is ${managerBranch || 'none'}.`
+        });
+      }
+    }
+
     const verifierName = getActorDisplayName(req.user);
     const rejectReason = reason ? reason.trim() : 'Payment slip rejected by manager';
     const now = new Date();
 
-    const updatedPayment = await prisma.payment.update({
-      where: { id: paymentId },
-      data: {
-        status: 'REJECTED',
-        rejectionReason: rejectReason,
-        verifiedBy: verifierName,
-        verifiedAt: now
-      }
-    });
+    const { updatedPayment } = await prisma.$transaction(async (tx) => {
+      // 1. Mark payment as REJECTED
+      const pUpdate = await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: 'REJECTED',
+          rejectionReason: rejectReason,
+          verifiedBy: verifierName,
+          verifiedAt: now
+        }
+      });
 
-    const orderRecord = await prisma.order.findUnique({ where: { id: orderId } });
+      // 2. If the rejected payment was previously VERIFIED, recompute order's advancePayment, balanceAmount and paymentStatus
+      if (payment.status === 'VERIFIED') {
+        const remainingVerified = await tx.payment.findMany({
+          where: { orderId, status: 'VERIFIED' }
+        });
+        const remainingVerifiedCents = remainingVerified.reduce((sum, p) => sum + toMoneyCents(p.amount), 0);
+        
+        // Genuine legacy advance is what order advancePayment had exceeding verified payments before this rejection
+        const prevPaidCents = toMoneyCents(orderRecord.advancePayment);
+        const rejectedCents = toMoneyCents(payment.amount);
+        const legacyAdvanceCents = Math.max(0, prevPaidCents - (remainingVerifiedCents + rejectedCents));
 
-    // Production history log
-    await prisma.productionHistory.create({
-      data: {
-        orderId,
-        stage: orderRecord?.status || 'ORDER_CONFIRMED',
-        notes: `Payment slip of LKR ${payment.amount.toLocaleString()} REJECTED by ${verifierName}. Reason: ${rejectReason}`
+        const newPaidCents = Math.max(0, remainingVerifiedCents + legacyAdvanceCents);
+        const effectiveTotalCents = getOrderTotalCents(orderRecord);
+        const newBalanceCents = Math.max(0, effectiveTotalCents - newPaidCents);
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            advancePayment: fromMoneyCents(newPaidCents),
+            balanceAmount: fromMoneyCents(newBalanceCents),
+            paymentStatus: newBalanceCents <= 0 && effectiveTotalCents > 0 ? 'Paid' : (newPaidCents > 0 ? 'Partially Paid' : 'Unpaid')
+          }
+        });
       }
+
+      // 3. Production history log
+      await tx.productionHistory.create({
+        data: {
+          orderId,
+          stage: orderRecord?.status || 'ORDER_CONFIRMED',
+          notes: `Payment slip of LKR ${payment.amount.toLocaleString()} REJECTED by ${verifierName}. Reason: ${rejectReason}`
+        }
+      });
+
+      return { updatedPayment: pUpdate };
     });
 
     const refreshedOrder = await prisma.order.findUnique({
@@ -963,7 +1089,7 @@ exports.rejectPaymentSlip = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Payment slip rejected.',
+      message: `Payment slip of LKR ${payment.amount.toLocaleString()} rejected.`,
       payment: updatedPayment,
       order: refreshedOrder
     });
@@ -1142,10 +1268,117 @@ exports.getOrderHistory = async (req, res, next) => {
   }
 };
 
+// Asia/Colombo (UTC+05:30) & integer-cents helpers for accurate dashboard sales calculations
+const COLOMBO_OFFSET_MS = 330 * 60 * 1000;
+const DASHBOARD_EXCLUDED_STATUSES = new Set(['CANCELLED', 'REJECTED', 'PRICE_DECLINED']);
+
+const toColomboDateKey = (value) => {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const shifted = new Date(parsed.getTime() + COLOMBO_OFFSET_MS);
+  const yr = shifted.getUTCFullYear();
+  const mo = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const dt = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${yr}-${mo}-${dt}`;
+};
+
+const parseDashboardReferenceDateKey = (rawValue) => {
+  if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') {
+    return toColomboDateKey(new Date());
+  }
+  const trimmed = String(rawValue).trim();
+  const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (ymdMatch) {
+    const yr = Number(ymdMatch[1]);
+    const mo = Number(ymdMatch[2]);
+    const dt = Number(ymdMatch[3]);
+    const check = new Date(Date.UTC(yr, mo - 1, dt));
+    if (
+      check.getUTCFullYear() !== yr ||
+      check.getUTCMonth() !== mo - 1 ||
+      check.getUTCDate() !== dt
+    ) {
+      return null;
+    }
+    return trimmed;
+  }
+  return toColomboDateKey(trimmed);
+};
+
+const shiftColomboDateKey = (dateKey, offsetDays) => {
+  const [yr, mo, dt] = dateKey.split('-').map(Number);
+  const shifted = new Date(Date.UTC(yr, mo - 1, dt + offsetDays));
+  const rYr = shifted.getUTCFullYear();
+  const rMo = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const rDt = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${rYr}-${rMo}-${rDt}`;
+};
+
+const getColomboDayMeta = (dateKey) => {
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const [yr, mo, dt] = dateKey.split('-').map(Number);
+  const utcDate = new Date(Date.UTC(yr, mo - 1, dt));
+  return {
+    day: dayNames[utcDate.getUTCDay()],
+    formattedDate: `${String(dt).padStart(2, '0')} ${monthNames[utcDate.getUTCMonth()]}`
+  };
+};
+
 // Get Sales Dashboard Summary metrics directly from PostgreSQL
 exports.getDashboardSummary = async (req, res, next) => {
   try {
-    const branchId = req.query.branchId ? parseInt(req.query.branchId) : null;
+    const rawBranchId = req.query.branchId;
+    let branchId = null;
+
+    const userRole = String(req.user?.role || '').toUpperCase();
+    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+
+    if (isCrossBranch) {
+      if (rawBranchId !== undefined && rawBranchId !== null && String(rawBranchId).trim() !== '' && String(rawBranchId).trim().toUpperCase() !== 'ALL') {
+        const branchStr = String(rawBranchId).trim();
+        if (!/^\d+$/.test(branchStr) || parseInt(branchStr, 10) <= 0) {
+          return res.status(400).json({ success: false, message: 'Invalid branchId parameter.' });
+        }
+        branchId = parseInt(branchStr, 10);
+      }
+    } else {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: User is not assigned to any branch.'
+        });
+      }
+      if (rawBranchId !== undefined && rawBranchId !== null && String(rawBranchId).trim() !== '') {
+        const branchStr = String(rawBranchId).trim();
+        if (branchStr.toUpperCase() === 'ALL') {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. Managers cannot access all-branch financial data. You are restricted to branch ${managerBranch}.`
+          });
+        }
+        if (!/^\d+$/.test(branchStr) || parseInt(branchStr, 10) !== managerBranch) {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. Managers are restricted to their assigned branch (${managerBranch}). Cannot access branch ${branchStr}.`
+          });
+        }
+      }
+      // Strictly enforce manager's assigned branch
+      branchId = managerBranch;
+    }
+
+    const refDateRaw = req.query.date !== undefined ? req.query.date : req.query.referenceDate;
+    const todayKey = parseDashboardReferenceDateKey(refDateRaw);
+    if (!todayKey) {
+      return res.status(400).json({ success: false, message: 'Invalid date parameter. Expected YYYY-MM-DD.' });
+    }
+
+    const yesterdayKey = shiftColomboDateKey(todayKey, -1);
+    const monthPrefix = todayKey.slice(0, 7);
+
     const whereClause = branchId ? { branchId } : {};
 
     const allOrders = await prisma.order.findMany({
@@ -1155,120 +1388,141 @@ exports.getDashboardSummary = async (req, res, next) => {
         orderNumber: true,
         orderDate: true,
         totalAmount: true,
+        agreedTotal: true,
         advancePayment: true,
         balanceAmount: true,
+        paymentStatus: true,
         status: true,
         createdAt: true,
         updatedAt: true
       }
     });
 
-    const refDateRaw = req.query.date || req.query.referenceDate;
-    let now = new Date();
-    if (refDateRaw) {
-      const parsed = new Date(refDateRaw);
-      if (!isNaN(parsed.getTime())) {
-        now = parsed;
-      }
-    }
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const pendingApprovalCount = allOrders.filter(o => o.status === 'PENDING_APPROVAL').length;
 
-    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-    const endOfYesterday = startOfToday;
-
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Exclude cancelled, rejected, and customer price-declined orders from active sales & order counts
+    const validOrders = allOrders.filter(o => !DASHBOARD_EXCLUDED_STATUSES.has(String(o.status || '').toUpperCase()));
+    const validOrderIds = new Set(validOrders.map(o => o.id));
 
     // Fetch payments within branch scope if branch specified
     const paymentWhere = branchId ? { order: { branchId } } : {};
     const allPayments = await prisma.payment.findMany({
       where: paymentWhere,
-      select: { amount: true, createdAt: true }
+      select: {
+        id: true,
+        orderId: true,
+        amount: true,
+        status: true,
+        createdAt: true
+      }
     });
 
-    const getPaymentsRevenue = (start, end) => {
-      const filtered = allPayments.filter(p => {
-        const d = new Date(p.createdAt);
-        return d >= start && d < end;
-      });
-      return filtered.reduce((sum, p) => sum + Number(p.amount), 0);
+    // Build deduplicated realized-sales ledger in integer cents bucketed by Asia/Colombo date:
+    // 1) Sum VERIFIED (or legacy null-status) positive Payment rows on non-excluded orders by payment createdAt date.
+    // 2) If a valid order has residual advancePayment > sum(verified Payment rows) (legacy orders without Payment rows),
+    //    credit only the unrecorded residual advance to the order's Asia/Colombo orderDate.
+    const revenueCentsByDate = new Map();
+    const verifiedPaidCentsByOrder = new Map();
+
+    const addRevenueCents = (dateKey, cents) => {
+      if (!dateKey || cents <= 0) return;
+      revenueCentsByDate.set(dateKey, (revenueCentsByDate.get(dateKey) || 0) + cents);
     };
 
-    // 1. Today's orders & revenue
-    const todayOrdersList = allOrders.filter(o => {
-      const d = new Date(o.orderDate || o.createdAt);
-      return d >= startOfToday && d < endOfToday;
-    });
+    for (const p of allPayments) {
+      if (!validOrderIds.has(p.orderId)) continue;
+      const pStatus = p.status ? String(p.status).trim().toUpperCase() : 'VERIFIED';
+      if (pStatus !== 'VERIFIED') continue;
+      const cents = toMoneyCents(p.amount);
+      if (cents <= 0) continue;
+
+      verifiedPaidCentsByOrder.set(p.orderId, (verifiedPaidCentsByOrder.get(p.orderId) || 0) + cents);
+      const pDateKey = toColomboDateKey(p.createdAt);
+      addRevenueCents(pDateKey, cents);
+    }
+
+    const ordersByDate = new Map();
+    for (const o of validOrders) {
+      const oDateKey = toColomboDateKey(o.orderDate || o.createdAt);
+      if (oDateKey) {
+        if (!ordersByDate.has(oDateKey)) {
+          ordersByDate.set(oDateKey, []);
+        }
+        ordersByDate.get(oDateKey).push(o);
+      }
+
+      const advanceCents = toMoneyCents(o.advancePayment);
+      const verifiedCents = verifiedPaidCentsByOrder.get(o.id) || 0;
+      const residualAdvanceCents = Math.max(0, advanceCents - verifiedCents);
+      if (residualAdvanceCents > 0 && oDateKey) {
+        addRevenueCents(oDateKey, residualAdvanceCents);
+      }
+    }
+
+    // Effective order value helper: takes agreedTotal when set, else totalAmount
+    const getOrderValueCents = (o) => getOrderTotalCents(o);
+
+    // 1. Today's & Yesterday's orders & realized sales (Asia/Colombo)
+    const todayOrdersList = ordersByDate.get(todayKey) || [];
     const todayOrders = todayOrdersList.length;
-    const todayPaymentsRevenue = getPaymentsRevenue(startOfToday, endOfToday);
-    const todayOrderAdvance = todayOrdersList.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
-    const todaySales = todayPaymentsRevenue > 0 ? todayPaymentsRevenue : todayOrderAdvance;
+    const todaySales = fromMoneyCents(revenueCentsByDate.get(todayKey) || 0);
 
-    // Yesterday's orders & revenue
-    const yesterdayOrdersList = allOrders.filter(o => {
-      const d = new Date(o.orderDate || o.createdAt);
-      return d >= startOfYesterday && d < endOfYesterday;
-    });
+    const yesterdayOrdersList = ordersByDate.get(yesterdayKey) || [];
     const yesterdayOrders = yesterdayOrdersList.length;
-    const yesterdayPaymentsRevenue = getPaymentsRevenue(startOfYesterday, endOfYesterday);
-    const yesterdayOrderAdvance = yesterdayOrdersList.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
-    const yesterdaySales = yesterdayPaymentsRevenue > 0 ? yesterdayPaymentsRevenue : yesterdayOrderAdvance;
+    const yesterdaySales = fromMoneyCents(revenueCentsByDate.get(yesterdayKey) || 0);
 
-    // 2. Monthly orders & revenue
-    const monthlyOrdersList = allOrders.filter(o => {
-      const d = new Date(o.orderDate || o.createdAt);
-      return d >= startOfMonth;
-    });
-    const monthlyOrders = monthlyOrdersList.length;
-    const monthlyPaymentsRevenue = allPayments
-      .filter(p => new Date(p.createdAt) >= startOfMonth)
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-    const monthlyOrderAdvance = monthlyOrdersList.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
-    const monthlySales = monthlyPaymentsRevenue > 0 ? monthlyPaymentsRevenue : monthlyOrderAdvance;
+    // 2. Monthly orders & realized sales (for reference month in Asia/Colombo)
+    let monthlyOrders = 0;
+    for (const [dateKey, dayOrds] of ordersByDate.entries()) {
+      if (dateKey.startsWith(monthPrefix) && dateKey <= todayKey) {
+        monthlyOrders += dayOrds.length;
+      }
+    }
+    let monthlySalesCents = 0;
+    for (const [dateKey, cents] of revenueCentsByDate.entries()) {
+      if (dateKey.startsWith(monthPrefix) && dateKey <= todayKey) {
+        monthlySalesCents += cents;
+      }
+    }
+    const monthlySales = fromMoneyCents(monthlySalesCents);
 
-    // 3. Average Order Value (AOV) from valid priced orders (totalAmount > 0)
-    const pricedOrders = allOrders.filter(o => Number(o.totalAmount) > 0);
+    // 3. Average Order Value (AOV) from valid priced orders (agreedTotal or totalAmount > 0)
+    const pricedOrders = validOrders.filter(o => getOrderValueCents(o) > 0);
     const pricedOrdersCount = pricedOrders.length;
-    const totalPricedRevenue = pricedOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
-    const averageOrderValue = pricedOrdersCount > 0 ? Math.round(totalPricedRevenue / pricedOrdersCount) : 0;
+    const totalPricedCents = pricedOrders.reduce((sum, o) => sum + getOrderValueCents(o), 0);
+    const averageOrderValue = pricedOrdersCount > 0 ? Math.round(fromMoneyCents(totalPricedCents) / pricedOrdersCount) : 0;
 
-    // 4. Customer Payments Due: only orders with totalAmount > 0 && balanceAmount > 0
-    const dueOrders = allOrders.filter(o => Number(o.totalAmount) > 0 && Number(o.balanceAmount) > 0);
+    // 4. Customer Payments Due: valid orders with effective value > 0 && balanceAmount > 0
+    const dueOrders = validOrders.filter(o => getOrderValueCents(o) > 0 && toMoneyCents(o.balanceAmount) > 0);
     const paymentsDueCount = dueOrders.length;
-    const paymentsDueAmount = dueOrders.reduce((sum, o) => sum + Number(o.balanceAmount), 0);
+    const paymentsDueAmount = fromMoneyCents(dueOrders.reduce((sum, o) => sum + toMoneyCents(o.balanceAmount), 0));
 
-    // 5. Weekly trend data (last 7 days)
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    // 5. Weekly trend data (last 7 days ending at todayKey in Asia/Colombo)
     const weeklySales = [];
-    for (let i = 6; i >= 0; i--) {
-      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0, 0);
-      const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i + 1, 0, 0, 0, 0);
-      const dayOrders = allOrders.filter(o => {
-        const d = new Date(o.orderDate || o.createdAt);
-        return d >= dayStart && d < dayEnd;
-      });
-      const dayPaymentRev = getPaymentsRevenue(dayStart, dayEnd);
-      const dayOrderAdvance = dayOrders.reduce((sum, o) => sum + (Number(o.advancePayment) || 0), 0);
-      const dayRevenue = dayPaymentRev > 0 ? dayPaymentRev : dayOrderAdvance;
-      const dayOrderValue = dayOrders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+    let weeklyTotalSalesCents = 0;
+    let weeklyTotalOrderValueCents = 0;
+    let weeklyTotalOrders = 0;
 
-      const yr = dayStart.getFullYear();
-      const mo = String(dayStart.getMonth() + 1).padStart(2, '0');
-      const dt = String(dayStart.getDate()).padStart(2, '0');
-      const localDateStr = `${yr}-${mo}-${dt}`;
+    for (let i = 6; i >= 0; i--) {
+      const dateKey = shiftColomboDateKey(todayKey, -i);
+      const { day, formattedDate } = getColomboDayMeta(dateKey);
+      const dayOrders = ordersByDate.get(dateKey) || [];
+      const dayRevenueCents = revenueCentsByDate.get(dateKey) || 0;
+      const dayOrderValueCents = dayOrders.reduce((sum, o) => sum + getOrderValueCents(o), 0);
+
+      weeklyTotalSalesCents += dayRevenueCents;
+      weeklyTotalOrderValueCents += dayOrderValueCents;
+      weeklyTotalOrders += dayOrders.length;
 
       weeklySales.push({
-        date: localDateStr,
-        formattedDate: `${dt} ${monthNames[dayStart.getMonth()]}`,
-        day: dayNames[dayStart.getDay()],
-        revenue: dayRevenue,
-        orderValue: dayOrderValue,
+        date: dateKey,
+        formattedDate,
+        day,
+        revenue: fromMoneyCents(dayRevenueCents),
+        orderValue: fromMoneyCents(dayOrderValueCents),
         orders: dayOrders.length
       });
     }
-
-    const pendingApprovalCount = allOrders.filter(o => o.status === 'PENDING_APPROVAL').length;
 
     res.status(200).json({
       success: true,
@@ -1284,6 +1538,13 @@ exports.getDashboardSummary = async (req, res, next) => {
         paymentsDueCount,
         paymentsDueAmount,
         pendingApprovalCount,
+        totalOrders: validOrders.length,
+        weeklyTotalSales: fromMoneyCents(weeklyTotalSalesCents),
+        weeklyTotalOrders,
+        weeklyTotalOrderValue: fromMoneyCents(weeklyTotalOrderValueCents),
+        referenceDate: todayKey,
+        branchId: branchId || 'ALL',
+        timezone: 'Asia/Colombo',
         weeklySales
       }
     });

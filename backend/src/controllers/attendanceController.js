@@ -1,22 +1,54 @@
 const { prisma } = require('../prisma');
 
 /**
- * Helper to get today's date formatted as YYYY-MM-DD
+ * Helper to get today's date formatted as YYYY-MM-DD in Asia/Colombo (UTC+05:30)
  */
 const getTodayDateString = (inputDate) => {
   if (inputDate && typeof inputDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(inputDate)) {
     return inputDate;
   }
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Colombo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
 };
 
 /**
+ * Calculate working hours between checkIn and checkOut
+ * Returns { diffMs, hours, minutes, seconds, hoursDecimal, formatted }
+ */
+const calculateWorkingHours = (checkIn, checkOut) => {
+  if (!checkIn) return null;
+  const start = new Date(checkIn).getTime();
+  const end = checkOut ? new Date(checkOut).getTime() : Date.now();
+  if (isNaN(start) || isNaN(end) || end < start) return null;
+
+  const diffMs = end - start;
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const hoursDecimal = Number((totalSeconds / 3600).toFixed(2));
+  const formatted = `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+
+  return {
+    diffMs,
+    hours,
+    minutes,
+    seconds,
+    hoursDecimal,
+    formatted
+  };
+};
+
+exports.calculateWorkingHours = calculateWorkingHours;
+exports.getTodayDateString = getTodayDateString;
+
+/**
  * GET /api/attendance/my-today
- * Self attendance lookup for logged-in Tailor, Staff, or Manager
+ * Self attendance lookup for logged-in Tailor, Staff, Manager, or Admin
  */
 exports.getMyTodayAttendance = async (req, res, next) => {
   try {
@@ -33,9 +65,15 @@ exports.getMyTodayAttendance = async (req, res, next) => {
       }
     });
 
+    const working = record ? calculateWorkingHours(record.checkIn, record.checkOut) : null;
+
     res.json({
       success: true,
-      data: record || null,
+      data: record ? {
+        ...record,
+        workingHours: working?.formatted || null,
+        workingHoursDecimal: working?.hoursDecimal || null
+      } : null,
       date
     });
   } catch (error) {
@@ -45,7 +83,7 @@ exports.getMyTodayAttendance = async (req, res, next) => {
 
 /**
  * POST /api/attendance/clock-in
- * Self Clock-In (TAILOR, STAFF, MANAGER)
+ * Self Clock-In (ADMIN, MANAGER, STAFF, TAILOR)
  */
 exports.clockIn = async (req, res, next) => {
   try {
@@ -66,7 +104,7 @@ exports.clockIn = async (req, res, next) => {
     const role = dbUser.role;
     const branchName = dbUser.branch?.name || 'Main Branch';
 
-    // Check if already exists for today
+    // Check if already exists for today in Asia/Colombo
     const existing = await prisma.attendance.findFirst({
       where: {
         OR: [
@@ -126,7 +164,7 @@ exports.clockIn = async (req, res, next) => {
 
 /**
  * POST /api/attendance/clock-out
- * Self Clock-Out (TAILOR, STAFF, MANAGER)
+ * Self Clock-Out (ADMIN, MANAGER, STAFF, TAILOR)
  */
 exports.clockOut = async (req, res, next) => {
   try {
@@ -166,10 +204,16 @@ exports.clockOut = async (req, res, next) => {
       }
     });
 
+    const working = calculateWorkingHours(record.checkIn, record.checkOut);
+
     res.json({
       success: true,
       message: 'Clocked out successfully.',
-      data: record
+      data: {
+        ...record,
+        workingHours: working?.formatted || null,
+        workingHoursDecimal: working?.hoursDecimal || null
+      }
     });
   } catch (error) {
     next(error);
@@ -184,19 +228,24 @@ exports.getCeoAttendanceCenter = async (req, res, next) => {
   try {
     const date = getTodayDateString(req.query.date);
 
-    // Fetch only authorized working team: Manager, Pratheep (Staff), and 3 Tailors (Pushpamalar, Uruththiradevi, Susitha)
+    // Fetch authorized working team: Admins, Manager, Pratheep (Staff), and 3 Tailors (Pushpamalar, Uruththiradevi, Susitha)
     const employees = await prisma.user.findMany({
       where: {
         isActive: true,
-        email: {
-          in: [
-            'manager@jbgroup.com',
-            'staff@jbgroup.com',
-            'pushpamalar@jbgroup.com',
-            'uruththiradevi@jbgroup.com',
-            'susitha@jbgroup.com'
-          ]
-        }
+        OR: [
+          { role: 'ADMIN' },
+          {
+            email: {
+              in: [
+                'manager@jbgroup.com',
+                'staff@jbgroup.com',
+                'pushpamalar@jbgroup.com',
+                'uruththiradevi@jbgroup.com',
+                'susitha@jbgroup.com'
+              ]
+            }
+          }
+        ]
       },
       include: {
         branch: { select: { id: true, name: true } }
@@ -254,6 +303,8 @@ exports.getCeoAttendanceCenter = async (req, res, next) => {
         notMarkedCount++;
       }
 
+      const working = att && att.checkIn && att.checkOut ? calculateWorkingHours(att.checkIn, att.checkOut) : null;
+
       return {
         id: emp.id,
         name: emp.name,
@@ -265,6 +316,8 @@ exports.getCeoAttendanceCenter = async (req, res, next) => {
         dateKey: date,
         checkIn: att?.checkIn || null,
         checkOut: att?.checkOut || null,
+        workingHours: working?.formatted || (att?.checkIn && !att?.checkOut ? 'In Progress' : '—'),
+        workingHoursDecimal: working?.hoursDecimal || 0,
         status,
         markedBy: att?.markedBy || null,
         attendanceId: att?.id || null
@@ -429,24 +482,50 @@ exports.checkOut = async (req, res, next) => {
 /**
  * GET /api/attendance/my-history
  * Attendance history for logged-in staff member / user
+ * Supports optional date filters: ?date=YYYY-MM-DD or ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
  */
 exports.getMyAttendanceHistory = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { startDate, endDate, date } = req.query;
+
+    const where = {
+      OR: [
+        { userId },
+        { tailorId: userId }
+      ]
+    };
+
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      where.date = date;
+    } else if (startDate || endDate) {
+      where.date = {};
+      if (startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+        where.date.gte = startDate;
+      }
+      if (endDate && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+        where.date.lte = endDate;
+      }
+    }
+
     const records = await prisma.attendance.findMany({
-      where: {
-        OR: [
-          { userId },
-          { tailorId: userId }
-        ]
-      },
+      where,
       orderBy: { date: 'desc' },
-      take: 31
+      take: 100
+    });
+
+    const enhancedRecords = records.map(r => {
+      const working = r.checkIn && r.checkOut ? calculateWorkingHours(r.checkIn, r.checkOut) : null;
+      return {
+        ...r,
+        workingHours: working?.formatted || (r.checkIn && !r.checkOut ? 'In Progress' : '—'),
+        workingHoursDecimal: working?.hoursDecimal || 0
+      };
     });
 
     res.json({
       success: true,
-      records
+      records: enhancedRecords
     });
   } catch (error) {
     next(error);
