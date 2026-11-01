@@ -18,7 +18,6 @@ import {
   Award,
   LogOut,
   ShieldCheck,
-  UserCheck,
   X
 } from 'lucide-react';
 
@@ -63,7 +62,6 @@ export const Sidebar = () => {
     {
       title: 'ORGANIZATION',
       items: [
-        { id: 'staff',       label: 'Attendance Center',     icon: UserCheck },
         { id: 'users',       label: 'User Management',       icon: ShieldCheck },
         { id: 'marketing',   label: 'Customer Enquiries',    icon: Share2 },
         { id: 'branches',    label: 'Branch Reports',        icon: Building }
