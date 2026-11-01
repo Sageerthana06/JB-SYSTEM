@@ -2029,7 +2029,7 @@ const computeNiceChartMax = (maxVal) => {
 export const SalesERP = () => {
   const { activeBranch, setActiveBranch, getAuthHeaders, user, setActiveTab } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
-  const isSuperOrAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+  const isSuperOrAdmin = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
   const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(userRole);
   const canSwitchBranch = isSuperOrAdmin;
   const effectiveBranch = (userRole === 'MANAGER' && user?.branchId) ? String(user.branchId) : activeBranch;
@@ -2943,15 +2943,15 @@ export const SalesERP = () => {
               </p>
             </div>
 
-            {/* Branch and Date Controls for CEO and Manager only */}
-            {canSwitchBranch ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Branch and Date Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {canSwitchBranch ? (
                 <div className="jb-barchart-controls-bar" role="group" aria-label="Branch filter">
                   <button
                     type="button"
                     data-testid="chart-branch-all"
                     onClick={() => setActiveBranch('ALL')}
-                    className={`jb-barchart-branch-btn ${activeBranch === 'ALL' ? 'active' : ''}`}
+                    className={`jb-barchart-branch-btn ${effectiveBranch === 'ALL' || (!effectiveBranch && activeBranch === 'ALL') ? 'active' : ''}`}
                   >
                     All Branches
                   </button>
@@ -2959,7 +2959,7 @@ export const SalesERP = () => {
                     type="button"
                     data-testid="chart-branch-1"
                     onClick={() => setActiveBranch('1')}
-                    className={`jb-barchart-branch-btn ${activeBranch === '1' ? 'active-jb' : ''}`}
+                    className={`jb-barchart-branch-btn ${effectiveBranch === '1' ? 'active-jb' : ''}`}
                   >
                     JB Group
                   </button>
@@ -2967,46 +2967,46 @@ export const SalesERP = () => {
                     type="button"
                     data-testid="chart-branch-2"
                     onClick={() => setActiveBranch('2')}
-                    className={`jb-barchart-branch-btn ${activeBranch === '2' ? 'active-bella' : ''}`}
+                    className={`jb-barchart-branch-btn ${effectiveBranch === '2' ? 'active-bella' : ''}`}
                   >
                     Bella Design
                   </button>
                 </div>
+              ) : (
+                <span className="badge badge-navy">Last 7 Days</span>
+              )}
 
-                {/* Date Picker Input */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <input
-                    type="date"
-                    data-testid="chart-date-input"
-                    value={trendReferenceDate || refDateKey}
-                    onChange={(e) => setTrendReferenceDate(e.target.value)}
-                    title="Select reference date for 7-day sales bar chart (Asia/Colombo)"
-                    className="jb-barchart-date-input"
-                  />
-                  {trendReferenceDate && (
-                    <button
-                      type="button"
-                      data-testid="chart-date-today-btn"
-                      onClick={() => setTrendReferenceDate('')}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Today
-                    </button>
-                  )}
-                </div>
+              {/* Date Picker Input */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="date"
+                  data-testid="chart-date-input"
+                  value={trendReferenceDate || refDateKey}
+                  onChange={(e) => setTrendReferenceDate(e.target.value)}
+                  title="Select reference date for 7-day sales bar chart (Asia/Colombo)"
+                  className="jb-barchart-date-input"
+                />
+                {trendReferenceDate && (
+                  <button
+                    type="button"
+                    data-testid="chart-date-today-btn"
+                    onClick={() => setTrendReferenceDate('')}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Today
+                  </button>
+                )}
               </div>
-            ) : (
-              <span className="badge badge-navy">Last 7 Days</span>
-            )}
+            </div>
           </div>
 
           {summaryLoading ? (

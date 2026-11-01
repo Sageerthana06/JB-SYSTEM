@@ -340,7 +340,7 @@ exports.getAllOrders = async (req, res, next) => {
   try {
     const where = {};
     const userRole = String(req.user?.role || '').toUpperCase();
-    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
 
     if (isCrossBranch) {
       if (req.query.branchId && String(req.query.branchId).trim().toUpperCase() !== 'ALL') {
@@ -1333,7 +1333,7 @@ exports.getDashboardSummary = async (req, res, next) => {
     let branchId = null;
 
     const userRole = String(req.user?.role || '').toUpperCase();
-    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
 
     if (isCrossBranch) {
       if (rawBranchId !== undefined && rawBranchId !== null && String(rawBranchId).trim() !== '' && String(rawBranchId).trim().toUpperCase() !== 'ALL') {

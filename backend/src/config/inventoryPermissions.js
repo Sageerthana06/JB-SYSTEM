@@ -2,11 +2,12 @@
  * Inventory & Material Management — central permission matrix (backend-enforced).
  *
  * SUPER_ADMIN (CEO) always passes every check (same convention as authorizeRoles).
- * ADMIN and CASHIER roles are intentionally NOT granted inventory access.
+ * ADMIN and MANAGER are management roles with full inventory management authority.
+ * CASHIER role is intentionally NOT granted inventory access.
  *
  * Approval permissions are configurable via environment variables without code changes:
- *   INVENTORY_PO_APPROVER_ROLES=MANAGER          (comma separated, CEO always allowed)
- *   INVENTORY_ADJUST_ROLES=MANAGER
+ *   INVENTORY_PO_APPROVER_ROLES=ADMIN,MANAGER     (comma separated, CEO always allowed)
+ *   INVENTORY_ADJUST_ROLES=ADMIN,MANAGER
  *   INVENTORY_PO_CEO_THRESHOLD=250000            (LKR; POs above this need CEO approval. Empty = no limit)
  */
 const fromEnv = (key, fallback) => {
@@ -19,31 +20,31 @@ const PRODUCTION = ['TAILOR', 'CUTTING', 'EMBROIDERY'];
 
 const INVENTORY_PERMISSIONS = {
   // Catalogue / visibility
-  VIEW_ITEMS:          ['MANAGER', 'STAFF', ...PRODUCTION],
-  VIEW_COSTS:          ['MANAGER', 'STAFF'],          // production roles never see unit cost / valuation
-  MANAGE_ITEMS:        ['MANAGER', 'STAFF'],
-  DEACTIVATE_ITEMS:    ['MANAGER'],
+  VIEW_ITEMS:          ['ADMIN', 'MANAGER', 'STAFF', ...PRODUCTION],
+  VIEW_COSTS:          ['ADMIN', 'MANAGER', 'STAFF'],          // production roles never see unit cost / valuation
+  MANAGE_ITEMS:        ['ADMIN', 'MANAGER', 'STAFF'],
+  DEACTIVATE_ITEMS:    ['ADMIN', 'MANAGER'],
 
   // Stock control
-  STOCK_RECEIVE:       ['MANAGER', 'STAFF'],          // manual stock-in & generic returns
-  STOCK_ISSUE:         ['MANAGER', 'STAFF'],          // non-order issues
-  STOCK_WRITE_OFF:     ['MANAGER', 'STAFF'],          // wastage / damaged (reason mandatory)
-  STOCK_ADJUST:        fromEnv('INVENTORY_ADJUST_ROLES', ['MANAGER']),
+  STOCK_RECEIVE:       ['ADMIN', 'MANAGER', 'STAFF'],          // manual stock-in & generic returns
+  STOCK_ISSUE:         ['ADMIN', 'MANAGER', 'STAFF'],          // non-order issues
+  STOCK_WRITE_OFF:     ['ADMIN', 'MANAGER', 'STAFF'],          // wastage / damaged (reason mandatory)
+  STOCK_ADJUST:        fromEnv('INVENTORY_ADJUST_ROLES', ['ADMIN', 'MANAGER']),
 
   // Tailoring order integration
-  MATERIAL_REQUEST:    ['MANAGER', 'STAFF', ...PRODUCTION],
-  MATERIAL_ISSUE:      ['MANAGER', 'STAFF'],          // issue / return / wastage / close
-  VIEW_ALL_REQUESTS:   ['MANAGER', 'STAFF'],          // production roles only see their own
+  MATERIAL_REQUEST:    ['ADMIN', 'MANAGER', 'STAFF', ...PRODUCTION],
+  MATERIAL_ISSUE:      ['ADMIN', 'MANAGER', 'STAFF'],          // issue / return / wastage / close
+  VIEW_ALL_REQUESTS:   ['ADMIN', 'MANAGER', 'STAFF'],          // production roles only see their own
 
   // Purchasing
-  SUPPLIER_MANAGE:     ['MANAGER', 'STAFF'],
-  PO_CREATE:           ['MANAGER', 'STAFF'],
-  PO_APPROVE:          fromEnv('INVENTORY_PO_APPROVER_ROLES', ['MANAGER']),
-  PO_RECEIVE:          ['MANAGER', 'STAFF'],
+  SUPPLIER_MANAGE:     ['ADMIN', 'MANAGER', 'STAFF'],
+  PO_CREATE:           ['ADMIN', 'MANAGER', 'STAFF'],
+  PO_APPROVE:          fromEnv('INVENTORY_PO_APPROVER_ROLES', ['ADMIN', 'MANAGER']),
+  PO_RECEIVE:          ['ADMIN', 'MANAGER', 'STAFF'],
 
   // Reporting / audit
-  VIEW_REPORTS:        ['MANAGER', 'STAFF'],
-  VIEW_AUDIT:          ['MANAGER']
+  VIEW_REPORTS:        ['ADMIN', 'MANAGER', 'STAFF'],
+  VIEW_AUDIT:          ['ADMIN', 'MANAGER']
 };
 
 const PO_CEO_THRESHOLD = (() => {

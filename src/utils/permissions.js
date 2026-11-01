@@ -30,7 +30,7 @@ const ROLE_PERMISSIONS = {
     'orders.view', 'orders.create', 'orders.update',
     'customers.view', 'customers.create', 'customers.update',
     'production.view', 'production.update',
-    'inventory.view',
+    'inventory.view', 'inventory.manage',
     'finance.view',
     'payroll.view',
     'reports.view', 'reports.export',
