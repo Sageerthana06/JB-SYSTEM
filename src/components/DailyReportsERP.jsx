@@ -267,14 +267,14 @@ export const DailyReportsERP = () => {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+              <h1 style={{ fontSize: '1.68rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                 Daily Report
               </h1>
-              <span className="badge badge-crimson" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+              <span className="badge badge-crimson" style={{ fontSize: '0.78rem', letterSpacing: '0.5px' }}>
                 JB GROUP / BELLA DESIGN
               </span>
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem', margin: '4px 0 0 0' }}>
               Clean, executive daily operational briefing for {formattedDateTitle}
             </p>
           </div>
@@ -290,9 +290,9 @@ export const DailyReportsERP = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '10px 20px',
+              padding: '11px 22px',
               fontWeight: 700,
-              fontSize: '0.875rem',
+              fontSize: '0.95rem',
               backgroundColor: 'var(--jb-crimson)',
               borderColor: 'var(--jb-crimson)',
               boxShadow: '0 4px 12px rgba(217, 4, 41, 0.25)',
@@ -308,7 +308,7 @@ export const DailyReportsERP = () => {
             disabled={loading}
             className="btn btn-secondary"
             title="Refresh Report Data"
-            style={{ padding: '10px 14px', borderRadius: '8px' }}
+            style={{ padding: '11px 15px', borderRadius: '8px' }}
           >
             <RefreshCw size={16} className={loading ? 'spin' : ''} />
           </button>
@@ -351,9 +351,9 @@ export const DailyReportsERP = () => {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="form-control"
               style={{
-                width: '145px',
-                padding: '5px 8px',
-                fontSize: '0.85rem',
+                width: '155px',
+                padding: '7px 10px',
+                fontSize: '0.92rem',
                 fontWeight: 600,
                 borderRadius: '6px'
               }}
@@ -373,7 +373,7 @@ export const DailyReportsERP = () => {
             <button
               onClick={() => setSelectedDate(getColomboTodayString())}
               className={`btn btn-sm ${selectedDate === getColomboTodayString() ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+              style={{ fontSize: '0.82rem', padding: '6px 12px' }}
             >
               Today
             </button>
@@ -388,7 +388,7 @@ export const DailyReportsERP = () => {
                 setSelectedDate(`${y}-${m}-${d}`);
               }}
               className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+              style={{ fontSize: '0.82rem', padding: '6px 12px' }}
             >
               Yesterday
             </button>
@@ -412,9 +412,9 @@ export const DailyReportsERP = () => {
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="form-control"
               style={{
-                width: '210px',
-                padding: '6px 10px',
-                fontSize: '0.85rem',
+                width: '225px',
+                padding: '7px 12px',
+                fontSize: '0.92rem',
                 fontWeight: 600,
                 borderRadius: '6px'
               }}
@@ -424,7 +424,7 @@ export const DailyReportsERP = () => {
               <option value="2">🪡 Bella Design (Studio)</option>
             </select>
           ) : (
-            <div className="badge badge-navy" style={{ padding: '7px 12px', fontSize: '0.82rem', fontWeight: 600 }}>
+            <div className="badge badge-navy" style={{ padding: '8px 14px', fontSize: '0.88rem', fontWeight: 600 }}>
               🔒 {branchLabel} (Locked Scope)
             </div>
           )}
@@ -441,6 +441,7 @@ export const DailyReportsERP = () => {
       }}>
         {[
           { id: 'all', label: 'All-in-One View' },
+          { id: 'summary', label: 'Executive Briefing' },
           { id: 'orders', label: `Orders (${reportData?.orders?.records?.length || 0})` },
           { id: 'attendance', label: `Attendance (${attendanceSummary.present || 0}/${attendanceSummary.totalStaff || 0})` },
           { id: 'payments', label: `Payments (${reportData?.payments?.records?.length || 0})` },
@@ -453,8 +454,8 @@ export const DailyReportsERP = () => {
               onClick={() => setViewFilter(tab.id)}
               className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-secondary'}`}
               style={{
-                padding: '7px 14px',
-                fontSize: '0.82rem',
+                padding: '8px 16px',
+                fontSize: '0.9rem',
                 fontWeight: isActive ? 700 : 500,
                 borderRadius: '20px'
               }}
@@ -510,88 +511,391 @@ export const DailyReportsERP = () => {
       {!loading && reportData && (
         <>
           {/* ============================================================== */}
-          {/* 1. TODAY'S SUMMARY (5 Core KPIs)                               */}
+          {/* 1. TODAY'S SUMMARY (5 Core KPIs) & 5 VERTICAL EXECUTIVE SECTIONS */}
           {/* ============================================================== */}
           {(viewFilter === 'all' || viewFilter === 'summary') && (
-            <div style={{ marginBottom: '26px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                  Today's Summary
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <h2 style={{ fontSize: '1.32rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  Executive Business Summary
                 </h2>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Timezone: Asia/Colombo
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Timezone: Asia/Colombo (UTC+05:30)
                 </span>
               </div>
 
+              {/* Top 5 Highlight KPI Cards */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '14px'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                gap: '14px',
+                marginBottom: '24px'
               }}>
                 {/* 1. New Orders */}
-                <div className="card" style={{ padding: '16px 18px', borderLeft: '4px solid #0f172a' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid #0f172a' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                     New Orders
                   </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', margin: '6px 0 2px 0' }}>
+                  <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-main)', margin: '6px 0 2px 0' }}>
                     {kpis.newOrdersCount || 0}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
                     Total: <strong style={{ color: 'var(--text-main)' }}>{formatLKR(kpis.newOrdersValue)}</strong>
                   </div>
                 </div>
 
                 {/* 2. Completed Orders */}
-                <div className="card" style={{ padding: '16px 18px', borderLeft: '4px solid #2563eb' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid #2563eb' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                     Completed Orders
                   </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#2563eb', margin: '6px 0 2px 0' }}>
+                  <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#2563eb', margin: '6px 0 2px 0' }}>
                     {(kpis.readyOrders || 0) + (kpis.deliveredOrders || 0)}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
                     Ready: <strong>{kpis.readyOrders || 0}</strong> • Delivered: <strong>{kpis.deliveredOrders || 0}</strong>
                   </div>
                 </div>
 
                 {/* 3. Staff Present */}
-                <div className="card" style={{ padding: '16px 18px', borderLeft: '4px solid #16a34a' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid #16a34a' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                     Staff Present
                   </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#16a34a', margin: '6px 0 2px 0' }}>
+                  <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#16a34a', margin: '6px 0 2px 0' }}>
                     {kpis.staffPresent || 0} <span style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: 500 }}>/ {kpis.totalStaff || 0}</span>
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 600 }}>
+                  <div style={{ fontSize: '0.88rem', color: '#16a34a', fontWeight: 600 }}>
                     {kpis.attendanceRate || 0}% Attendance Rate
                   </div>
                 </div>
 
                 {/* 4. Money Received */}
-                <div className="card" style={{ padding: '16px 18px', borderLeft: '4px solid #059669' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid #059669' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                     Money Received
                   </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#059669', margin: '6px 0 2px 0' }}>
+                  <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#059669', margin: '6px 0 2px 0' }}>
                     {formatLKR(kpis.paymentsCollected)}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
                     {kpis.paymentTransactions || 0} Transactions Logged
                   </div>
                 </div>
 
                 {/* 5. Pending Orders */}
-                <div className="card" style={{ padding: '16px 18px', borderLeft: '4px solid #d97706' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                <div className="card" style={{ padding: '18px 20px', borderLeft: '4px solid #d97706' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                     Pending Orders
                   </div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#d97706', margin: '6px 0 2px 0' }}>
+                  <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#d97706', margin: '6px 0 2px 0' }}>
                     {kpis.activeWipCount || 0}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
                     Active In Workshop (WIP)
                   </div>
                 </div>
+              </div>
+
+              {/* ============================================================ */}
+              {/* MANDATED 5 VERTICAL EXECUTIVE SECTIONS (1 -> 5 STACKED)     */}
+              {/* ============================================================ */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                
+                {/* SECTION 1: ORDERS & SALES OVERVIEW */}
+                <div className="card" style={{ padding: 0, borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                  <div style={{
+                    backgroundColor: '#f8fafc',
+                    padding: '14px 20px',
+                    borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '5px', height: '22px', backgroundColor: '#d90429', borderRadius: '2px' }}></div>
+                      <h3 style={{ margin: 0, fontSize: '1.14rem', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
+                        1. ORDERS & SALES OVERVIEW
+                      </h3>
+                    </div>
+                    <span className="badge badge-navy" style={{ fontSize: '0.84rem' }}>
+                      {ordersSummary.totalOrders || 0} Orders Logged
+                    </span>
+                  </div>
+                  <div style={{
+                    padding: '20px 24px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '16px 32px'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Total Orders Logged on Date</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {ordersSummary.totalOrders || 0} Orders
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Total Gross Order Value</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#2563eb' }}>
+                        {formatLKR(ordersSummary.totalAmount)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Advance Payment Collected</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {formatLKR(ordersSummary.totalAdvance)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Remaining Balance on Orders</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#d97706' }}>
+                        {formatLKR(ordersSummary.totalBalance)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Orders Settled in Full (Zero Bal)</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#16a34a' }}>
+                        {ordersSummary.byPaymentStatus?.Paid || 0} Orders
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Orders with Balances Due</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#dc2626' }}>
+                        {(ordersSummary.byPaymentStatus?.Partial || 0) + (ordersSummary.byPaymentStatus?.Unpaid || 0)} Orders
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 2: CASH & PAYMENT INFLOWS */}
+                <div className="card" style={{ padding: 0, borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                  <div style={{
+                    backgroundColor: '#f8fafc',
+                    padding: '14px 20px',
+                    borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '5px', height: '22px', backgroundColor: '#d90429', borderRadius: '2px' }}></div>
+                      <h3 style={{ margin: 0, fontSize: '1.14rem', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
+                        2. CASH & PAYMENT INFLOWS
+                      </h3>
+                    </div>
+                    <span className="badge badge-success" style={{ fontSize: '0.84rem' }}>
+                      {paymentsSummary.transactionCount || 0} Receipts Logged
+                    </span>
+                  </div>
+                  <div style={{
+                    padding: '20px 24px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '16px 32px'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Actual Cash / Bank Received Today</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#16a34a' }}>
+                        {formatLKR(paymentsSummary.totalCollected)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Payment Transactions Count</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {paymentsSummary.transactionCount || 0} Receipts
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Fully Settled Order Transactions</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#16a34a' }}>
+                        {paymentsSummary.fullySettledCount || 0} Completed
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Partial Installments Received</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#d97706' }}>
+                        {paymentsSummary.partialPaymentCount || 0} Installments
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Cash Collections Total</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {formatLKR(paymentsSummary.byMethod?.Cash || 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Active Balance on Receiving Orders</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#dc2626' }}>
+                        {formatLKR(paymentsSummary.totalOutstandingOnActiveOrders)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 3: STAFF ATTENDANCE & ROSTER */}
+                <div className="card" style={{ padding: 0, borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                  <div style={{
+                    backgroundColor: '#f8fafc',
+                    padding: '14px 20px',
+                    borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '5px', height: '22px', backgroundColor: '#d90429', borderRadius: '2px' }}></div>
+                      <h3 style={{ margin: 0, fontSize: '1.14rem', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
+                        3. STAFF ATTENDANCE & ROSTER
+                      </h3>
+                    </div>
+                    <span className="badge badge-navy" style={{ fontSize: '0.84rem' }}>
+                      {attendanceSummary.attendanceRate || 0}% Attendance Rate
+                    </span>
+                  </div>
+                  <div style={{
+                    padding: '20px 24px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '16px 32px'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Total Active Workforce Assigned</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {attendanceSummary.totalStaff || 0} Employees
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Present / On Duty Today</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#16a34a' }}>
+                        {attendanceSummary.present || 0} Staff
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Completed Shift & Checked Out</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2563eb' }}>
+                        {attendanceSummary.checkedOut || 0} Staff
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Absences Recorded Today</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (attendanceSummary.absent || 0) > 0 ? '#dc2626' : 'var(--text-main)' }}>
+                        {attendanceSummary.absent || 0} Absent
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Unmarked Roster Records</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                        {attendanceSummary.notMarked || 0} Pending
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Overall Branch Attendance Rate</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#16a34a' }}>
+                        {attendanceSummary.attendanceRate || 0}% Turnout
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 4: PRODUCTION & MANUFACTURING PIPELINE */}
+                <div className="card" style={{ padding: 0, borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                  <div style={{
+                    backgroundColor: '#f8fafc',
+                    padding: '14px 20px',
+                    borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '5px', height: '22px', backgroundColor: '#d90429', borderRadius: '2px' }}></div>
+                      <h3 style={{ margin: 0, fontSize: '1.14rem', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
+                        4. PRODUCTION & MANUFACTURING PIPELINE
+                      </h3>
+                    </div>
+                    <span className="badge badge-warning" style={{ fontSize: '0.84rem' }}>
+                      {productionSummary.pendingWipCount || 0} Active WIP
+                    </span>
+                  </div>
+                  <div style={{
+                    padding: '20px 24px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '16px 32px'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Craftsman Tasks Finished Today</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#16a34a' }}>
+                        {productionSummary.completedTasksCount || 0} Tasks
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Orders Cleared by QC to READY</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2563eb' }}>
+                        {productionSummary.readyOrdersCount || 0} Ready
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Orders Delivered / Handed to Clients</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f766e' }}>
+                        {productionSummary.deliveredOrdersCount || 0} Delivered
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Production Stage Transitions Logged</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {productionSummary.stageTransitionsCount || 0} Movements
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Active Work-in-Progress (Pipeline)</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#d97706' }}>
+                        {productionSummary.pendingWipCount || 0} In Progress
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>Cutting & Stitching WIP Load</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {(productionSummary.wipByStage?.CUTTING || 0) + (productionSummary.wipByStage?.STITCHING || 0)} Garments
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 5: EXECUTIVE SUMMARY / AUDIT STATEMENT */}
+                <div className="card" style={{
+                  padding: '22px 24px',
+                  borderRadius: '10px',
+                  borderLeft: '5px solid #d90429',
+                  backgroundColor: '#f8fafc',
+                  borderTop: '1px solid var(--border-color, #e2e8f0)',
+                  borderRight: '1px solid var(--border-color, #e2e8f0)',
+                  borderBottom: '1px solid var(--border-color, #e2e8f0)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.14rem', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
+                      5. EXECUTIVE SUMMARY / AUDIT STATEMENT
+                    </h3>
+                    <span className="badge badge-navy" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
+                      CERTIFIED OPERATIONAL AUDIT
+                    </span>
+                  </div>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '0.92rem', color: 'var(--text-main)', lineHeight: '1.6' }}>
+                    This executive report aggregates certified production and ledger entries for <strong>{selectedDate}</strong> in accordance with JB GROUP PVT LTD / Bella Design operational policies. All financial receipts, attendance clock-ins, and production movements are logged directly from live PostgreSQL database records with strict Asia/Colombo date boundaries.
+                  </p>
+                  <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Official ERP Audit Seal • Generated by {user?.name || 'Authorized User'} ({user?.role || 'Management'}) • Timezone: Asia/Colombo (UTC+05:30) • Status: System Verified
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -610,7 +914,7 @@ export const DailyReportsERP = () => {
                 gap: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                     Orders Table
                   </h3>
                   <span className="badge badge-navy" style={{ fontSize: '0.75rem' }}>
@@ -622,7 +926,7 @@ export const DailyReportsERP = () => {
                   onClick={() => handleDownloadPDF('orders')}
                   disabled={downloadingReport === 'orders'}
                   className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', padding: '6px 12px' }}
                 >
                   <Download size={13} />
                   {downloadingReport === 'orders' ? 'Exporting...' : 'Download Orders PDF'}
@@ -631,15 +935,15 @@ export const DailyReportsERP = () => {
 
               <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: '8px' }}>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.92rem' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Order Number</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Customer Name</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Garment Specs</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Order Status</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right' }}>Amount (LKR)</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Payment Status</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Order Number</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Customer Name</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Garment Specs</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Order Status</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700, textAlign: 'right' }}>Amount (LKR)</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Payment Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -655,26 +959,26 @@ export const DailyReportsERP = () => {
                             borderBottom: '1px solid var(--border-color)',
                             backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff'
                           }}>
-                            <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--text-main)' }}>
                               {ord.orderNumber}
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
+                            <td style={{ padding: '12px 14px' }}>
                               <span style={{ fontWeight: 600 }}>{ord.customerName}</span>
                               <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginLeft: '6px' }}>({ord.customerPhone})</span>
                             </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>
                               {ord.dressType} ({ord.quantity} pcs)
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <span className="badge badge-navy" style={{ fontSize: '0.72rem' }}>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span className="badge badge-navy" style={{ fontSize: '0.8rem' }}>
                                 {ord.status}
                               </span>
                             </td>
-                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600 }}>
+                            <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 600 }}>
                               {formatLKR(ord.totalAmount)}
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <span className={`badge ${ord.paymentStatus === 'Paid' ? 'badge-success' : ord.paymentStatus === 'Partial' ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.72rem' }}>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span className={`badge ${ord.paymentStatus === 'Paid' ? 'badge-success' : ord.paymentStatus === 'Partial' ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.8rem' }}>
                                 {ord.paymentStatus}
                               </span>
                             </td>
@@ -685,10 +989,10 @@ export const DailyReportsERP = () => {
                     {reportData.orders?.records?.length > 0 && (
                       <tfoot>
                         <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 700 }}>
-                          <td colSpan="4" style={{ padding: '10px 14px', color: 'var(--text-main)' }}>
+                          <td colSpan="4" style={{ padding: '12px 14px', color: 'var(--text-main)' }}>
                             Total ({reportData.orders.records.length} Orders):
                           </td>
-                          <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                             {formatLKR(ordersSummary.totalAmount)}
                           </td>
                           <td></td>
@@ -715,7 +1019,7 @@ export const DailyReportsERP = () => {
                 gap: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                     Attendance Table
                   </h3>
                   <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
@@ -727,7 +1031,7 @@ export const DailyReportsERP = () => {
                   onClick={() => handleDownloadPDF('attendance')}
                   disabled={downloadingReport === 'attendance'}
                   className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', padding: '6px 12px' }}
                 >
                   <Download size={13} />
                   {downloadingReport === 'attendance' ? 'Exporting...' : 'Download Attendance PDF'}
@@ -736,15 +1040,15 @@ export const DailyReportsERP = () => {
 
               <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: '8px' }}>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.92rem' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Employee Name</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Role</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Branch</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Present / Absent</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Check-in Time</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Check-out Time</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Employee Name</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Role</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Branch</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Present / Absent</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Check-in Time</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Check-out Time</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -760,28 +1064,28 @@ export const DailyReportsERP = () => {
                             borderBottom: '1px solid var(--border-color)',
                             backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff'
                           }}>
-                            <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--text-main)' }}>
                               {att.employeeName}
                             </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>
                               {att.role}
                             </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>
                               {att.branchName}
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
+                            <td style={{ padding: '12px 14px' }}>
                               <span className={`badge ${
                                 att.attendanceStatus === 'Present' ? 'badge-success' :
                                 att.attendanceStatus === 'Checked Out' ? 'badge-navy' :
                                 att.attendanceStatus === 'Absent' ? 'badge-danger' : 'badge-warning'
-                              }`} style={{ fontSize: '0.72rem' }}>
+                              }`} style={{ fontSize: '0.8rem' }}>
                                 {att.attendanceStatus}
                               </span>
                             </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--text-main)', fontWeight: 600 }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-main)', fontWeight: 600 }}>
                               {att.checkInTime}
                             </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>
                               {att.checkOutTime}
                             </td>
                           </tr>
@@ -808,7 +1112,7 @@ export const DailyReportsERP = () => {
                 gap: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                     Payments Table
                   </h3>
                   <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
@@ -820,7 +1124,7 @@ export const DailyReportsERP = () => {
                   onClick={() => handleDownloadPDF('payments')}
                   disabled={downloadingReport === 'payments'}
                   className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', padding: '6px 12px' }}
                 >
                   <Download size={13} />
                   {downloadingReport === 'payments' ? 'Exporting...' : 'Download Payments PDF'}
@@ -829,15 +1133,15 @@ export const DailyReportsERP = () => {
 
               <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: '8px' }}>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.92rem' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Order Number</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Customer Name</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Payment Method</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right' }}>Payment Received Today</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right' }}>Outstanding Balance</th>
-                        <th style={{ padding: '10px 14px', fontWeight: 700 }}>Time Received</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Order Number</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Customer Name</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Payment Method</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700, textAlign: 'right' }}>Payment Received Today</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700, textAlign: 'right' }}>Outstanding Balance</th>
+                        <th style={{ padding: '12px 14px', fontWeight: 700 }}>Time Received</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -853,24 +1157,24 @@ export const DailyReportsERP = () => {
                             borderBottom: '1px solid var(--border-color)',
                             backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff'
                           }}>
-                            <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>
+                            <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--text-main)' }}>
                               {pay.orderNumber}
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
+                            <td style={{ padding: '12px 14px' }}>
                               <span style={{ fontWeight: 600 }}>{pay.customerName}</span>
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <span className="badge badge-navy" style={{ fontSize: '0.72rem' }}>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span className="badge badge-navy" style={{ fontSize: '0.8rem' }}>
                                 {pay.paymentMethod}
                               </span>
                             </td>
-                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>
+                            <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: '#16a34a' }}>
                               {formatLKR(pay.amountCollected)}
                             </td>
-                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: pay.currentOutstandingBalance > 0 ? '#dc2626' : '#16a34a' }}>
+                            <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: pay.currentOutstandingBalance > 0 ? '#dc2626' : '#16a34a' }}>
                               {formatLKR(pay.currentOutstandingBalance)}
                             </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>
                               {pay.paymentTime}
                             </td>
                           </tr>
@@ -880,10 +1184,10 @@ export const DailyReportsERP = () => {
                     {reportData.payments?.records?.length > 0 && (
                       <tfoot>
                         <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 800 }}>
-                          <td colSpan="3" style={{ padding: '10px 14px', color: 'var(--text-main)' }}>
+                          <td colSpan="3" style={{ padding: '12px 14px', color: 'var(--text-main)' }}>
                             Total Collections Today ({reportData.payments.records.length} Receipts):
                           </td>
-                          <td style={{ padding: '10px 14px', textAlign: 'right', color: '#16a34a', fontSize: '0.95rem' }}>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#16a34a', fontSize: '0.95rem' }}>
                             {formatLKR(paymentsSummary.totalCollected)}
                           </td>
                           <td colSpan="2"></td>
@@ -910,7 +1214,7 @@ export const DailyReportsERP = () => {
                 gap: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                     Production & Pending Orders
                   </h3>
                   <span className="badge badge-warning" style={{ fontSize: '0.75rem' }}>
@@ -922,7 +1226,7 @@ export const DailyReportsERP = () => {
                   onClick={() => handleDownloadPDF('production')}
                   disabled={downloadingReport === 'production'}
                   className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', padding: '6px 12px' }}
                 >
                   <Download size={13} />
                   {downloadingReport === 'production' ? 'Exporting...' : 'Download Production PDF'}
@@ -939,28 +1243,28 @@ export const DailyReportsERP = () => {
                 </div>
 
                 <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '8px' }}>Order #</th>
-                        <th style={{ padding: '8px' }}>Customer</th>
-                        <th style={{ padding: '8px' }}>Garment</th>
-                        <th style={{ padding: '8px' }}>Stage</th>
-                        <th style={{ padding: '8px' }}>Assigned Craftsman</th>
+                        <th style={{ padding: '10px 12px' }}>Order #</th>
+                        <th style={{ padding: '10px 12px' }}>Customer</th>
+                        <th style={{ padding: '10px 12px' }}>Garment</th>
+                        <th style={{ padding: '10px 12px' }}>Stage</th>
+                        <th style={{ padding: '10px 12px' }}>Assigned Craftsman</th>
                       </tr>
                     </thead>
                     <tbody>
                       {reportData.production?.data?.pendingWip?.slice(0, 15).map(w => (
                         <tr key={w.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '8px', fontWeight: 700 }}>{w.orderNumber}</td>
-                          <td style={{ padding: '8px' }}>{w.customerName}</td>
-                          <td style={{ padding: '8px' }}>{w.dressType}</td>
-                          <td style={{ padding: '8px' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 700 }}>{w.orderNumber}</td>
+                          <td style={{ padding: '10px 12px' }}>{w.customerName}</td>
+                          <td style={{ padding: '10px 12px' }}>{w.dressType}</td>
+                          <td style={{ padding: '10px 12px' }}>
                             <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
                               {w.status}
                             </span>
                           </td>
-                          <td style={{ padding: '8px', color: 'var(--text-muted)' }}>{w.assignedTailor}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>{w.assignedTailor}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -80,9 +80,9 @@ function drawReportHeader(doc, {
 
   // Brand Name & Generation Info
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
+  doc.setFontSize(16.5);
   doc.setTextColor(...primaryNavy);
-  doc.text('JB GROUP / BELLA DESIGN', margin, y + 4.5);
+  doc.text('JB GROUP / BELLA DESIGN', margin, y + 4.8);
 
   const genDateStr = generatedAt
     ? new Date(generatedAt).toLocaleString('en-US', {
@@ -110,14 +110,14 @@ function drawReportHeader(doc, {
 
   // Report Specific Title
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11.5);
+  doc.setFontSize(12.5);
   doc.setTextColor(...accentCrimson);
-  doc.text(reportTitle.toUpperCase(), margin, y + 3);
+  doc.text(reportTitle.toUpperCase(), margin, y + 3.2);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.8);
+  doc.setFontSize(8.4);
   doc.setTextColor(...textMuted);
-  doc.text(reportSubtitle, margin, y + 7.5);
+  doc.text(reportSubtitle, margin, y + 7.8);
 
   y += 11;
 
@@ -127,12 +127,13 @@ function drawReportHeader(doc, {
   doc.setLineWidth(0.3);
   doc.roundedRect(margin, y, contentWidth, 11, 1.5, 1.5, 'FD');
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.0);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...primaryNavy);
   doc.text('REPORT PARAMETERS:', margin + 4, y + 4.5);
 
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.8);
   doc.setTextColor(...textDark);
   doc.text(
     `Selected Date: ${date}    |    Scope / Branch: ${branchName || 'All Branches'}    |    Timezone: Asia/Colombo (UTC+05:30)`,
@@ -294,7 +295,7 @@ export function generateDailyOrdersPDF({ date, branchName, records = [], summary
       doc.line(margin, currentY + rowHeight, margin + contentWidth, currentY + rowHeight);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
+      doc.setFontSize(7.8);
       doc.setTextColor(...textDark);
 
       let curX = margin;
@@ -475,7 +476,7 @@ export function generateDailyAttendancePDF({ date, branchName, records = [], sum
       doc.line(margin, currentY + rowHeight, margin + contentWidth, currentY + rowHeight);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
+      doc.setFontSize(7.8);
       doc.setTextColor(...textDark);
 
       let curX = margin;
@@ -631,7 +632,7 @@ export function generateDailyPaymentsPDF({ date, branchName, records = [], summa
       doc.line(margin, currentY + rowHeight, margin + contentWidth, currentY + rowHeight);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
+      doc.setFontSize(7.8);
       doc.setTextColor(...textDark);
 
       let curX = margin;
@@ -774,7 +775,7 @@ export function generateDailyProductionPDF({ date, branchName, data = {}, summar
       doc.text(col.header, curX + 2, currentY + 4.5);
       curX += col.width;
     });
-    currentY += 6.5;
+    currentY += 7.0;
   }
 
   const milestones = [
@@ -805,7 +806,7 @@ export function generateDailyProductionPDF({ date, branchName, data = {}, summar
       doc.line(margin, currentY + rowHeight, margin + contentWidth, currentY + rowHeight);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.2);
+      doc.setFontSize(7.8);
       doc.setTextColor(...textDark);
 
       let curX = margin;
@@ -870,7 +871,7 @@ export function generateDailyProductionPDF({ date, branchName, data = {}, summar
       doc.text(col.header, curX + 2, currentY + 4.5);
       curX += col.width;
     });
-    currentY += 6.5;
+    currentY += 7.0;
   }
 
   if (stageTransitions.length === 0) {
@@ -960,7 +961,7 @@ export function generateDailyProductionPDF({ date, branchName, data = {}, summar
       doc.text(col.header, curX + 2, currentY + 4.5);
       curX += col.width;
     });
-    currentY += 6.5;
+    currentY += 7.0;
   }
 
   if (pendingWip.length === 0) {
@@ -1029,8 +1030,9 @@ export function generateDailyProductionPDF({ date, branchName, data = {}, summar
  * -------------------------------------------------------------
  */
 export function generateDailyBusinessSummaryPDF({ date, branchName, data = {}, user = {}, generatedAt = new Date() }) {
-  const doc = new PDFDoc('landscape', 'mm', 'a4');
-  const { pageWidth, pageHeight, margin, contentWidth } = setupDocLayout(doc);
+  // A4 Portrait: 210mm wide x 297mm tall (CEO Mandated Vertical Orientation)
+  const doc = new PDFDoc('portrait', 'mm', 'a4');
+  const { pageWidth, pageHeight, margin, contentWidth } = setupDocLayout(doc, { orientation: 'portrait' });
 
   const kpis = data.businessSummary?.executiveKpis || {};
   const orders = data.orders || { summary: {}, records: [] };
@@ -1038,6 +1040,11 @@ export function generateDailyBusinessSummaryPDF({ date, branchName, data = {}, u
   const payments = data.payments || { summary: {}, records: [] };
   const production = data.production || { summary: {}, data: {} };
 
+  // ==============================================================
+  // PAGE 1: EXECUTIVE BRIEFING (STRICTLY VERTICAL 1 -> 5 SECTIONS)
+  // ==============================================================
+
+  // 1. Top Report Header (Bold, large typography, Asia/Colombo timezone)
   let currentY = drawReportHeader(doc, {
     reportTitle: 'Daily Business Summary (Executive Briefing)',
     reportSubtitle: 'Comprehensive multi-departmental snapshot: Sales & Orders, Revenue Collections, Workforce Attendance, and Production Progress',
@@ -1050,131 +1057,237 @@ export function generateDailyBusinessSummaryPDF({ date, branchName, data = {}, u
     pageWidth
   });
 
-  // Top 5 Multi-departmental Executive KPIs
-  const topKpis = [
-    { label: 'DAILY NEW ORDERS', val: kpis.newOrdersCount || 0, sub: `Value: ${formatLKR(kpis.newOrdersValue)}`, color: primaryNavy },
-    { label: 'DAILY CASH / BANK INFLOW', val: formatLKR(kpis.paymentsCollected), sub: `${kpis.paymentTransactions || 0} Transactions`, color: greenSuccess },
-    { label: 'WORKFORCE ATTENDANCE', val: `${kpis.staffPresent || 0} / ${kpis.totalStaff || 0}`, sub: `${kpis.attendanceRate || 0}% Staff Turnout`, color: blueInfo },
-    { label: 'READY & DELIVERED', val: (kpis.readyOrders || 0) + (kpis.deliveredOrders || 0), sub: `${kpis.readyOrders || 0} Ready • ${kpis.deliveredOrders || 0} Delivered`, color: [15, 118, 110] },
-    { label: 'ACTIVE WORK-IN-PROGRESS', val: kpis.activeWipCount || 0, sub: 'Orders in production pipeline', color: amberWarning }
+  // 2. Executive KPI Cards Grid (2-row prominent layout for maximum legibility)
+  // Row 1: 3 cards
+  const topKpisRow1 = [
+    { label: 'DAILY NEW ORDERS', val: `${kpis.newOrdersCount || 0} Orders`, sub: `Gross Value: ${formatLKR(kpis.newOrdersValue)}`, color: primaryNavy },
+    { label: 'CASH / BANK INFLOW', val: formatLKR(kpis.paymentsCollected), sub: `${kpis.paymentTransactions || 0} Transactions Logged`, color: greenSuccess },
+    { label: 'WORKFORCE ATTENDANCE', val: `${kpis.staffPresent || 0} / ${kpis.totalStaff || 0} Staff`, sub: `${kpis.attendanceRate || 0}% Branch Turnout`, color: blueInfo }
   ];
-  currentY = drawKpiGrid(doc, topKpis, { startY: currentY, margin, contentWidth });
 
-  // 2-Column Executive Matrix
-  const colWidth = (contentWidth - 6) / 2;
+  // Row 2: 2 cards
+  const topKpisRow2 = [
+    { label: 'READY & DELIVERED ORDERS', val: `${(kpis.readyOrders || 0) + (kpis.deliveredOrders || 0)} Orders`, sub: `${kpis.readyOrders || 0} Ready for Pickup • ${kpis.deliveredOrders || 0} Handed Over`, color: [15, 118, 110] },
+    { label: 'ACTIVE WORK-IN-PROGRESS', val: `${kpis.activeWipCount || 0} Orders in WIP`, sub: 'Active in workshop pipeline (cutting & stitching)', color: amberWarning }
+  ];
 
-  // Function to render a section box
-  function renderSummaryBox(x, y, width, height, title, items, badge) {
-    doc.setFillColor(255, 255, 255);
-    doc.setDrawColor(...borderLight);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(x, y, width, height, 1.5, 1.5, 'FD');
+  // Helper to draw a KPI row with generous font sizes
+  function drawKpiRow(items, yPos, cardHeight = 15.5) {
+    const cardGap = 3.5;
+    const count = items.length;
+    const cardWidth = (contentWidth - ((count - 1) * cardGap)) / count;
 
-    // Section header
-    doc.setFillColor(...bgLight);
-    doc.roundedRect(x, y, width, 7, 1.5, 1.5, 'F');
-    doc.rect(x, y + 5, width, 2, 'F'); // square bottom of header
-    doc.setDrawColor(...borderLight);
-    doc.line(x, y + 7, x + width, y + 7);
+    items.forEach((kpi, idx) => {
+      const cardX = margin + idx * (cardWidth + cardGap);
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(...borderLight);
+      doc.setLineWidth(0.35);
+      doc.roundedRect(cardX, yPos, cardWidth, cardHeight, 1.5, 1.5, 'FD');
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...primaryNavy);
-    doc.text(title, x + 3.5, y + 4.8);
+      // Left indicator bar (2mm)
+      doc.setFillColor(...(kpi.color || primaryNavy));
+      doc.rect(cardX, yPos, 2, cardHeight, 'F');
 
-    if (badge) {
-      doc.setFontSize(6.5);
-      doc.setTextColor(...accentCrimson);
-      doc.text(badge, x + width - 3.5, y + 4.8, { align: 'right' });
-    }
-
-    let lineY = y + 11.5;
-    items.forEach(item => {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(...textDark);
-      doc.text(item.label, x + 3.5, lineY);
-
+      // Label
       doc.setFont('helvetica', 'bold');
-      if (item.highlight) doc.setTextColor(...(item.highlightColor || greenSuccess));
-      else doc.setTextColor(...primaryNavy);
-      doc.text(String(item.val), x + width - 3.5, lineY, { align: 'right' });
-      lineY += 5.2;
+      doc.setFontSize(7.5);
+      doc.setTextColor(...textMuted);
+      doc.text(kpi.label, cardX + 3.8, yPos + 4.5);
+
+      // Value (bold, large 11pt)
+      doc.setFontSize(11);
+      doc.setTextColor(...(kpi.color || primaryNavy));
+      doc.text(String(kpi.val), cardX + 3.8, yPos + 9.8);
+
+      // Subtitle
+      if (kpi.sub) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.0);
+        doc.setTextColor(...textDark);
+        doc.text(kpi.sub, cardX + 3.8, yPos + 13.6);
+      }
     });
+
+    return yPos + cardHeight;
   }
 
-  // Row 1: Left = Orders Snapshot, Right = Revenue Collections Snapshot
-  const boxHeight = 44;
-  const ordersItems = [
-    { label: 'Total Orders Logged on Date:', val: `${orders.summary.totalOrders || 0} Orders` },
-    { label: 'Total Gross Order Value:', val: formatLKR(orders.summary.totalAmount), highlight: true, highlightColor: blueInfo },
-    { label: 'Advance Payment Collected for Orders:', val: formatLKR(orders.summary.totalAdvance) },
-    { label: 'Remaining Balance on These Orders:', val: formatLKR(orders.summary.totalBalance), highlight: true, highlightColor: amberWarning },
-    { label: 'Orders Settled in Full (Zero Balance):', val: `${orders.summary.byPaymentStatus?.Paid || 0} Orders` },
-    { label: 'Orders with Balances Due:', val: `${(orders.summary.byPaymentStatus?.Partial || 0) + (orders.summary.byPaymentStatus?.Unpaid || 0)} Orders` }
-  ];
+  currentY = drawKpiRow(topKpisRow1, currentY, 14);
+  currentY += 2.5;
+  currentY = drawKpiRow(topKpisRow2, currentY, 14);
+  currentY += 4.5;
 
-  const paymentsItems = [
+  // --------------------------------------------------------------
+  // 5 MAIN EXECUTIVE SECTIONS (STRICTLY VERTICAL - FULL WIDTH 186mm)
+  // Each section occupies full available width and sits directly below the previous.
+  // --------------------------------------------------------------
+
+  function renderVerticalSection(y, height, title, leftItems, rightItems, badge) {
+    const x = margin;
+    const width = contentWidth;
+
+    // Card background & border
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...borderLight);
+    doc.setLineWidth(0.35);
+    doc.roundedRect(x, y, width, height, 1.5, 1.5, 'FD');
+
+    // Section header banner
+    doc.setFillColor(...bgLight);
+    doc.roundedRect(x, y, width, 8.0, 1.5, 1.5, 'F');
+    doc.rect(x, y + 6.0, width, 2, 'F'); // square bottom corners of banner
+    doc.setDrawColor(...borderLight);
+    doc.line(x, y + 8.0, x + width, y + 8.0);
+
+    // Left crimson accent pip
+    doc.setFillColor(...accentCrimson);
+    doc.rect(x + 3.5, y + 2.2, 2, 3.2, 'F');
+
+    // Section Title (bold, readable 8.5pt)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.6);
+    doc.setTextColor(...primaryNavy);
+    doc.text(title, x + 7.5, y + 5.4);
+
+    // Section Badge (if provided)
+    if (badge) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.4);
+      doc.setTextColor(...accentCrimson);
+      doc.text(badge, x + width - 4, y + 5.4, { align: 'right' });
+    }
+
+    // Two-column key-value metrics within this full-width card
+    const colHalf = 86; // mm
+    const leftX = x + 4;
+    const rightX = x + 96;
+
+    // Subtle vertical separator line between left & right column
+    doc.setDrawColor(241, 245, 249);
+    doc.setLineWidth(0.3);
+    doc.line(x + 92, y + 9.5, x + 92, y + height - 2.5);
+
+    function renderColumnItems(items, startX, colW) {
+      let lineY = y + 12.2;
+      items.forEach(item => {
+        // Label
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.2);
+        doc.setTextColor(...textDark);
+        doc.text(item.label, startX, lineY);
+
+        // Value
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.2);
+        if (item.highlight) {
+          doc.setTextColor(...(item.highlightColor || greenSuccess));
+        } else {
+          doc.setTextColor(...primaryNavy);
+        }
+        doc.text(String(item.val), startX + colW, lineY, { align: 'right' });
+        lineY += 5.6;
+      });
+    }
+
+    renderColumnItems(leftItems, leftX, colHalf);
+    renderColumnItems(rightItems, rightX, colHalf);
+  }
+
+  const sectionHeight = 30;
+  const sectionGap = 3.0;
+
+  // SECTION 1: ORDERS & SALES OVERVIEW
+  const ordersLeft = [
+    { label: 'Total Orders Logged on Date:', val: `${orders.summary.totalOrders || 0} Orders` },
+    { label: 'Advance Payment Collected:', val: formatLKR(orders.summary.totalAdvance) },
+    { label: 'Orders Settled in Full (Zero Bal):', val: `${orders.summary.byPaymentStatus?.Paid || 0} Orders` }
+  ];
+  const ordersRight = [
+    { label: 'Total Gross Order Value:', val: formatLKR(orders.summary.totalAmount), highlight: true, highlightColor: blueInfo },
+    { label: 'Remaining Balance on Orders:', val: formatLKR(orders.summary.totalBalance), highlight: true, highlightColor: amberWarning },
+    { label: 'Orders with Balances Due:', val: `${(orders.summary.byPaymentStatus?.Partial || 0) + (orders.summary.byPaymentStatus?.Unpaid || 0)} Orders`, highlight: true, highlightColor: accentCrimson }
+  ];
+  renderVerticalSection(currentY, sectionHeight, '1. ORDERS & SALES OVERVIEW', ordersLeft, ordersRight, `${orders.records?.length || 0} Records Logged`);
+  currentY += sectionHeight + sectionGap;
+
+  // SECTION 2: CASH & PAYMENT INFLOWS
+  const paymentsLeft = [
     { label: 'Actual Cash / Bank Received Today:', val: formatLKR(payments.summary.totalCollected), highlight: true, highlightColor: greenSuccess },
-    { label: 'Payment Transactions Count:', val: `${payments.summary.transactionCount || 0} Entries` },
     { label: 'Fully Settled Order Transactions:', val: `${payments.summary.fullySettledCount || 0} Completed` },
+    { label: 'Cash Collections Total:', val: formatLKR(payments.summary.byMethod?.Cash || 0) }
+  ];
+  const paymentsRight = [
+    { label: 'Payment Transactions Count:', val: `${payments.summary.transactionCount || 0} Receipts` },
     { label: 'Partial Installments Received:', val: `${payments.summary.partialPaymentCount || 0} Installments` },
-    { label: 'Cash Collections Total:', val: formatLKR(payments.summary.byMethod?.Cash || 0) },
     { label: 'Active Balance on Receiving Orders:', val: formatLKR(payments.summary.totalOutstandingOnActiveOrders), highlight: true, highlightColor: accentCrimson }
   ];
+  renderVerticalSection(currentY, sectionHeight, '2. CASH & PAYMENT INFLOWS', paymentsLeft, paymentsRight, `${payments.records?.length || 0} Receipts Logged`);
+  currentY += sectionHeight + sectionGap;
 
-  renderSummaryBox(margin, currentY, colWidth, boxHeight, '1. ORDERS & SALES OVERVIEW', ordersItems, `${orders.records?.length || 0} Records`);
-  renderSummaryBox(margin + colWidth + 6, currentY, colWidth, boxHeight, '2. CASH & PAYMENT INFLOWS', paymentsItems, `${payments.records?.length || 0} Receipts`);
-
-  currentY += boxHeight + 4;
-
-  // Row 2: Left = Workforce Attendance Snapshot, Right = Production Manufacturing Snapshot
-  const attItems = [
+  // SECTION 3: STAFF ATTENDANCE & ROSTER
+  const attLeft = [
     { label: 'Total Active Workforce Assigned:', val: `${attendance.summary.totalStaff || 0} Employees` },
-    { label: 'Present / On Duty Today:', val: `${attendance.summary.present || 0} Staff`, highlight: true, highlightColor: greenSuccess },
     { label: 'Completed Shift & Checked Out:', val: `${attendance.summary.checkedOut || 0} Staff`, highlight: true, highlightColor: blueInfo },
-    { label: 'Absences Recorded:', val: `${attendance.summary.absent || 0} Absent`, highlight: true, highlightColor: accentCrimson },
-    { label: 'Unmarked Roster Records:', val: `${attendance.summary.notMarked || 0} Pending` },
+    { label: 'Unmarked Roster Records:', val: `${attendance.summary.notMarked || 0} Pending` }
+  ];
+  const attRight = [
+    { label: 'Present / On Duty Today:', val: `${attendance.summary.present || 0} Staff`, highlight: true, highlightColor: greenSuccess },
+    { label: 'Absences Recorded Today:', val: `${attendance.summary.absent || 0} Absent`, highlight: (attendance.summary.absent || 0) > 0, highlightColor: accentCrimson },
     { label: 'Overall Branch Attendance Rate:', val: `${attendance.summary.attendanceRate || 0}% Turnout`, highlight: true, highlightColor: greenSuccess }
   ];
+  renderVerticalSection(currentY, sectionHeight, '3. STAFF ATTENDANCE & ROSTER', attLeft, attRight, `${attendance.summary.attendanceRate || 0}% Attendance Rate`);
+  currentY += sectionHeight + sectionGap;
 
-  const prodItems = [
+  // SECTION 4: PRODUCTION & MANUFACTURING PIPELINE
+  const prodLeft = [
     { label: 'Craftsman Tasks Finished Today:', val: `${production.summary.completedTasksCount || 0} Tasks`, highlight: true, highlightColor: greenSuccess },
-    { label: 'Orders Cleared by QC to READY:', val: `${production.summary.readyOrdersCount || 0} Ready`, highlight: true, highlightColor: blueInfo },
     { label: 'Orders Delivered / Handed to Clients:', val: `${production.summary.deliveredOrdersCount || 0} Delivered`, highlight: true, highlightColor: [15, 118, 110] },
+    { label: 'Active Work-in-Progress (Pipeline):', val: `${production.summary.pendingWipCount || 0} In Progress`, highlight: true, highlightColor: amberWarning }
+  ];
+  const prodRight = [
+    { label: 'Orders Cleared by QC to READY:', val: `${production.summary.readyOrdersCount || 0} Ready`, highlight: true, highlightColor: blueInfo },
     { label: 'Production Stage Transitions Logged:', val: `${production.summary.stageTransitionsCount || 0} Movements` },
-    { label: 'Active Work-in-Progress (WIP Pipeline):', val: `${production.summary.pendingWipCount || 0} In Progress`, highlight: true, highlightColor: amberWarning },
     { label: 'Cutting & Stitching WIP Load:', val: `${(production.summary.wipByStage?.CUTTING || 0) + (production.summary.wipByStage?.STITCHING || 0)} Garments` }
   ];
+  renderVerticalSection(currentY, sectionHeight, '4. PRODUCTION & MANUFACTURING PIPELINE', prodLeft, prodRight, `${production.summary.pendingWipCount || 0} Active WIP`);
+  currentY += sectionHeight + sectionGap;
 
-  renderSummaryBox(margin, currentY, colWidth, boxHeight, '3. STAFF ATTENDANCE & ROSTER', attItems, `${attendance.summary.attendanceRate || 0}% Turnout`);
-  renderSummaryBox(margin + colWidth + 6, currentY, colWidth, boxHeight, '4. PRODUCTION & MANUFACTURING PIPELINE', prodItems, `${production.summary.pendingWipCount || 0} Active WIP`);
-
-  currentY += boxHeight + 6;
-
-  // Executive Sign-off Footer Box
+  // SECTION 5: EXECUTIVE SUMMARY / AUDIT STATEMENT
+  const auditBoxHeight = 24;
   doc.setFillColor(...bgLight);
   doc.setDrawColor(...borderLight);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, currentY, contentWidth, 14, 1.5, 1.5, 'FD');
+  doc.setLineWidth(0.35);
+  doc.roundedRect(margin, currentY, contentWidth, auditBoxHeight, 1.5, 1.5, 'FD');
+
+  // Left crimson accent strip
+  doc.setFillColor(...accentCrimson);
+  doc.rect(margin, currentY, 2, auditBoxHeight, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(9.6);
   doc.setTextColor(...primaryNavy);
-  doc.text('EXECUTIVE CERTIFICATION & AUDIT STATEMENT:', margin + 4, currentY + 4.5);
+  doc.text('5. EXECUTIVE SUMMARY / AUDIT STATEMENT', margin + 5, currentY + 5.2);
+
+  doc.setFontSize(8.4);
+  doc.setTextColor(...accentCrimson);
+  doc.text('CERTIFIED OPERATIONAL AUDIT', margin + contentWidth - 4, currentY + 5.2, { align: 'right' });
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6.5);
+  doc.setFontSize(8.0);
+  doc.setTextColor(...textDark);
+  const auditStatement = `This executive report aggregates certified production and ledger entries for ${date} in accordance with JB GROUP PVT LTD / Bella Design operational policies. All financial receipts, attendance clock-ins, and production movements are logged directly from live PostgreSQL database records with strict Asia/Colombo date boundaries.`;
+  doc.text(auditStatement, margin + 5, currentY + 9.5, { maxWidth: contentWidth - 10 });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
   doc.setTextColor(...textMuted);
   doc.text(
-    `This report aggregates certified production and ledger entries for ${date} in accordance with JB GROUP PVT LTD / Bella Design operational policies. All financial receipts, attendance clock-ins, and production movements are logged directly from live PostgreSQL database records with strict Asia/Colombo date boundaries.`,
-    margin + 4,
-    currentY + 8.5,
-    { maxWidth: contentWidth - 8 }
+    `Official ERP Audit Seal  •  Generated by ${user?.name || 'Authorized User'} (${user?.role || 'Management'})  •  Status: System Verified`,
+    margin + 5,
+    currentY + 19.5
   );
 
   // ==============================================================
-  // PAGE 2: DETAILED REGISTERS (ORDERS, ATTENDANCE, PAYMENTS)
+  // PAGE 2+: DETAILED OPERATIONAL LEDGER (ORDERS, ATTENDANCE, PAYMENTS)
   // ==============================================================
   doc.addPage();
   currentY = margin;
@@ -1192,251 +1305,291 @@ export function generateDailyBusinessSummaryPDF({ date, branchName, data = {}, u
     startY: margin
   });
 
-  // Table 1: Orders (max 8 rows or summary)
+  // Page break verification helper
+  function checkPageBreak(requiredHeight) {
+    if (currentY + requiredHeight > pageHeight - 16) {
+      doc.addPage();
+      currentY = margin + 8;
+      // Running subheader
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...primaryNavy);
+      doc.text(`Daily Operational Ledger (Continued)  •  ${date}  •  ${branchName || 'All Branches'}`, margin, currentY);
+      doc.setDrawColor(...borderLight);
+      doc.setLineWidth(0.3);
+      doc.line(margin, currentY + 2.5, margin + contentWidth, currentY + 2.5);
+      currentY += 6;
+    }
+  }
+
+  // --------------------------------------------------------------
+  // TABLE 1: ORDERS REGISTER (Width = 186mm)
+  // --------------------------------------------------------------
+  checkPageBreak(30);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setTextColor(...primaryNavy);
   doc.text(`1. ORDERS REGISTER (${orders.records?.length || 0} Orders):`, margin, currentY + 3);
   currentY += 5;
 
   const orderCols = [
-    { header: 'ORDER #', width: 35 },
-    { header: 'CUSTOMER & PHONE', width: 65 },
-    { header: 'GARMENT & QTY', width: 50 },
-    { header: 'STATUS', width: 45 },
-    { header: 'AMOUNT (LKR)', width: 38, align: 'right' },
-    { header: 'BALANCE (LKR)', width: 40, align: 'right' }
+    { header: 'ORDER #', width: 26 },
+    { header: 'CUSTOMER & PHONE', width: 46 },
+    { header: 'GARMENT & QTY', width: 34 },
+    { header: 'STATUS', width: 26 },
+    { header: 'AMOUNT (LKR)', width: 27, align: 'right' },
+    { header: 'BALANCE (LKR)', width: 27, align: 'right' }
   ];
 
   doc.setFillColor(...primaryNavy);
-  doc.rect(margin, currentY, contentWidth, 6, 'F');
+  doc.rect(margin, currentY, contentWidth, 7.0, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.8);
   doc.setTextColor(255, 255, 255);
   let curOX = margin;
   orderCols.forEach(col => {
     const px = col.align === 'right' ? curOX + col.width - 2 : curOX + 2;
-    doc.text(col.header, px, currentY + 4.2, { align: col.align || 'left' });
+    doc.text(col.header, px, currentY + 4.9, { align: col.align || 'left' });
     curOX += col.width;
   });
-  currentY += 6;
+  currentY += 7.0;
 
   if (!orders.records || orders.records.length === 0) {
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setTextColor(...textMuted);
-    doc.text('No orders booked on this date.', margin + 2, currentY + 4);
-    currentY += 7;
+    doc.text('No orders booked on this date.', margin + 2, currentY + 4.5);
+    currentY += 7.5;
   } else {
     orders.records.slice(0, 8).forEach((r, idx) => {
+      checkPageBreak(6.5);
       if (idx % 2 === 1) {
         doc.setFillColor(248, 250, 252);
-        doc.rect(margin, currentY, contentWidth, 6, 'F');
+        doc.rect(margin, currentY, contentWidth, 6.8, 'F');
       }
       doc.setDrawColor(...borderLight);
-      doc.line(margin, currentY + 6, margin + contentWidth, currentY + 6);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.8);
-      doc.setTextColor(...textDark);
+      doc.line(margin, currentY + 6.8, margin + contentWidth, currentY + 6.8);
 
       let x = margin;
       doc.setFont('helvetica', 'bold');
-      doc.text(r.orderNumber || '-', x + 2, currentY + 4.2);
-      x += 35;
+      doc.setFontSize(8.2);
+      doc.setTextColor(...primaryNavy);
+      doc.text(r.orderNumber || '-', x + 2, currentY + 4.8);
+      x += 26;
 
       doc.setFont('helvetica', 'normal');
-      doc.text(`${r.customerName || 'Customer'} (${r.customerPhone || '-'})`, x + 2, currentY + 4.2);
-      x += 65;
+      doc.setFontSize(7.8);
+      doc.setTextColor(...textDark);
+      doc.text(`${r.customerName || 'Customer'} (${r.customerPhone || '-'})`, x + 2, currentY + 4.8);
+      x += 46;
 
-      doc.text(`${r.dressType || 'Garment'} (${r.quantity || 1})`, x + 2, currentY + 4.2);
-      x += 50;
+      doc.text(`${r.dressType || 'Garment'} (${r.quantity || 1})`, x + 2, currentY + 4.8);
+      x += 34;
 
       doc.setFont('helvetica', 'bold');
-      doc.text(r.status || '-', x + 2, currentY + 4.2);
-      x += 45;
+      doc.text(r.status || '-', x + 2, currentY + 4.8);
+      x += 26;
 
       doc.setFont('helvetica', 'normal');
-      doc.text(Number(r.totalAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 38 - 2, currentY + 4.2, { align: 'right' });
-      x += 38;
+      doc.text(Number(r.totalAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 27 - 2, currentY + 4.8, { align: 'right' });
+      x += 27;
 
       if (r.balanceAmount > 0) doc.setTextColor(185, 28, 28);
       else doc.setTextColor(...greenSuccess);
-      doc.text(Number(r.balanceAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 40 - 2, currentY + 4.2, { align: 'right' });
+      doc.text(Number(r.balanceAmount || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 27 - 2, currentY + 4.8, { align: 'right' });
 
-      currentY += 6;
+      currentY += 6.8;
     });
 
     if (orders.records.length > 8) {
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(6.5);
+      doc.setFontSize(7);
       doc.setTextColor(...textMuted);
-      doc.text(`... and ${orders.records.length - 8} more orders (Download dedicated Orders PDF for full register)`, margin + 2, currentY + 4);
-      currentY += 6;
+      doc.text(`... and ${orders.records.length - 8} more orders (Download dedicated Orders PDF for complete register)`, margin + 2, currentY + 4.5);
+      currentY += 7.0;
     }
   }
 
-  currentY += 4;
+  currentY += 4.5;
 
-  // Table 2: Payments
+  // --------------------------------------------------------------
+  // TABLE 2: PAYMENTS RECEIVED TODAY (Width = 186mm)
+  // --------------------------------------------------------------
+  checkPageBreak(30);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(9.6);
   doc.setTextColor(...primaryNavy);
-  doc.text(`2. PAYMENTS RECEIVED TODAY (${payments.records?.length || 0} Receipts):`, margin, currentY + 3);
+  doc.text(`2. PAYMENTS RECEIVED TODAY (${payments.records?.length || 0} Receipts):`, margin, currentY + 3.2);
   currentY += 5;
 
   const payCols = [
-    { header: 'TIME', width: 30 },
-    { header: 'ORDER #', width: 35 },
-    { header: 'CUSTOMER', width: 65 },
-    { header: 'METHOD', width: 40 },
-    { header: 'RECEIVED TODAY (LKR)', width: 50, align: 'right' },
-    { header: 'OUTSTANDING BAL (LKR)', width: 53, align: 'right' }
+    { header: 'TIME', width: 22 },
+    { header: 'ORDER #', width: 26 },
+    { header: 'CUSTOMER', width: 44 },
+    { header: 'METHOD', width: 26 },
+    { header: 'RECEIVED (LKR)', width: 34, align: 'right' },
+    { header: 'OUTSTANDING BAL', width: 34, align: 'right' }
   ];
 
   doc.setFillColor(...primaryNavy);
-  doc.rect(margin, currentY, contentWidth, 6, 'F');
+  doc.rect(margin, currentY, contentWidth, 7.0, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.8);
   doc.setTextColor(255, 255, 255);
   let curPX = margin;
   payCols.forEach(col => {
     const px = col.align === 'right' ? curPX + col.width - 2 : curPX + 2;
-    doc.text(col.header, px, currentY + 4.2, { align: col.align || 'left' });
+    doc.text(col.header, px, currentY + 4.9, { align: col.align || 'left' });
     curPX += col.width;
   });
-  currentY += 6;
+  currentY += 7.0;
 
   if (!payments.records || payments.records.length === 0) {
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setTextColor(...textMuted);
-    doc.text('No payments recorded on this date.', margin + 2, currentY + 4);
-    currentY += 7;
+    doc.text('No payments recorded on this date.', margin + 2, currentY + 4.5);
+    currentY += 7.5;
   } else {
     payments.records.slice(0, 8).forEach((p, idx) => {
+      checkPageBreak(6.5);
       if (idx % 2 === 1) {
         doc.setFillColor(248, 250, 252);
-        doc.rect(margin, currentY, contentWidth, 6, 'F');
+        doc.rect(margin, currentY, contentWidth, 6.8, 'F');
       }
       doc.setDrawColor(...borderLight);
-      doc.line(margin, currentY + 6, margin + contentWidth, currentY + 6);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.8);
-      doc.setTextColor(...textDark);
+      doc.line(margin, currentY + 6.8, margin + contentWidth, currentY + 6.8);
 
       let x = margin;
-      doc.text(p.paymentTime || '-', x + 2, currentY + 4.2);
-      x += 30;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.8);
+      doc.setTextColor(...textDark);
+      doc.text(p.paymentTime || '-', x + 2, currentY + 4.8);
+      x += 22;
 
       doc.setFont('helvetica', 'bold');
-      doc.text(p.orderNumber || '-', x + 2, currentY + 4.2);
-      x += 35;
+      doc.setTextColor(...primaryNavy);
+      doc.text(p.orderNumber || '-', x + 2, currentY + 4.8);
+      x += 26;
 
       doc.setFont('helvetica', 'normal');
-      doc.text(p.customerName || 'Customer', x + 2, currentY + 4.2);
-      x += 65;
+      doc.setTextColor(...textDark);
+      doc.text(p.customerName || 'Customer', x + 2, currentY + 4.8);
+      x += 44;
 
-      doc.text(p.paymentMethod || 'Cash', x + 2, currentY + 4.2);
-      x += 40;
+      doc.text(p.paymentMethod || 'Cash', x + 2, currentY + 4.8);
+      x += 26;
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...greenSuccess);
-      doc.text(Number(p.amountCollected || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 50 - 2, currentY + 4.2, { align: 'right' });
-      x += 50;
+      doc.text(Number(p.amountCollected || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 34 - 2, currentY + 4.8, { align: 'right' });
+      x += 34;
 
       if (p.currentOutstandingBalance > 0) doc.setTextColor(185, 28, 28);
       else doc.setTextColor(...greenSuccess);
-      doc.text(Number(p.currentOutstandingBalance || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 53 - 2, currentY + 4.2, { align: 'right' });
+      doc.text(Number(p.currentOutstandingBalance || 0).toLocaleString('en-LK', { minimumFractionDigits: 2 }), x + 34 - 2, currentY + 4.8, { align: 'right' });
 
-      currentY += 6;
+      currentY += 6.8;
     });
 
     if (payments.records.length > 8) {
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(6.5);
+      doc.setFontSize(7);
       doc.setTextColor(...textMuted);
-      doc.text(`... and ${payments.records.length - 8} more payments (Download dedicated Payments PDF for full breakdown)`, margin + 2, currentY + 4);
-      currentY += 6;
+      doc.text(`... and ${payments.records.length - 8} more payments (Download dedicated Payments PDF for complete breakdown)`, margin + 2, currentY + 4.5);
+      currentY += 7.0;
     }
   }
 
-  currentY += 4;
+  currentY += 4.5;
 
-  // Table 3: Attendance
+  // --------------------------------------------------------------
+  // TABLE 3: WORKFORCE ATTENDANCE ROSTER (Width = 186mm)
+  // --------------------------------------------------------------
+  checkPageBreak(30);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(9.6);
   doc.setTextColor(...primaryNavy);
-  doc.text(`3. WORKFORCE ATTENDANCE ROSTER (${attendance.records?.length || 0} Staff):`, margin, currentY + 3);
+  doc.text(`3. WORKFORCE ATTENDANCE ROSTER (${attendance.records?.length || 0} Staff):`, margin, currentY + 3.2);
   currentY += 5;
 
   const attCols = [
-    { header: 'EMPLOYEE NAME', width: 65 },
-    { header: 'ROLE', width: 45 },
-    { header: 'BRANCH', width: 55 },
-    { header: 'STATUS (PRESENT / ABSENT)', width: 60 },
-    { header: 'CHECK-IN TIME', width: 48 }
+    { header: 'EMPLOYEE NAME', width: 50 },
+    { header: 'ROLE', width: 34 },
+    { header: 'BRANCH', width: 34 },
+    { header: 'STATUS (PRESENT / ABSENT)', width: 38 },
+    { header: 'CHECK-IN TIME', width: 30 }
   ];
 
   doc.setFillColor(...primaryNavy);
-  doc.rect(margin, currentY, contentWidth, 6, 'F');
+  doc.rect(margin, currentY, contentWidth, 7.0, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.8);
   doc.setTextColor(255, 255, 255);
   let curAX = margin;
   attCols.forEach(col => {
-    doc.text(col.header, curAX + 2, currentY + 4.2);
+    doc.text(col.header, curAX + 2, currentY + 4.9);
     curAX += col.width;
   });
-  currentY += 6;
+  currentY += 7.0;
 
   if (!attendance.records || attendance.records.length === 0) {
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setTextColor(...textMuted);
-    doc.text('No attendance data available.', margin + 2, currentY + 4);
+    doc.text('No attendance data available.', margin + 2, currentY + 4.5);
+    currentY += 7.5;
   } else {
     attendance.records.slice(0, 10).forEach((a, idx) => {
+      checkPageBreak(6.5);
       if (idx % 2 === 1) {
         doc.setFillColor(248, 250, 252);
-        doc.rect(margin, currentY, contentWidth, 5.8, 'F');
+        doc.rect(margin, currentY, contentWidth, 6.8, 'F');
       }
       doc.setDrawColor(...borderLight);
-      doc.line(margin, currentY + 5.8, margin + contentWidth, currentY + 5.8);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6.8);
-      doc.setTextColor(...textDark);
+      doc.line(margin, currentY + 6.8, margin + contentWidth, currentY + 6.8);
 
       let x = margin;
       doc.setFont('helvetica', 'bold');
-      doc.text(a.employeeName || '-', x + 2, currentY + 4.2);
-      x += 65;
+      doc.setFontSize(8.2);
+      doc.setTextColor(...primaryNavy);
+      doc.text(a.employeeName || '-', x + 2, currentY + 4.8);
+      x += 50;
 
       doc.setFont('helvetica', 'normal');
-      doc.text(a.role || '-', x + 2, currentY + 4.2);
-      x += 45;
+      doc.setFontSize(7.8);
+      doc.setTextColor(...textDark);
+      doc.text(a.role || '-', x + 2, currentY + 4.8);
+      x += 34;
 
-      doc.text(a.branchName || '-', x + 2, currentY + 4.2);
-      x += 55;
+      doc.text(a.branchName || '-', x + 2, currentY + 4.8);
+      x += 34;
 
       doc.setFont('helvetica', 'bold');
       if (a.attendanceStatus === 'Present') doc.setTextColor(...greenSuccess);
       else if (a.attendanceStatus === 'Checked Out') doc.setTextColor(...blueInfo);
       else if (a.attendanceStatus === 'Absent') doc.setTextColor(...accentCrimson);
       else doc.setTextColor(...amberWarning);
-      doc.text(a.attendanceStatus || '-', x + 2, currentY + 4.2);
-      x += 60;
+      doc.text(a.attendanceStatus || '-', x + 2, currentY + 4.8);
+      x += 38;
 
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...textDark);
-      doc.text(a.checkInTime || '-', x + 2, currentY + 4.2);
+      doc.text(a.checkInTime || '-', x + 2, currentY + 4.8);
 
-      currentY += 5.8;
+      currentY += 6.8;
     });
+
+    if (attendance.records.length > 10) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.setTextColor(...textMuted);
+      doc.text(`... and ${attendance.records.length - 10} more staff members (Download dedicated Attendance PDF for full roster)`, margin + 2, currentY + 4.5);
+      currentY += 7.0;
+    }
   }
 
+  // Running page numbers and standard footer
   addPageNumbers(doc, 'Daily Business Summary (Executive Briefing)');
   if (typeof window !== 'undefined' || (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'test')) {
     doc.save(`JB_Daily_Business_Summary_${date}.pdf`);
