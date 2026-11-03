@@ -26,6 +26,17 @@ import {
   Send
 } from 'lucide-react';
 
+// Asia/Colombo (UTC+05:30) Calendar Day Helper
+function getColomboTodayDateString() {
+  const d = new Date();
+  const colomboMs = d.getTime() + (330 * 60 * 1000);
+  const c = new Date(colomboMs);
+  const y = c.getUTCFullYear();
+  const m = String(c.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(c.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export const WeeklySalaryERP = () => {
   const { user, getAuthHeaders, activeBranch } = useAuth();
   const printRef = useRef(null);
@@ -42,12 +53,9 @@ export const WeeklySalaryERP = () => {
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
 
-  // Navigation & Week selection
+  // Navigation & Week selection in Asia/Colombo
   // Reference date in YYYY-MM-DD
-  const [selectedWeekDate, setSelectedWeekDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().split('T')[0];
-  });
+  const [selectedWeekDate, setSelectedWeekDate] = useState(getColomboTodayDateString);
 
   // Filter states: Manager is strictly locked to their assigned branch
   const [branchFilter, setBranchFilter] = useState(() => {
@@ -66,13 +74,13 @@ export const WeeklySalaryERP = () => {
 
   // Payment Recording Modal State
   const [recordingPaymentAlloc, setRecordingPaymentAlloc] = useState(null);
-  const [paymentForm, setPaymentForm] = useState({
+  const [paymentForm, setPaymentForm] = useState(() => ({
     amountPaid: '',
     paymentMethod: 'Cash',
     referenceNo: '',
-    paymentDate: new Date().toISOString().split('T')[0],
+    paymentDate: getColomboTodayDateString(),
     notes: ''
-  });
+  }));
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [paymentFeedback, setPaymentFeedback] = useState(null);
 
@@ -114,24 +122,31 @@ export const WeeklySalaryERP = () => {
     fetchSalaryReport(selectedWeekDate);
   }, [selectedWeekDate, branchFilter, tailorFilter, workTypeFilter, statusFilter]);
 
-  // Jump to previous week
+  // Jump to previous week (7 days prior in Asia/Colombo)
   const handlePrevWeek = () => {
-    const current = new Date(selectedWeekDate);
-    current.setDate(current.getDate() - 7);
-    setSelectedWeekDate(current.toISOString().split('T')[0]);
+    const parts = selectedWeekDate.split('-').map(Number);
+    const current = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    current.setUTCDate(current.getUTCDate() - 7);
+    const y = current.getUTCFullYear();
+    const m = String(current.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(current.getUTCDate()).padStart(2, '0');
+    setSelectedWeekDate(`${y}-${m}-${d}`);
   };
 
-  // Jump to next week
+  // Jump to next week (7 days later in Asia/Colombo)
   const handleNextWeek = () => {
-    const current = new Date(selectedWeekDate);
-    current.setDate(current.getDate() + 7);
-    setSelectedWeekDate(current.toISOString().split('T')[0]);
+    const parts = selectedWeekDate.split('-').map(Number);
+    const current = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    current.setUTCDate(current.getUTCDate() + 7);
+    const y = current.getUTCFullYear();
+    const m = String(current.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(current.getUTCDate()).padStart(2, '0');
+    setSelectedWeekDate(`${y}-${m}-${d}`);
   };
 
   // Reset to current week
   const handleResetCurrentWeek = () => {
-    const now = new Date();
-    setSelectedWeekDate(now.toISOString().split('T')[0]);
+    setSelectedWeekDate(getColomboTodayDateString());
   };
 
   // Open Payment Modal (Guarded: CEO and Manager only)
@@ -146,7 +161,7 @@ export const WeeklySalaryERP = () => {
       amountPaid: alloc.allocatedAmount,
       paymentMethod: 'Cash',
       referenceNo: '',
-      paymentDate: new Date().toISOString().split('T')[0],
+      paymentDate: getColomboTodayDateString(),
       notes: `Weekly tailor salary disbursement for ${alloc.workTypeName} on ${alloc.orderNumber}`
     });
   };

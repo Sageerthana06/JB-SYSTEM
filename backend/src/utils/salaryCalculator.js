@@ -207,47 +207,45 @@ function matchesSalaryStatusFilter(allocationStatus, filterStatus) {
 function isOrderPriceApproved(order) {
   if (!order) return false;
 
-  // Explicit customer rejection must never be treated as approval.
-  if (order.priceAcceptedByCustomer === false) {
+  const total = Number(order.agreedTotal || order.totalAmount || 0);
+  if (total <= 0) return false;
+
+  // 1. Cancelled or rejected orders are completely excluded from salary generation
+  if (['CANCELLED', 'REJECTED'].includes(order.status)) {
     return false;
   }
 
-  // Customer approval is still pending.
-  if (order.status === 'WAITING_CUSTOMER_APPROVAL') {
-    return false;
-  }
-
-  // A quote sent to the customer is not approved until the customer accepts it.
+  // 2. Explicit price decline by customer
   if (
-    order.priceStatus === 'SENT' &&
-    order.priceAcceptedByCustomer !== true
+    order.status === 'PRICE_DECLINED' ||
+    order.priceStatus === 'DECLINED' ||
+    Boolean(order.priceDeclinedAt)
   ) {
     return false;
   }
 
-  const total = Number(order.agreedTotal || order.totalAmount || 0);
-  if (total <= 0) return false;
-
-  // If order is still pending approval, rejected, or cancelled
-  if ([
-    'PENDING_APPROVAL',
-    'REJECTED',
-    'CANCELLED',
-    'CHANGES_REQUIRED',
-    'PRICE_DECLINED',
-    'PRICE_REVISION_REQUIRED'
-  ].includes(order.status)) {
+  // 3. Online quote sent to customer awaiting acceptance before production
+  if (order.status === 'WAITING_CUSTOMER_APPROVAL') {
     return false;
   }
 
-  // If price is pending, declined, or sent back for revision
-  if ([
-    'PENDING',
-    'DECLINED',
-    'PRICE_DECLINED',
-    'PRICE_REVISION_REQUIRED',
-    'REVISION_REQUESTED'
-  ].includes(order.priceStatus)) {
+  if (order.priceStatus === 'SENT' && order.priceAcceptedByCustomer !== true) {
+    return false;
+  }
+
+  // 4. Unresolved price revisions or changes requested (unresolved price)
+  if (
+    ['CHANGES_REQUIRED', 'PRICE_REVISION_REQUIRED', 'REVISION_REQUESTED'].includes(order.status) ||
+    ['PRICE_REVISION_REQUIRED', 'REVISION_REQUESTED'].includes(order.priceStatus)
+  ) {
+    return false;
+  }
+
+  // 5. Pending management approval without assigned tasks
+  const hasAssignedTasks =
+    (Array.isArray(order.tasks) && order.tasks.some(t => Boolean(t.assignedTailorId))) ||
+    Boolean(order.assignedTailorId);
+  if (order.status === 'PENDING_APPROVAL' && !hasAssignedTasks) {
     return false;
   }
 
@@ -294,9 +292,9 @@ function extractWorkCompletion(order, workType) {
 
   // 1. Check granular OrderTask records
   if (Array.isArray(order.tasks) && order.tasks.length > 0) {
-    const task = order.tasks.find(t => t.taskType === targetTaskType);
+    const task = order.tasks.find(t => t.taskType === targetTaskType || (t.taskType && String(t.taskType).trim().toUpperCase() === targetTaskType));
     if (task) {
-      const isCompleted = task.status === 'COMPLETED';
+      const isCompleted = Boolean(task.status && String(task.status).trim().toUpperCase() === 'COMPLETED');
       return {
         assignedTailorId: task.assignedTailorId || null,
         tailorName: task.assignedTailor?.name || null,
@@ -405,7 +403,8 @@ function calculateOrderSalaryAllocations(order, paidSalaryRecords = []) {
     let status = 'WORK_PENDING';
     if (existingPayment) {
       status = 'PAID';
-    } else if (workInfo.isCompleted && isFullyPaid) {
+    } else if (workInfo.isCompleted && isFullyPaid && tailorId) {
+      // Must have an assigned tailor to become payable
       status = 'PAYABLE';
     } else if (workInfo.isCompleted && !isFullyPaid) {
       status = 'ON_HOLD_CUSTOMER_PAYMENT';
