@@ -49,6 +49,7 @@ import { CustomerProfileDrawer } from './CustomerProfileDrawer';
 import { SelfAttendanceCard } from './SelfAttendanceCard';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { CustomerFinishedNotificationModal } from './CustomerFinishedNotificationModal';
+import { SalesPaymentSummarySection } from './SalesPaymentSummarySection';
 import { getStatusLabel, getStatusColors, getNextStageInfo, ALLOWED_STAGE_TRANSITIONS, getPriceStatusLabel, getPriceStatusColors, cleanActivityNote, cleanActorName } from '../utils/orderStatus';
 import { API_URL, getImageUrl, fetchAuthenticatedSlipBlobUrl } from '../config/api';
 import AuthenticatedSlipImage from './AuthenticatedSlipImage';
@@ -2137,6 +2138,7 @@ export const SalesERP = () => {
   const [taskModalOrder, setTaskModalOrder] = useState(null);
   const [finishedNotificationOrder, setFinishedNotificationOrder] = useState(null);
   const [trendReferenceDate, setTrendReferenceDate] = useState('');
+  const [paymentSummaryRefreshKey, setPaymentSummaryRefreshKey] = useState(0);
 
   // Approval and tailor assignment state
   const [tailorsList, setTailorsList] = useState([]);
@@ -2236,6 +2238,7 @@ export const SalesERP = () => {
     fetchOrders();
     fetchTailors();
     fetchDashboardSummary(trendReferenceDate);
+    setPaymentSummaryRefreshKey(prev => prev + 1);
   };
 
   useEffect(() => {
@@ -2847,6 +2850,12 @@ export const SalesERP = () => {
           </button>
         </div>
       )}
+
+      {/* Sales & Payment Summary Section (Live Database Reconciliation) */}
+      <SalesPaymentSummarySection
+        branchId={effectiveBranch}
+        refreshTrigger={paymentSummaryRefreshKey}
+      />
 
       {/* Executive Sales & Approval KPI Cards */}
       <div className="kpi-cards-grid">

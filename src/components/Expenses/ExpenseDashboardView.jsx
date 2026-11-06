@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE } from '../../config/api';
 import { EXPENSE_CATEGORIES, getCategoryMeta, formatLKR, getStatusBadge } from './expenseConstants';
+import { BusinessCashSummaryCard } from './BusinessCashSummaryCard';
 import {
   TrendingDown,
   Calendar,
@@ -123,6 +124,9 @@ export const ExpenseDashboardView = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* JB GROUP Business Cash Balance Integration Summary */}
+      <BusinessCashSummaryCard branchScope={branchScope} />
+
       {/* 9 Requested Primary Expense KPI Cards */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>

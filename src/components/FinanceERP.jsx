@@ -11,6 +11,8 @@ import { StaffPayrollView } from './Finance/StaffPayrollView';
 import { SalaryAdvancesView } from './Finance/SalaryAdvancesView';
 import { ProfitLossReportView } from './Finance/ProfitLossReportView';
 import { CustomerOutstandingView } from './Finance/CustomerOutstandingView';
+import { SupplierPayablesView } from './Finance/SupplierPayablesView';
+import { BusinessLoansView } from './Finance/BusinessLoansView';
 import { FinancialAuditLogsView } from './Finance/FinancialAuditLogsView';
 
 import {
@@ -25,7 +27,9 @@ import {
   AlertCircle,
   ShieldCheck,
   Building,
-  Lock
+  Lock,
+  Truck,
+  Landmark
 } from 'lucide-react';
 
 export const FinanceERP = () => {
@@ -50,6 +54,8 @@ export const FinanceERP = () => {
     { id: 'advances', label: 'Salary Advances', icon: CreditCard, requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER'] },
     { id: 'pnl', label: 'Profit & Loss', icon: FileSpreadsheet, requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER'] },
     { id: 'receivables', label: 'Customer Outstanding', icon: AlertCircle, requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER'] },
+    { id: 'suppliers', label: 'Supplier Payables', icon: Truck, requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER'] },
+    { id: 'loans', label: 'Business Loans', icon: Landmark, requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER'] },
     { id: 'audit', label: 'Audit Trail', icon: ShieldCheck, requiredRoles: ['SUPER_ADMIN', 'ADMIN', 'CEO'] }
   ];
 
@@ -241,6 +247,22 @@ export const FinanceERP = () => {
 
         {activeSubTab === 'receivables' && (
           <CustomerOutstandingView
+            branchScope={branchScope}
+            user={user}
+            getAuthHeaders={getAuthHeaders}
+          />
+        )}
+
+        {activeSubTab === 'suppliers' && (
+          <SupplierPayablesView
+            branchScope={branchScope}
+            user={user}
+            getAuthHeaders={getAuthHeaders}
+          />
+        )}
+
+        {activeSubTab === 'loans' && (
+          <BusinessLoansView
             branchScope={branchScope}
             user={user}
             getAuthHeaders={getAuthHeaders}

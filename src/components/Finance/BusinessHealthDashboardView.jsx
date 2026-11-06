@@ -3,6 +3,7 @@ import { API_BASE } from '../../config/api';
 import { formatLKR, formatCompactLKR, getBranchName } from './financeUtils';
 import { AddExpenseModal } from './AddExpenseModal';
 import { AddMonthlyBillModal } from './AddMonthlyBillModal';
+import { AddIncomeModal } from './AddIncomeModal';
 import { MonthlyControlReportModal } from './MonthlyControlReportModal';
 import {
   Wallet,
@@ -23,7 +24,9 @@ import {
   Clock,
   HelpCircle,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Truck,
+  Landmark
 } from 'lucide-react';
 
 const PERIOD_LABELS = [
@@ -32,6 +35,7 @@ const PERIOD_LABELS = [
   { id: 'this_month', label: 'This Month' },
   { id: 'last_month', label: 'Last Month' },
   { id: 'this_year', label: 'This Year' },
+  { id: 'all', label: 'All Time' },
   { id: 'custom', label: 'Custom Range' }
 ];
 
@@ -48,6 +52,7 @@ export const BusinessHealthDashboardView = ({ branchScope, user, getAuthHeaders,
   // Modals
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isAddBillOpen, setIsAddBillOpen] = useState(false);
+  const [isAddIncomeOpen, setIsAddIncomeOpen] = useState(false);
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
 
   const role = String(user?.role || '').toUpperCase();
@@ -161,6 +166,25 @@ export const BusinessHealthDashboardView = ({ branchScope, user, getAuthHeaders,
             }}
           >
             <FileSpreadsheet size={16} /> Monthly Financial Report
+          </button>
+
+          <button
+            onClick={() => setIsAddIncomeOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              background: '#16a34a',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.85rem'
+            }}
+          >
+            <Plus size={16} /> Record Income
           </button>
 
           <button
@@ -450,6 +474,75 @@ export const BusinessHealthDashboardView = ({ branchScope, user, getAuthHeaders,
               {formatLKR(cards.cardH_totalBusinessObligations)}
             </div>
             <span style={{ fontSize: '0.75rem', color: '#9a3412' }}>Pending Salaries + Unpaid Bills + Pending Expenses</span>
+          </div>
+
+          {/* Card I: TOTAL SUPPLIER OUTSTANDING */}
+          <div
+            className="card"
+            onClick={() => onNavigateTab && onNavigateTab('suppliers')}
+            style={{ padding: '20px', borderRadius: '14px', background: '#F8FAFC', borderLeft: '4px solid #b91c1c', cursor: 'pointer', transition: 'all 0.15s ease' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase' }}>
+                I. Supplier Outstanding
+              </span>
+              <div style={{ padding: '6px', borderRadius: '8px', background: '#fee2e2', color: '#b91c1c' }}>
+                <Truck size={18} />
+              </div>
+            </div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', marginTop: '8px' }}>
+              {formatLKR(cards.cardI_totalSupplierOutstanding || data?.supplierDebtSummary?.totalSupplierOutstanding || 0)}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Liabilities owed to suppliers</span>
+              <span style={{ fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>View Payables →</span>
+            </div>
+          </div>
+
+          {/* Card J: TOTAL LOANS OUTSTANDING */}
+          <div
+            className="card"
+            onClick={() => onNavigateTab && onNavigateTab('loans')}
+            style={{ padding: '20px', borderRadius: '14px', background: '#F8FAFC', borderLeft: '4px solid #0B1F3A', cursor: 'pointer', transition: 'all 0.15s ease' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0B1F3A', textTransform: 'uppercase' }}>
+                J. Business Loans
+              </span>
+              <div style={{ padding: '6px', borderRadius: '8px', background: '#e2e8f0', color: '#0B1F3A' }}>
+                <Landmark size={18} />
+              </div>
+            </div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', marginTop: '8px' }}>
+              {formatLKR(cards.cardJ_totalLoanOutstanding || data?.loanSummary?.totalLoanOutstanding || 0)}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Bank & institutional principal</span>
+              <span style={{ fontSize: '0.72rem', color: '#0B1F3A', fontWeight: 700 }}>View Loans →</span>
+            </div>
+          </div>
+
+          {/* Card K: NET BUSINESS POSITION */}
+          <div className="card" style={{
+            padding: '20px',
+            borderRadius: '14px',
+            background: (cards.cardK_netBusinessWorth || 0) >= 0 ? '#f0fdf4' : '#fef2f2',
+            borderLeft: `4px solid ${(cards.cardK_netBusinessWorth || 0) >= 0 ? '#16a34a' : '#dc2626'}`
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: (cards.cardK_netBusinessWorth || 0) >= 0 ? '#15803D' : '#b91c1c', textTransform: 'uppercase' }}>
+                K. Net Business Position
+              </span>
+              <div style={{ padding: '6px', borderRadius: '8px', background: (cards.cardK_netBusinessWorth || 0) >= 0 ? '#dcfce7' : '#fee2e2', color: (cards.cardK_netBusinessWorth || 0) >= 0 ? '#15803D' : '#b91c1c' }}>
+                <Building size={18} />
+              </div>
+            </div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 900, color: (cards.cardK_netBusinessWorth || 0) >= 0 ? '#15803D' : '#b91c1c', marginTop: '8px' }}>
+              {formatLKR(cards.cardK_netBusinessWorth || data?.netAssetsSummary?.netBusinessWorth || 0)}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: (cards.cardK_netBusinessWorth || 0) >= 0 ? '#166534' : '#991b1b' }}>
+              (Cash + Customer Receivables) minus (Supplier Debts + Loans)
+            </span>
           </div>
         </div>
       </div>
@@ -940,6 +1033,15 @@ export const BusinessHealthDashboardView = ({ branchScope, user, getAuthHeaders,
       </div>
 
       {/* Modals */}
+      <AddIncomeModal
+        isOpen={isAddIncomeOpen}
+        onClose={() => setIsAddIncomeOpen(false)}
+        branchScope={branchScope}
+        user={user}
+        getAuthHeaders={getAuthHeaders}
+        onIncomeAdded={fetchTelemetry}
+      />
+
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
         onClose={() => setIsAddExpenseOpen(false)}

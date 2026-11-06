@@ -8,7 +8,7 @@
  * Complete CRUD, Multiple Partial/Full Payments, Recurring Bills, Audit Logs, and Comprehensive Reports.
  */
 
-const { prisma } = require('../prisma');
+const { prisma, pool } = require('../prisma');
 const {
   generateExpenseNumberTx,
   generateExpensePaymentNumberTx,
@@ -1475,5 +1475,264 @@ exports.getMonthlyExpenseReport = async (req, res, next) => {
       return res.status(error.status).json({ success: false, message: error.message });
     }
     next(error);
+  }
+};
+
+const COLOMBO_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+const resolveCashSummaryDateRange = (period = 'this_month', customStart, customEnd) => {
+  const now = new Date();
+  const colomboNow = new Date(now.getTime() + COLOMBO_OFFSET_MS);
+
+  const year = colomboNow.getUTCFullYear();
+  const month = colomboNow.getUTCMonth();
+  const date = colomboNow.getUTCDate();
+
+  let startDateUtc;
+  let endDateUtc;
+
+  switch (period) {
+    case 'today': {
+      startDateUtc = new Date(Date.UTC(year, month, date, 0, 0, 0, 0) - COLOMBO_OFFSET_MS);
+      endDateUtc = new Date(Date.UTC(year, month, date, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
+      break;
+    }
+    case 'this_month': {
+      startDateUtc = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0) - COLOMBO_OFFSET_MS);
+      const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      endDateUtc = new Date(Date.UTC(year, month, lastDay, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
+      break;
+    }
+    case 'this_year': {
+      startDateUtc = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0) - COLOMBO_OFFSET_MS);
+      endDateUtc = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
+      break;
+    }
+    case 'custom':
+    default: {
+      if (customStart && customEnd) {
+        const [sY, sM, sD] = customStart.split('-').map(Number);
+        const [eY, eM, eD] = customEnd.split('-').map(Number);
+        startDateUtc = new Date(Date.UTC(sY, sM - 1, sD, 0, 0, 0, 0) - COLOMBO_OFFSET_MS);
+        endDateUtc = new Date(Date.UTC(eY, eM - 1, eD, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
+      } else {
+        startDateUtc = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0) - COLOMBO_OFFSET_MS);
+        const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+        endDateUtc = new Date(Date.UTC(year, month, lastDay, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
+      }
+      break;
+    }
+  }
+
+  return { startDateUtc, endDateUtc };
+};
+
+/**
+ * GET /api/expenses/cash-summary
+ * Business Cash Balance Integration Summary
+ */
+async function buildCashSummaryData(req) {
+  const branchScope = resolveBranchScope(req);
+  const { period = 'this_month', startDate, endDate } = req.query;
+  const { startDateUtc, endDateUtc } = resolveCashSummaryDateRange(period, startDate, endDate);
+
+  // 1. Total Sales Cash Received (Verified customer payments only)
+  const paymentWhere = {
+    status: 'VERIFIED',
+    createdAt: { gte: startDateUtc, lte: endDateUtc }
+  };
+  if (branchScope !== 'ALL') {
+    paymentWhere.order = { branchId: branchScope };
+  }
+
+  const periodPayments = await prisma.payment.findMany({
+    where: paymentWhere,
+    select: {
+      amount: true,
+      paymentMethod: true,
+      notes: true,
+      order: { select: { branchId: true } }
+    }
+  });
+
+  let totalSalesReceived = 0;
+  let cashReceived = 0;
+  let bankReceived = 0;
+
+  periodPayments.forEach(p => {
+    const amt = Number(p.amount) || 0;
+    totalSalesReceived += amt;
+    const m = String(p.paymentMethod || 'Cash').toLowerCase();
+    if (m.includes('cash')) cashReceived += amt;
+    else bankReceived += amt;
+  });
+
+  // 2. Pending Customer Payments (Active order unpaid balances)
+  const orderWhere = {
+    status: { notIn: ['CANCELLED', 'REJECTED'] }
+  };
+  if (branchScope !== 'ALL') orderWhere.branchId = branchScope;
+
+  const allOrders = await prisma.order.findMany({
+    where: orderWhere,
+    select: {
+      id: true,
+      totalAmount: true,
+      agreedTotal: true,
+      advancePayment: true,
+      branchId: true,
+      payments: {
+        where: { status: 'VERIFIED' },
+        select: { amount: true }
+      }
+    }
+  });
+
+  let pendingCustomerPayments = 0;
+  allOrders.forEach(o => {
+    const orderTotal = Number(o.agreedTotal || o.totalAmount || 0);
+    let paid = 0;
+    if (o.payments && o.payments.length > 0) {
+      paid = o.payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    } else if (o.advancePayment && Number(o.advancePayment) > 0) {
+      paid = Number(o.advancePayment);
+    }
+    const balanceDue = Math.max(0, orderTotal - paid);
+    if (balanceDue > 0.01) {
+      pendingCustomerPayments += balanceDue;
+    }
+  });
+
+  // 3. Expenses Paid & Pending from BusinessExpense
+  const expWhere = {
+    expenseDate: { gte: startDateUtc, lte: endDateUtc }
+  };
+  if (branchScope !== 'ALL') expWhere.branchId = branchScope;
+
+  const expensesList = await prisma.businessExpense.findMany({
+    where: expWhere,
+    select: {
+      totalAmount: true,
+      paidAmount: true,
+      pendingAmount: true,
+      category: true,
+      branchId: true
+    }
+  });
+
+  let totalExpenses = 0;
+  let expensesPaid = 0;
+  let pendingExpenses = 0;
+
+  expensesList.forEach(e => {
+    const tot = Number(e.totalAmount) || 0;
+    const pd = Number(e.paidAmount) || 0;
+    const pnd = Number(e.pendingAmount) || 0;
+
+    totalExpenses += tot;
+    // Prevent duplicate salary counting: exclude STAFF_SALARY category from expensesPaid
+    if (e.category !== 'STAFF_SALARY') {
+      expensesPaid += pd;
+    }
+    pendingExpenses += pnd;
+  });
+
+  // 4. Salaries Paid from Staff Payroll and Tailor Wages
+  let tailorPaid = 0;
+  try {
+    const tailorSql = `
+      SELECT COALESCE(SUM(p."amountPaid"), 0)::numeric as "tailorPaid"
+      FROM "TailorSalaryPayment" p
+      LEFT JOIN "Order" o ON p."orderId" = o.id
+      WHERE p."paymentDate" >= $1 AND p."paymentDate" <= $2
+      ${branchScope !== 'ALL' ? 'AND COALESCE(o."branchId", 1) = $3' : ''}
+    `;
+    const tailorParams = branchScope !== 'ALL' ? [startDateUtc, endDateUtc, branchScope] : [startDateUtc, endDateUtc];
+    const tailorRes = await pool.query(tailorSql, tailorParams);
+    tailorPaid = Number(tailorRes.rows[0]?.tailorPaid) || 0;
+  } catch (err) {
+    console.warn('TailorSalaryPayment query notice in cash-summary:', err.message);
+  }
+
+  const staffSalaryWhere = {
+    status: 'PAID',
+    paymentDate: { gte: startDateUtc, lte: endDateUtc }
+  };
+  if (branchScope !== 'ALL') staffSalaryWhere.branchId = branchScope;
+
+  const staffSalaryList = await prisma.employeeSalary.findMany({
+    where: staffSalaryWhere,
+    select: { netSalary: true }
+  });
+  const staffPaid = staffSalaryList.reduce((s, e) => s + (Number(e.netSalary) || 0), 0);
+  const totalSalariesPaid = tailorPaid + staffPaid;
+
+  // 5. Remaining Cash Calculation
+  // Actual Sales Payments Received - Actual Expenses Paid - Actual Salaries Paid
+  const remainingCash = Math.round((totalSalesReceived - expensesPaid - totalSalariesPaid) * 100) / 100;
+
+  // 6. Check Opening Balance Configuration
+  const accountCount = await prisma.financialAccount.count();
+  const isOpeningBalanceConfigured = accountCount > 0;
+
+  return {
+    success: true,
+    branchScope,
+    currency: 'LKR',
+    period,
+    dateRange: {
+      start: startDateUtc.toISOString(),
+      end: endDateUtc.toISOString()
+    },
+    summary: {
+      totalSalesReceived: Math.round(totalSalesReceived * 100) / 100,
+      pendingCustomerPayments: Math.round(pendingCustomerPayments * 100) / 100,
+      totalExpenses: Math.round(totalExpenses * 100) / 100,
+      expensesPaid: Math.round(expensesPaid * 100) / 100,
+      pendingExpenses: Math.round(pendingExpenses * 100) / 100,
+      salariesPaid: Math.round(totalSalariesPaid * 100) / 100,
+      remainingCash,
+      isSurplus: remainingCash >= 0,
+      isOpeningBalanceConfigured,
+      balanceLabel: isOpeningBalanceConfigured
+        ? 'Actual Available Cash & Bank Balance'
+        : 'Net Cash Movement (Opening Balance Not Configured)',
+      balanceNote: isOpeningBalanceConfigured
+        ? 'Includes opening cash and bank balances plus period net cashflow.'
+        : 'Opening balances are not configured for financial accounts. This represents Net Cash Movement for the selected period, not physical cash in till.',
+      breakdown: {
+        salesByMethod: {
+          cash: Math.round(cashReceived * 100) / 100,
+          bank: Math.round(bankReceived * 100) / 100
+        },
+        salaries: {
+          tailorPaid: Math.round(tailorPaid * 100) / 100,
+          staffPaid: Math.round(staffPaid * 100) / 100
+        },
+        ordersCount: allOrders.length,
+        verifiedPaymentsCount: periodPayments.length
+      }
+    }
+  };
+}
+
+exports.getBusinessCashSummary = async (req, res, next) => {
+  try {
+    let payload;
+    try {
+      payload = await buildCashSummaryData(req);
+    } catch (firstErr) {
+      if (firstErr.status) throw firstErr;
+      console.warn('Cash summary retry after transient socket reset:', firstErr.message);
+      await new Promise(r => setTimeout(r, 350));
+      payload = await buildCashSummaryData(req);
+    }
+    return res.status(200).json(payload);
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error in getBusinessCashSummary:', error);
+    res.status(500).json({ success: false, message: 'Server error generating Business Cash Summary.' });
   }
 };

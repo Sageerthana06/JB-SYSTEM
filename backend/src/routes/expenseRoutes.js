@@ -19,6 +19,13 @@ router.get(
   expenseController.getExpenseDashboard
 );
 
+// 1B. Business Cash Summary (Sales Payments Received, Expenses Paid, Salaries Paid, Remaining Cash)
+router.get(
+  '/cash-summary',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  expenseController.getBusinessCashSummary
+);
+
 // 2. Comprehensive Expense Reports (Daily, Weekly, Monthly, Yearly, Category, Branch)
 router.get(
   '/reports/comprehensive',

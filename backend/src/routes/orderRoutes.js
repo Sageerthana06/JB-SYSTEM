@@ -13,6 +13,9 @@ router.get('/', authorizeRoles('ADMIN', 'MANAGER', 'STAFF', 'TAILOR', 'CUTTING',
 // Dashboard summary metrics — all authenticated staff/management
 router.get('/dashboard-summary', orderController.getDashboardSummary);
 
+// Sales & Payment Summary metrics — all authenticated staff/management
+router.get('/payment-summary', orderController.getSalesPaymentSummary);
+
 // Task Management Endpoints (Must be before /:id)
 router.get('/tasks/my-tasks', authorizeRoles('TAILOR', 'CUTTING', 'EMBROIDERY', 'ADMIN', 'MANAGER', 'STAFF'), taskController.getMyTasks);
 router.get('/tasks/all', authorizeRoles('ADMIN', 'MANAGER', 'STAFF'), taskController.getAllTasks);

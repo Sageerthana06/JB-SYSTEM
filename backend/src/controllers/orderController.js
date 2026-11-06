@@ -1589,6 +1589,151 @@ exports.getDashboardSummary = async (req, res, next) => {
 };
 
 /**
+ * GET /api/orders/payment-summary
+ * Real-time Sales & Payment Summary directly from PostgreSQL
+ * Calculates: Total Order Value, Total Customer Payments Received, Total Customer Pending Balance,
+ * Fully Paid Orders Count, Partially Paid Orders Count, Unpaid Orders Count, Total Outstanding Orders Count.
+ * Supports filters: today, this_month, this_year, all.
+ */
+exports.getSalesPaymentSummary = async (req, res, next) => {
+  try {
+    const rawBranchId = req.query.branchId;
+    let branchId = null;
+
+    const userRole = String(req.user?.role || '').toUpperCase();
+    const isCrossBranch = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
+
+    if (isCrossBranch) {
+      if (rawBranchId !== undefined && rawBranchId !== null && String(rawBranchId).trim() !== '' && String(rawBranchId).trim().toUpperCase() !== 'ALL') {
+        const branchStr = String(rawBranchId).trim();
+        if (!/^\d+$/.test(branchStr) || parseInt(branchStr, 10) <= 0) {
+          return res.status(400).json({ success: false, message: 'Invalid branchId parameter.' });
+        }
+        branchId = parseInt(branchStr, 10);
+      }
+    } else {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: User is not assigned to any branch.'
+        });
+      }
+      if (rawBranchId !== undefined && rawBranchId !== null && String(rawBranchId).trim() !== '') {
+        const branchStr = String(rawBranchId).trim();
+        if (branchStr.toUpperCase() === 'ALL') {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. Managers cannot access all-branch financial data. You are restricted to branch ${managerBranch}.`
+          });
+        }
+        if (!/^\d+$/.test(branchStr) || parseInt(branchStr, 10) !== managerBranch) {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. Managers are restricted to their assigned branch (${managerBranch}). Cannot access branch ${branchStr}.`
+          });
+        }
+      }
+      branchId = managerBranch;
+    }
+
+    const { period = 'all' } = req.query;
+
+    const now = new Date();
+    const todayKey = toColomboDateKey(now);
+    const monthPrefix = todayKey ? todayKey.slice(0, 7) : '';
+    const yearPrefix = todayKey ? todayKey.slice(0, 4) : '';
+
+    const whereClause = branchId ? { branchId } : {};
+
+    const orders = await prisma.order.findMany({
+      where: whereClause,
+      include: {
+        payments: {
+          select: { id: true, amount: true, status: true, paymentMethod: true, createdAt: true }
+        }
+      }
+    });
+
+    // Exclude cancelled/rejected/declined orders
+    const validOrders = orders.filter(o => !DASHBOARD_EXCLUDED_STATUSES.has(String(o.status || '').toUpperCase()));
+
+    // Filter orders by date in Asia/Colombo time
+    const periodOrders = validOrders.filter(o => {
+      if (period === 'all') return true;
+      const dKey = toColomboDateKey(o.orderDate || o.createdAt);
+      if (!dKey) return false;
+      if (period === 'today') return dKey === todayKey;
+      if (period === 'this_month') return dKey.startsWith(monthPrefix);
+      if (period === 'this_year') return dKey.startsWith(yearPrefix);
+      return true;
+    });
+
+    let totalOrderValueCents = 0;
+    let totalPaymentsReceivedCents = 0;
+    let totalPendingBalanceCents = 0;
+    let fullyPaidOrdersCount = 0;
+    let partiallyPaidOrdersCount = 0;
+    let unpaidOrdersCount = 0;
+    let totalOutstandingOrdersCount = 0;
+
+    periodOrders.forEach(o => {
+      const orderTotalCents = getOrderTotalCents(o);
+
+      // Verified payments on this order
+      const verifiedPayments = (o.payments || []).filter(p => {
+        const st = String(p.status || 'VERIFIED').trim().toUpperCase();
+        return st === 'VERIFIED';
+      });
+      const verifiedPaidCents = verifiedPayments.reduce((s, p) => s + toMoneyCents(p.amount), 0);
+
+      // Legacy advance check if verified payments are less than advance
+      const advanceCents = toMoneyCents(o.advancePayment);
+      const legacyAdvanceCents = Math.max(0, advanceCents - verifiedPaidCents);
+      const actualPaidCents = verifiedPaidCents + legacyAdvanceCents;
+
+      const balanceDueCents = orderTotalCents > 0 ? Math.max(0, orderTotalCents - actualPaidCents) : 0;
+
+      if (orderTotalCents > 0) {
+        totalOrderValueCents += orderTotalCents;
+        totalPaymentsReceivedCents += actualPaidCents;
+        totalPendingBalanceCents += balanceDueCents;
+
+        if (balanceDueCents === 0) {
+          fullyPaidOrdersCount++;
+        } else if (actualPaidCents > 0) {
+          partiallyPaidOrdersCount++;
+          totalOutstandingOrdersCount++;
+        } else {
+          unpaidOrdersCount++;
+          totalOutstandingOrdersCount++;
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      branchScope: branchId || 'ALL',
+      period,
+      timezone: 'Asia/Colombo',
+      summary: {
+        totalOrderValue: fromMoneyCents(totalOrderValueCents),
+        totalCustomerPaymentsReceived: fromMoneyCents(totalPaymentsReceivedCents),
+        totalCustomerPendingBalance: fromMoneyCents(totalPendingBalanceCents),
+        fullyPaidOrdersCount,
+        partiallyPaidOrdersCount,
+        unpaidOrdersCount,
+        totalOutstandingOrdersCount,
+        processedOrdersCount: periodOrders.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching sales payment summary:', error);
+    res.status(500).json({ success: false, message: 'Server error retrieving sales payment summary.' });
+  }
+};
+
+/**
  * Approve Order (CEO / Manager)
  * Changes status: PENDING_APPROVAL -> APPROVED (or CUSTOMER_APPROVED if price already accepted)
  */

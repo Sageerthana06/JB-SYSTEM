@@ -14,6 +14,8 @@ const payrollController = require('../controllers/payrollController');
 const businessControlController = require('../controllers/businessControlController');
 const monthlyBillController = require('../controllers/monthlyBillController');
 const businessHealthController = require('../controllers/businessHealthController');
+const supplierPayableController = require('../controllers/supplierPayableController');
+const businessLoanController = require('../controllers/businessLoanController');
 
 // All finance routes require active authenticated staff/management credentials
 router.use(authenticateToken);
@@ -223,8 +225,70 @@ router.delete(
 // System Financial Audit Logs
 router.get(
   '/audit-logs',
-  authorizeRoles('ADMIN'),
+  authorizeRoles('ADMIN', 'CEO'),
   businessControlController.getFinancialAuditLogs
+);
+
+// ==========================================
+// 6. SUPPLIER DEBT & PAYABLES MANAGEMENT
+// ==========================================
+// List suppliers
+router.get(
+  '/suppliers',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  supplierPayableController.getSuppliers
+);
+
+// Add supplier
+router.post(
+  '/suppliers',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  supplierPayableController.createSupplier
+);
+
+// List supplier payables & outstanding debts
+router.get(
+  '/suppliers/payables',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  supplierPayableController.getSupplierPayables
+);
+
+// Record new supplier invoice / payable
+router.post(
+  '/suppliers/payables',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  supplierPayableController.createSupplierPayable
+);
+
+// Record payment towards a supplier payable
+router.post(
+  '/suppliers/payables/:id/pay',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  supplierPayableController.recordSupplierPayment
+);
+
+// ==========================================
+// 7. BUSINESS LOANS & FINANCING MANAGEMENT
+// ==========================================
+// List business loans & principal balances
+router.get(
+  '/loans',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  businessLoanController.getBusinessLoans
+);
+
+// Record new business / bank loan
+router.post(
+  '/loans',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  businessLoanController.createBusinessLoan
+);
+
+// Record loan repayment (principal + interest)
+router.post(
+  '/loans/:id/repay',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  businessLoanController.recordLoanRepayment
 );
 
 module.exports = router;

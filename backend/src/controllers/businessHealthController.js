@@ -129,6 +129,11 @@ const resolveColomboDateRange = (period, customStart, customEnd) => {
       endDateUtc = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
       break;
     }
+    case 'all': {
+      startDateUtc = new Date(Date.UTC(2020, 0, 1, 0, 0, 0, 0) - COLOMBO_OFFSET_MS);
+      endDateUtc = new Date(Date.UTC(year + 5, 11, 31, 23, 59, 59, 999) - COLOMBO_OFFSET_MS);
+      break;
+    }
     case 'custom':
     default: {
       if (customStart && customEnd) {
@@ -316,11 +321,14 @@ async function buildDashboardData(req) {
       const pd = Number(exp.paidAmount) || 0;
       const pnd = Number(exp.pendingAmount) || 0;
 
-      totalExpensesPaid += pd;
+      // Prevent duplicate salary counting: exclude STAFF_SALARY category from operating expenses (Card B)
+      // because staff and tailor salaries are computed and tracked in Card C (Salaries Paid)
+      if (exp.category !== 'STAFF_SALARY') {
+        totalExpensesPaid += pd;
+        if (exp.branchId === 1) branch1ExpensesPaid += pd;
+        else if (exp.branchId === 2) branch2ExpensesPaid += pd;
+      }
       totalExpensesPending += pnd;
-
-      if (exp.branchId === 1) branch1ExpensesPaid += pd;
-      else if (exp.branchId === 2) branch2ExpensesPaid += pd;
 
       const catKey = exp.category;
       if (categoryStats[catKey]) {
@@ -670,6 +678,60 @@ async function buildDashboardData(req) {
     const projectedRemainingBalance = baseFundForProjection - totalBusinessObligations;
 
     // =========================================================================
+    // 7B. SUPPLIER DEBT & BUSINESS LOANS RECONCILIATION
+    // =========================================================================
+    // A. Supplier Payables
+    const supWhere = { paymentStatus: { notIn: ['PAID', 'CANCELLED'] } };
+    if (branchScope !== 'ALL') supWhere.branchId = branchScope;
+
+    const activeSupplierPayables = await prisma.supplierPayable.findMany({
+      where: supWhere,
+      select: { outstandingAmount: true, dueDate: true, supplierId: true }
+    });
+
+    let totalSupplierOutstanding = 0;
+    let overdueSupplierAmount = 0;
+    let overdueSupplierCount = 0;
+    const activeSupplierIds = new Set();
+
+    activeSupplierPayables.forEach(p => {
+      const out = Number(p.outstandingAmount) || 0;
+      totalSupplierOutstanding += out;
+      activeSupplierIds.add(p.supplierId);
+      if (out > 0.01 && p.dueDate && new Date(p.dueDate) < now) {
+        overdueSupplierCount++;
+        overdueSupplierAmount += out;
+      }
+    });
+
+    // B. Business Loans & Financing
+    const loanWhere = { status: 'ACTIVE' };
+    if (branchScope !== 'ALL') {
+      loanWhere.OR = [{ branchId: branchScope }, { branchId: null }];
+    }
+
+    const activeLoans = await prisma.businessLoan.findMany({
+      where: loanWhere,
+      include: {
+        repayments: { select: { interestAmount: true, principalAmount: true } }
+      }
+    });
+
+    let totalLoanOutstanding = 0;
+    let totalLoanInterestPaid = 0;
+    activeLoans.forEach(l => {
+      totalLoanOutstanding += Number(l.outstandingPrincipal) || 0;
+      if (l.repayments) {
+        l.repayments.forEach(r => {
+          totalLoanInterestPaid += Number(r.interestAmount) || 0;
+        });
+      }
+    });
+
+    // C. Total Business Assets Position
+    const netBusinessAssets = (currentCash + currentBank + totalCustomerBalance) - (totalSupplierOutstanding + totalLoanOutstanding);
+
+    // =========================================================================
     // 8. 6-MONTH HISTORICAL TREND
     // =========================================================================
     const monthlyTrend = [];
@@ -720,7 +782,7 @@ async function buildDashboardData(req) {
         end: endDateUtc.toISOString()
       },
 
-      // 5. CEO MAIN FINANCIAL DASHBOARD (CARDS A THROUGH H)
+      // 5. CEO MAIN FINANCIAL DASHBOARD (CARDS A THROUGH K)
       dashboardCards: {
         cardA_totalMoneyReceived: Math.round(totalActualIncomeReceived * 100) / 100,
         cardB_totalExpensesPaid: Math.round(totalActualExpensesPaid * 100) / 100,
@@ -729,7 +791,10 @@ async function buildDashboardData(req) {
         cardE_totalPendingSalaries: Math.round(totalPendingSalaries * 100) / 100,
         cardF_totalPendingBills: Math.round(totalPendingBills * 100) / 100,
         cardG_totalCustomerBalance: Math.round(totalCustomerBalance * 100) / 100,
-        cardH_totalBusinessObligations: Math.round(totalBusinessObligations * 100) / 100
+        cardH_totalBusinessObligations: Math.round(totalBusinessObligations * 100) / 100,
+        cardI_totalSupplierOutstanding: Math.round(totalSupplierOutstanding * 100) / 100,
+        cardJ_totalLoanOutstanding: Math.round(totalLoanOutstanding * 100) / 100,
+        cardK_netBusinessWorth: Math.round(netBusinessAssets * 100) / 100
       },
 
       // 6. FINAL REMAINING MONEY CALCULATION (TWO SEPARATE CALCULATIONS)
@@ -872,6 +937,29 @@ async function buildDashboardData(req) {
           salariesPaid: Math.round(branch2TotalSalaries * 100) / 100,
           netCashflow: Math.round((branch2PeriodIncome - branch2ExpensesPaid - branch2TotalSalaries) * 100) / 100
         }
+      },
+
+      // 10. SUPPLIER DEBT & LOAN MANAGEMENT TELEMETRY
+      supplierDebtSummary: {
+        totalSupplierOutstanding: Math.round(totalSupplierOutstanding * 100) / 100,
+        overdueSupplierAmount: Math.round(overdueSupplierAmount * 100) / 100,
+        overdueSupplierCount,
+        activeSuppliersCount: activeSupplierIds.size
+      },
+
+      loanSummary: {
+        totalLoanOutstanding: Math.round(totalLoanOutstanding * 100) / 100,
+        activeLoansCount: activeLoans.length,
+        totalInterestPaid: Math.round(totalLoanInterestPaid * 100) / 100
+      },
+
+      netAssetsSummary: {
+        liquidCashAndBank: Math.round((currentCash + currentBank) * 100) / 100,
+        customerReceivables: Math.round(totalCustomerBalance * 100) / 100,
+        supplierPayables: Math.round(totalSupplierOutstanding * 100) / 100,
+        loansPayable: Math.round(totalLoanOutstanding * 100) / 100,
+        netBusinessWorth: Math.round(netBusinessAssets * 100) / 100,
+        isOpeningBalanceConfigured
       },
 
       monthlyTrend
