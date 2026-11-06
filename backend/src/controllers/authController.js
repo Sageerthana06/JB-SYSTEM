@@ -4,6 +4,11 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const emailService = require('../utils/emailService');
 const { logAudit } = require('../utils/auditLogger');
+const {
+  checkRateLimit,
+  recordFailedAttempt,
+  resetRateLimit
+} = require('../utils/rateLimiter');
 
 exports.login = async (req, res, next) => {
   try {
@@ -16,6 +21,31 @@ exports.login = async (req, res, next) => {
     const normalizedEmail = (email || '').trim().toLowerCase();
     const effectiveEmail = normalizedEmail === 'pratheep@jbgroup.com' ? 'staff@jbgroup.com' : normalizedEmail;
 
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown-ip';
+    const ipKey = `login:ip:${clientIp}`;
+    const accountKey = `login:account:${effectiveEmail}`;
+
+    // Rate Limiting Check:
+    // Account: 5 failed attempts per 15 minutes window
+    // IP: 20 failed attempts per 15 minutes window (preserves shared office NAT gateways)
+    const accountRate = checkRateLimit(accountKey, 5, 15 * 60 * 1000);
+    if (accountRate.isBlocked) {
+      return res.status(429).json({
+        success: false,
+        message: `Too many failed login attempts for this account. Please try again in ${accountRate.retryAfterSeconds} seconds.`,
+        retryAfter: accountRate.retryAfterSeconds
+      });
+    }
+
+    const ipRate = checkRateLimit(ipKey, 20, 15 * 60 * 1000);
+    if (ipRate.isBlocked) {
+      return res.status(429).json({
+        success: false,
+        message: `Too many failed login attempts from this network. Please try again in ${ipRate.retryAfterSeconds} seconds.`,
+        retryAfter: ipRate.retryAfterSeconds
+      });
+    }
+
     const user = await prisma.user.findFirst({
       where: {
         email: { equals: effectiveEmail, mode: 'insensitive' }
@@ -25,18 +55,32 @@ exports.login = async (req, res, next) => {
         branch: { select: { id: true, name: true } }
       }
     });
+
+    // Anti-enumeration: consistent 401 response and timing whether account exists or not
     if (!user) {
+      recordFailedAttempt(ipKey);
+      recordFailedAttempt(accountKey);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    // Inactive user handling: return 401 to prevent user status probing
     if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account is inactive. Please contact an administrator.' });
+      recordFailedAttempt(ipKey);
+      recordFailedAttempt(accountKey);
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      recordFailedAttempt(ipKey);
+      recordFailedAttempt(accountKey);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+
+    // Successful login:
+    // Reset ONLY account rate limit counter
+    // Do NOT reset shared IP counter (prevents attacker clearing IP block via valid account)
+    resetRateLimit(accountKey);
 
     // Update lastLoginAt
     await prisma.user.update({

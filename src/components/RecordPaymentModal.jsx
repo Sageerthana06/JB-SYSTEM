@@ -16,9 +16,16 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
 
   useEffect(() => {
     if (order) {
-      const balance = Math.max(0, Number(order.totalAmount || 0) - Number(order.advancePayment || 0));
+      const tot = Number(order.agreedTotal) > 0
+        ? Number(order.agreedTotal)
+        : (order.totalAmount !== null && order.totalAmount !== undefined ? Number(order.totalAmount) : 0);
+      const bal = order.paymentSummary?.balanceDue !== undefined
+        ? Number(order.paymentSummary.balanceDue)
+        : (order.balanceAmount !== null && order.balanceAmount !== undefined
+          ? Number(order.balanceAmount)
+          : Math.max(0, tot - Number(order.advancePayment || 0)));
       // Default to full balance or empty
-      setAmount(balance > 0 ? String(balance) : '');
+      setAmount(bal > 0 ? String(bal) : '');
       setTransactionRef('');
       setNotes('');
       setSlipFile(null);
@@ -29,9 +36,17 @@ export const RecordPaymentModal = ({ order, isOpen, onClose, onPaymentRecorded }
 
   if (!isOpen || !order) return null;
 
-  const total = Number(order.totalAmount || 0);
-  const alreadyPaid = Number(order.advancePayment || 0);
-  const currentBalance = Math.max(0, total - alreadyPaid);
+  const total = Number(order.agreedTotal) > 0
+    ? Number(order.agreedTotal)
+    : (order.totalAmount !== null && order.totalAmount !== undefined ? Number(order.totalAmount) : 0);
+  const currentBalance = order.paymentSummary?.balanceDue !== undefined
+    ? Number(order.paymentSummary.balanceDue)
+    : (order.balanceAmount !== null && order.balanceAmount !== undefined
+      ? Number(order.balanceAmount)
+      : Math.max(0, total - Number(order.advancePayment || 0)));
+  const alreadyPaid = order.paymentSummary?.paidAmount !== undefined
+    ? Number(order.paymentSummary.paidAmount)
+    : Math.max(0, total - currentBalance);
 
   const numAmount = parseFloat(amount) || 0;
   const newBalance = Math.max(0, currentBalance - numAmount);

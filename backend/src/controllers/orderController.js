@@ -464,6 +464,17 @@ exports.getOrderById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
+    // Security check: Manager can only view orders in their authorized branch
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: Managers are restricted to their assigned branch (${managerBranch || 'none'}). Cannot access order in branch ${order.branchId || 'unassigned'}.`
+        });
+      }
+    }
+
     // Security check: Customers can only view their own orders
     if (req.user?.role === 'CUSTOMER' && order.customerId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Access denied. You can only view your own orders.' });
@@ -511,6 +522,7 @@ exports.updateOrderStatus = async (req, res, next) => {
       select: {
         id: true,
         orderNumber: true,
+        branchId: true,
         status: true,
         assignedTailorId: true,
         tailorAccepted: true,
@@ -526,6 +538,17 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     if (!currentOrder) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    // Branch authorization check for Manager
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (currentOrder.branchId && currentOrder.branchId !== managerBranch)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: Managers cannot modify orders from another branch.`
+        });
+      }
     }
 
     // Completed orders are read-only (except SUPER_ADMIN)
@@ -1115,6 +1138,17 @@ exports.generateOrderPdf = async (req, res, next) => {
 
     if (!order) return res.status(404).json({ success: false, message: 'Order not found.' });
 
+    // Security check: Manager can only download order PDF in their authorized branch
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: Managers are restricted to their assigned branch (${managerBranch || 'none'}). Cannot access order in branch ${order.branchId || 'unassigned'}.`
+        });
+      }
+    }
+
     // Security check: Tailors must NOT receive financial invoices (Requirement 5)
     if (req.user?.role === 'TAILOR') {
       return res.status(403).json({ success: false, message: 'Access denied. Tailors are not authorized to view or download invoices.' });
@@ -1576,6 +1610,13 @@ exports.approveOrder = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Managers cannot approve orders from another branch.' });
+      }
+    }
+
     if (order.status === 'COMPLETED' && req.user?.role !== 'SUPER_ADMIN') {
       return res.status(403).json({ success: false, message: 'Order is completed and archived. Completed orders are read-only.' });
     }
@@ -1653,6 +1694,13 @@ exports.requestChangesOrder = async (req, res, next) => {
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Managers cannot request changes for orders from another branch.' });
+      }
     }
 
     if (order.status !== 'PENDING_APPROVAL') {
@@ -1744,6 +1792,13 @@ exports.setOrderPrice = async (req, res, next) => {
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Managers cannot set prices for orders from another branch.' });
+      }
     }
 
     if (order.status === 'COMPLETED' && req.user?.role !== 'SUPER_ADMIN') {
@@ -1898,6 +1953,13 @@ exports.confirmCustomerPrice = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Managers cannot record customer price acceptance for orders from another branch.' });
+      }
+    }
+
     if (order.status === 'COMPLETED' && req.user?.role !== 'SUPER_ADMIN') {
       return res.status(403).json({ success: false, message: 'Order is completed and archived. Completed orders are read-only.' });
     }
@@ -1993,6 +2055,13 @@ exports.requestCustomerPriceRevision = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Managers cannot request price revision for orders from another branch.' });
+      }
+    }
+
     if (order.status === 'COMPLETED' && req.user?.role !== 'SUPER_ADMIN') {
       return res.status(403).json({ success: false, message: 'Order is completed and archived.' });
     }
@@ -2056,6 +2125,13 @@ exports.rejectOrder = async (req, res, next) => {
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    if (req.user?.role === 'MANAGER') {
+      const managerBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!managerBranch || (order.branchId && order.branchId !== managerBranch)) {
+        return res.status(403).json({ success: false, message: 'Access denied: Managers cannot reject orders from another branch.' });
+      }
     }
 
     if (order.status === 'COMPLETED' && req.user?.role !== 'SUPER_ADMIN') {

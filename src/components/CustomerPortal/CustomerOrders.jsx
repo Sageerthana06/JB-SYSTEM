@@ -16,7 +16,8 @@ import {
   CreditCard
 } from 'lucide-react';
 import { getStatusLabel, cleanActivityNote } from '../../utils/orderStatus';
-import { API_URL, getImageUrl } from '../../config/api';
+import { API_URL, getImageUrl, fetchAuthenticatedSlipBlobUrl } from '../../config/api';
+import AuthenticatedSlipImage from '../AuthenticatedSlipImage';
 import { ImageUploadCapture } from '../common/ImageUploadCapture';
 
 export const CustomerOrders = () => {
@@ -42,6 +43,22 @@ export const CustomerOrders = () => {
   const [slipNotes, setSlipNotes] = useState('');
   const [isUploadingSlip, setIsUploadingSlip] = useState(false);
   const [viewingSlipImage, setViewingSlipImage] = useState(null);
+
+  const handleOpenCustomerSlip = async (slipPath) => {
+    try {
+      const blobUrl = await fetchAuthenticatedSlipBlobUrl(slipPath);
+      setViewingSlipImage(blobUrl);
+    } catch (err) {
+      showToast('Unable to view payment slip: ' + err.message, 'error');
+    }
+  };
+
+  const handleCloseCustomerSlip = () => {
+    if (viewingSlipImage && viewingSlipImage.startsWith('blob:')) {
+      URL.revokeObjectURL(viewingSlipImage);
+    }
+    setViewingSlipImage(null);
+  };
 
   const fetchOrders = (isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -1185,7 +1202,7 @@ export const CustomerOrders = () => {
                           {/* Slip Image Thumbnail if available */}
                           {p.slipImage ? (
                             <div
-                              onClick={() => setViewingSlipImage(getImageUrl(p.slipImage))}
+                              onClick={() => handleOpenCustomerSlip(p.slipImage)}
                               style={{
                                 width: '48px',
                                 height: '48px',
@@ -1198,8 +1215,8 @@ export const CustomerOrders = () => {
                               }}
                               title="Click to view full receipt"
                             >
-                              <img
-                                src={getImageUrl(p.slipImage)}
+                              <AuthenticatedSlipImage
+                                src={p.slipImage}
                                 alt="Payment slip"
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
@@ -1791,7 +1808,7 @@ export const CustomerOrders = () => {
             zIndex: 1000005,
             padding: '20px'
           }}
-          onClick={() => setViewingSlipImage(null)}
+          onClick={handleCloseCustomerSlip}
         >
           <div
             style={{
@@ -1805,7 +1822,7 @@ export const CustomerOrders = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setViewingSlipImage(null)}
+              onClick={handleCloseCustomerSlip}
               style={{
                 position: 'absolute',
                 top: '-42px',

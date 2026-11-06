@@ -11,6 +11,8 @@ import { InventoryERP } from './InventoryERP';
 import { UserManagement } from './UserManagement';
 import { WeeklySalaryERP } from './WeeklySalaryERP';
 import { DailyReportsERP } from './DailyReportsERP';
+import { FinanceERP } from './FinanceERP';
+import { ExpenseManagementERP } from './Expenses/ExpenseManagementERP';
 import { Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
 
 /**
@@ -69,6 +71,30 @@ export const ModuleRenderer = () => {
 
   if (activeTab === 'payroll') {
     return <WeeklySalaryERP />;
+  }
+
+  if (activeTab === 'finance') {
+    if (!hasPermission(user?.role, 'finance.view')) {
+      return (
+        <div style={{ padding: '48px', textAlign: 'center', color: '#dc2626' }}>
+          <h3>Access Denied</h3>
+          <p>You do not have permission to access Financial Control.</p>
+        </div>
+      );
+    }
+    return <FinanceERP />;
+  }
+
+  if (activeTab === 'expenses') {
+    if (!hasPermission(user?.role, 'expenses.view') && !hasPermission(user?.role, 'finance.view')) {
+      return (
+        <div style={{ padding: '48px', textAlign: 'center', color: '#dc2626' }}>
+          <h3>Access Denied</h3>
+          <p>You do not have permission to access Expense Management.</p>
+        </div>
+      );
+    }
+    return <ExpenseManagementERP />;
   }
 
   if (activeTab === 'reports') {
@@ -177,7 +203,7 @@ export const ModuleRenderer = () => {
         </div>
 
         <div className="badge badge-navy" style={{ padding: '8px 14px', fontSize: '0.8rem' }}>
-          Filter: <strong>{activeBranch === 'ALL' ? 'All 3 Branches Combined' : activeBranch}</strong>
+          Filter: <strong>{activeBranch === 'ALL' ? 'All Branches Combined' : activeBranch}</strong>
         </div>
       </div>
 

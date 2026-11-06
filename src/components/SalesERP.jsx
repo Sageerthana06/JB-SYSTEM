@@ -50,7 +50,74 @@ import { SelfAttendanceCard } from './SelfAttendanceCard';
 import { TaskAssignmentModal } from './TaskAssignmentModal';
 import { CustomerFinishedNotificationModal } from './CustomerFinishedNotificationModal';
 import { getStatusLabel, getStatusColors, getNextStageInfo, ALLOWED_STAGE_TRANSITIONS, getPriceStatusLabel, getPriceStatusColors, cleanActivityNote, cleanActorName } from '../utils/orderStatus';
-import { API_URL, getImageUrl } from '../config/api';
+import { API_URL, getImageUrl, fetchAuthenticatedSlipBlobUrl } from '../config/api';
+import AuthenticatedSlipImage from './AuthenticatedSlipImage';
+
+/**
+ * Calculates customer order payment details using ONLY verified payment records.
+ * Excludes pending, rejected, or unverified payments.
+ * Supports partial and multiple payments, calculating the true outstanding balance.
+ */
+const calculateOrderPaymentSummary = (order) => {
+  if (!order) {
+    return {
+      orderTotal: 0,
+      paidAmount: 0,
+      balanceDue: 0,
+      isFullyPaid: false,
+      isPartiallyPaid: false,
+      isUnpaid: true,
+      hasPendingSlip: false
+    };
+  }
+
+  const raw = order.rawOrder || order;
+
+  // 1. Order Total: prefers agreedTotal when positive, falls back to totalAmount, then total
+  const orderTotal = Number(raw.agreedTotal) > 0
+    ? Number(raw.agreedTotal)
+    : (raw.totalAmount !== null && raw.totalAmount !== undefined
+      ? Number(raw.totalAmount)
+      : (order.total !== null && order.total !== undefined ? Number(order.total) : 0));
+
+  // 2. Paid Amount: Sum of ONLY VERIFIED payments
+  const paymentsList = Array.isArray(raw.payments) ? raw.payments : [];
+
+  let verifiedSum = 0;
+  let hasPendingSlip = false;
+
+  for (const p of paymentsList) {
+    if (!p) continue;
+    const pStatus = p.status ? String(p.status).trim().toUpperCase() : 'VERIFIED';
+    if (pStatus === 'VERIFIED') {
+      verifiedSum += Number(p.amount) || 0;
+    } else if (pStatus === 'PENDING_VERIFICATION') {
+      hasPendingSlip = true;
+    }
+  }
+
+  // Handle legacy orders without Payment records carefully by checking residual advancePayment
+  const advance = Number(raw.advancePayment) || 0;
+  const legacyAdvance = Math.max(0, advance - verifiedSum);
+  const paidAmount = Math.round((verifiedSum + legacyAdvance) * 100) / 100;
+
+  // 3. Balance Due: Remaining amount customer needs to pay
+  const balanceDue = orderTotal > 0 ? Math.max(0, Math.round((orderTotal - paidAmount) * 100) / 100) : 0;
+
+  const isFullyPaid = orderTotal > 0 && paidAmount >= orderTotal;
+  const isPartiallyPaid = orderTotal > 0 && paidAmount > 0 && paidAmount < orderTotal;
+  const isUnpaid = orderTotal > 0 && paidAmount === 0;
+
+  return {
+    orderTotal,
+    paidAmount,
+    balanceDue,
+    isFullyPaid,
+    isPartiallyPaid,
+    isUnpaid,
+    hasPendingSlip
+  };
+};
 
 const StatusDropdown = ({ currentStatus, onStatusChange, targetOrder, userRole }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -561,6 +628,23 @@ const ViewOrderModal = ({
   const [rejectingSlipPaymentId, setRejectingSlipPaymentId] = useState(null);
   const [slipRejectReason, setSlipRejectReason] = useState('');
 
+  const handleOpenSlipModal = async (slipPath) => {
+    try {
+      const blobUrl = await fetchAuthenticatedSlipBlobUrl(slipPath);
+      setViewingSlipModalImage(blobUrl);
+    } catch (err) {
+      console.warn('Payment slip load failed:', err.message);
+      alert('Access restricted: You do not have authorization to view this payment slip.');
+    }
+  };
+
+  const handleCloseSlipModal = () => {
+    if (viewingSlipModalImage && viewingSlipModalImage.startsWith('blob:')) {
+      URL.revokeObjectURL(viewingSlipModalImage);
+    }
+    setViewingSlipModalImage(null);
+  };
+
   useEffect(() => {
     setLocalTailorId(order?.assignedTailorId || '');
   }, [order?.assignedTailorId]);
@@ -569,7 +653,7 @@ const ViewOrderModal = ({
 
   const nextInfo = getNextStageInfo(order);
   const canAssignTailor = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(user?.role));
-  const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes((user?.role || '').toUpperCase());
+  const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO', 'STAFF', 'CASHIER'].includes((user?.role || '').toUpperCase());
   const isPriceConfirmed = Boolean(
     order.priceAcceptedByCustomer ||
     order.priceStatus === 'ACCEPTED' ||
@@ -799,7 +883,7 @@ const ViewOrderModal = ({
                   </button>
                   {pendingPayment.slipImage && (
                     <button
-                      onClick={() => setViewingSlipModalImage(getImageUrl(pendingPayment.slipImage))}
+                      onClick={() => handleOpenSlipModal(pendingPayment.slipImage)}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
                         padding: '8px 14px', borderRadius: '8px',
@@ -1553,7 +1637,7 @@ const ViewOrderModal = ({
                             {/* Receipt Image Thumbnail */}
                             {p.slipImage ? (
                               <div
-                                onClick={() => setViewingSlipModalImage(getImageUrl(p.slipImage))}
+                                onClick={() => handleOpenSlipModal(p.slipImage)}
                                 style={{
                                   width: '72px',
                                   height: '72px',
@@ -1568,8 +1652,8 @@ const ViewOrderModal = ({
                                 }}
                                 title="Click to view full receipt in lightbox"
                               >
-                                <img
-                                  src={getImageUrl(p.slipImage)}
+                                <AuthenticatedSlipImage
+                                  src={p.slipImage}
                                   alt="Payment Slip Proof"
                                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
@@ -1887,7 +1971,7 @@ const ViewOrderModal = ({
         {/* Payment Slip Lightbox Preview Modal */}
         {viewingSlipModalImage && (
           <div
-            onClick={() => setViewingSlipModalImage(null)}
+            onClick={handleCloseSlipModal}
             style={{
               position: 'fixed',
               inset: 0,
@@ -1923,7 +2007,7 @@ const ViewOrderModal = ({
               }}>
                 <strong style={{ fontSize: '0.95rem' }}>Customer Payment Slip Proof</strong>
                 <button
-                  onClick={() => setViewingSlipModalImage(null)}
+                  onClick={handleCloseSlipModal}
                   style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '4px' }}
                 >
                   <X size={20} />
@@ -2030,7 +2114,7 @@ export const SalesERP = () => {
   const { activeBranch, setActiveBranch, getAuthHeaders, user, setActiveTab } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
   const isSuperOrAdmin = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
-  const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO'].includes(userRole);
+  const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO', 'STAFF', 'CASHIER'].includes(userRole);
   const canSwitchBranch = isSuperOrAdmin;
   const effectiveBranch = (userRole === 'MANAGER' && user?.branchId) ? String(user.branchId) : activeBranch;
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -2602,21 +2686,25 @@ export const SalesERP = () => {
   const pendingSlipOrders = orders.filter(o => o.payments && o.payments.some(p => p.status === 'PENDING_VERIFICATION'));
   const pendingSlipCount = pendingSlipOrders.length;
 
-  const recentOrders = orders.map(ord => ({
-    id: ord.id,
-    orderNumber: ord.orderNumber || `ORD-${ord.id}`,
-    customer: ord.customer?.name || 'Unknown Customer',
-    phone: ord.customer?.primaryPhone || null,
-    branch: ord.branch?.name || null,
-    item: ord.garmentDetails?.dressType || 'Not specified',
-    quantity: ord.garmentDetails?.quantity || null,
-    total: ord.totalAmount ?? null,
-    paid: ord.advancePayment ?? null,
-    pending: ord.balanceAmount ?? null,
-    status: ord.status || null,
-    date: ord.orderDate ? new Date(ord.orderDate).toLocaleString() : '—',
-    rawOrder: ord
-  }));
+  const recentOrders = orders.map(ord => {
+    const pay = calculateOrderPaymentSummary(ord);
+    return {
+      id: ord.id,
+      orderNumber: ord.orderNumber || `ORD-${ord.id}`,
+      customer: ord.customer?.name || 'Unknown Customer',
+      phone: ord.customer?.primaryPhone || null,
+      branch: ord.branch?.name || null,
+      item: ord.garmentDetails?.dressType || 'Not specified',
+      quantity: ord.garmentDetails?.quantity || null,
+      total: pay.orderTotal,
+      paid: pay.paidAmount,
+      pending: pay.balanceDue,
+      status: ord.status || null,
+      date: ord.orderDate ? new Date(ord.orderDate).toLocaleString() : '—',
+      rawOrder: ord,
+      paymentSummary: pay
+    };
+  });
 
   const filteredOrders = recentOrders.filter(ord => {
     if (selectedFilter === 'All') return true;
@@ -3296,7 +3384,11 @@ export const SalesERP = () => {
               Recent Orders
             </h4>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Latest orders from all branches
+              {userRole === 'MANAGER'
+                ? `Orders for ${Number(user?.branchId) === 2 ? 'Bella Design' : 'JB Group (Main)'}`
+                : (effectiveBranch === 'ALL'
+                    ? 'Latest orders from all branches'
+                    : `Orders for ${String(effectiveBranch) === '2' ? 'Bella Design' : 'JB Group (Main)'}`)}
             </p>
           </div>
 
@@ -3376,7 +3468,7 @@ export const SalesERP = () => {
                   <th style={{ padding: '12px 16px' }}>Garment / Item</th>
                   <th style={{ padding: '12px 16px' }}>Assigned Tailor</th>
                   <th style={{ padding: '12px 16px' }}>Order Total</th>
-                  <th style={{ padding: '12px 16px' }}>Payment / Balance</th>
+                  <th style={{ padding: '12px 16px', minWidth: '220px' }}>Payment Details</th>
                   <th style={{ padding: '12px 16px' }}>Order Status</th>
                   <th style={{ padding: '12px 16px', textAlign: 'center' }}>Action</th>
                 </tr>
@@ -3555,81 +3647,115 @@ export const SalesERP = () => {
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         {isFullAccess ? (() => {
-                          const total = ord.total !== null && ord.total !== undefined ? Number(ord.total) : 0;
-                          const paid = ord.paid !== null && ord.paid !== undefined ? Number(ord.paid) : 0;
-                          const balance = total > 0 ? Math.max(0, total - paid) : 0;
+                          const pay = ord.paymentSummary || calculateOrderPaymentSummary(targetOrder);
+                          const { orderTotal, paidAmount, balanceDue, isFullyPaid, isPartiallyPaid, hasPendingSlip } = pay;
 
-                          if (total <= 0) {
-                            return (
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '0.72rem',
-                                fontWeight: 800,
-                                backgroundColor: '#fef3c7',
-                                color: '#b45309',
-                                border: '1px solid #fde68a'
-                              }}>
-                                PRICE PENDING
-                              </span>
-                            );
-                          }
-
-                          if (paid >= total && total > 0) {
-                            return (
-                              <div>
-                                <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  ✓ PAID
-                                </span>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                  LKR {total.toLocaleString()}
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          // Balance > 0
-                          const isPartiallyPaid = paid > 0;
                           return (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                              <span className={`badge ${isPartiallyPaid ? 'badge-warning' : 'badge-danger'}`} style={{
-                                backgroundColor: isPartiallyPaid ? '#fef3c7' : '#fee2e2',
-                                color: isPartiallyPaid ? '#b45309' : '#dc2626',
-                                border: `1px solid ${isPartiallyPaid ? '#fde68a' : '#fca5a5'}`
-                              }}>
-                                {isPartiallyPaid ? 'PARTIALLY PAID' : 'UNPAID'}
-                              </span>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: 600 }}>
-                                Due: LKR {balance.toLocaleString()}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: '190px' }}>
+                              {/* Payment Status Badge */}
+                              <div>
+                                {orderTotal <= 0 ? (
+                                  <span style={{
+                                    display: 'inline-block',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    backgroundColor: '#fef3c7',
+                                    color: '#b45309',
+                                    border: '1px solid #fde68a'
+                                  }}>
+                                    PRICE PENDING
+                                  </span>
+                                ) : isFullyPaid ? (
+                                  <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', fontWeight: 800 }}>
+                                    ✓ FULLY PAID
+                                  </span>
+                                ) : (
+                                  <span
+                                    className={`badge ${isPartiallyPaid ? 'badge-warning' : 'badge-danger'}`}
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      fontWeight: 800,
+                                      backgroundColor: isPartiallyPaid ? '#fef3c7' : '#fee2e2',
+                                      color: isPartiallyPaid ? '#b45309' : '#dc2626',
+                                      border: `1px solid ${isPartiallyPaid ? '#fde68a' : '#fca5a5'}`
+                                    }}
+                                  >
+                                    {isPartiallyPaid ? 'PARTIALLY PAID' : 'UNPAID'}
+                                  </span>
+                                )}
                               </div>
-                              {paid > 0 && (
-                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                  Paid: LKR {paid.toLocaleString()}
+
+                              {/* 3 Explicit Payment Details: Order Total, Paid Amount, Balance Due */}
+                              <div style={{
+                                backgroundColor: 'var(--bg-main)',
+                                padding: '7px 9px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '3px',
+                                fontSize: '0.75rem',
+                                lineHeight: '1.25'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Order Total:</span>
+                                  <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                                    {orderTotal > 0 ? `LKR ${orderTotal.toLocaleString()}` : 'Pending'}
+                                  </span>
                                 </div>
-                              )}
-                              <button
-                                onClick={() => setPaymentOrder(targetOrder)}
-                                title="Record Payment"
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#10b981',
-                                  color: '#fff',
-                                  border: 'none',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
+                                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Paid Amount:</span>
+                                  <span style={{ fontWeight: 800, color: paidAmount > 0 ? '#16a34a' : 'var(--text-muted)' }}>
+                                    LKR {paidAmount.toLocaleString()}
+                                  </span>
+                                </div>
+
+                                <div style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  gap: '10px',
+                                  borderTop: '1px dashed var(--border-color)',
+                                  paddingTop: '3px',
                                   marginTop: '2px'
-                                }}
-                              >
-                                <CreditCard size={12} />
-                                Record Payment
-                              </button>
-                              {targetOrder.payments?.some(p => p.status === 'PENDING_VERIFICATION') && (
+                                }}>
+                                  <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Balance Due:</span>
+                                  <span style={{ fontWeight: 800, color: balanceDue > 0 ? '#dc2626' : '#16a34a' }}>
+                                    LKR {balanceDue.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Action Button: Record Payment if balance due */}
+                              {balanceDue > 0 && (
+                                <button
+                                  onClick={() => setPaymentOrder(targetOrder)}
+                                  title="Record Payment"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px',
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    backgroundColor: '#10b981',
+                                    color: '#fff',
+                                    border: 'none',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    marginTop: '1px'
+                                  }}
+                                >
+                                  <CreditCard size={12} />
+                                  Record Payment
+                                </button>
+                              )}
+
+                              {/* Customer Payment Slip Alert */}
+                              {hasPendingSlip && (
                                 <div style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
@@ -3639,9 +3765,8 @@ export const SalesERP = () => {
                                   border: '1px solid #93c5fd',
                                   borderRadius: '6px',
                                   padding: '2px 7px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 800,
-                                  marginTop: '3px'
+                                  fontSize: '0.7rem',
+                                  fontWeight: 800
                                 }}>
                                   <span>🔔 Slip Uploaded</span>
                                   <button
@@ -3655,7 +3780,7 @@ export const SalesERP = () => {
                                       cursor: 'pointer',
                                       padding: 0,
                                       fontWeight: 800,
-                                      fontSize: '0.72rem',
+                                      fontSize: '0.7rem',
                                       marginLeft: '3px'
                                     }}
                                   >
@@ -3885,11 +4010,8 @@ export const SalesERP = () => {
               const targetOrder = ord.rawOrder || orders.find(o => o.id === ord.id) || ord;
               const isPending = ord.status === 'PENDING_APPROVAL';
               const isRejected = ord.status === 'REJECTED';
-              const total = ord.total !== null && ord.total !== undefined ? Number(ord.total) : 0;
-              const paid = ord.paid !== null && ord.paid !== undefined ? Number(ord.paid) : 0;
-              const balance = total > 0 ? Math.max(0, total - paid) : 0;
-              const isPartiallyPaid = paid > 0 && paid < total;
-              const isPaid = paid >= total && total > 0;
+              const pay = ord.paymentSummary || calculateOrderPaymentSummary(targetOrder);
+              const { orderTotal, paidAmount, balanceDue, isFullyPaid, isPartiallyPaid } = pay;
               const canAssign = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role));
               const nextInfo = getNextStageInfo(targetOrder);
               const canAdvanceStage = Boolean(['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(user?.role) || (user?.role === 'TAILOR' && (Number(targetOrder.assignedTailorId) === Number(user?.id) || (targetOrder?.tasks && targetOrder.tasks.some(t => Number(t.assignedTailorId) === Number(user?.id))))));
@@ -4035,46 +4157,106 @@ export const SalesERP = () => {
                     )}
                   </div>
 
-                  {/* Financial Details (Full Access Only) */}
+                  {/* Financial Details (Full Access Only) - 3 Explicit Payment Details */}
                   {isFullAccess && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '8px 10px', backgroundColor: 'var(--bg-main)', borderRadius: '8px' }}>
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Order Total</span>
-                        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text-main)', marginTop: '2px' }}>
-                          {total > 0 ? `LKR ${total.toLocaleString()}` : 'Price Pending'}
-                        </div>
-                        <span style={{
-                          display: 'inline-block',
-                          marginTop: '3px',
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          fontSize: '0.65rem',
-                          fontWeight: 800,
-                          ...getPriceStatusColors(targetOrder.priceStatus || (total > 0 ? 'ACCEPTED' : 'PENDING'))
-                        }}>
-                          {getPriceStatusLabel(targetOrder.priceStatus || (total > 0 ? 'ACCEPTED' : 'PENDING'))}
+                    <div style={{
+                      backgroundColor: 'var(--bg-main)',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Payment Breakdown
                         </span>
+                        {orderTotal <= 0 ? (
+                          <span style={{
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            backgroundColor: '#fef3c7',
+                            color: '#b45309'
+                          }}>
+                            Price Pending
+                          </span>
+                        ) : isFullyPaid ? (
+                          <span className="badge badge-success" style={{ fontSize: '0.7rem', fontWeight: 800 }}>
+                            ✓ FULLY PAID
+                          </span>
+                        ) : (
+                          <span
+                            className={`badge ${isPartiallyPaid ? 'badge-warning' : 'badge-danger'}`}
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 800,
+                              backgroundColor: isPartiallyPaid ? '#fef3c7' : '#fee2e2',
+                              color: isPartiallyPaid ? '#b45309' : '#dc2626'
+                            }}
+                          >
+                            {isPartiallyPaid ? 'PARTIALLY PAID' : 'UNPAID'}
+                          </span>
+                        )}
                       </div>
 
-                      <div>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Payment</span>
-                        <div style={{ marginTop: '2px' }}>
-                          {total <= 0 ? (
-                            <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 700 }}>Pending</span>
-                          ) : isPaid ? (
-                            <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>✓ PAID FULL</span>
-                          ) : (
-                            <div>
-                              <span className={`badge ${isPartiallyPaid ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.7rem' }}>
-                                {isPartiallyPaid ? 'PARTIALLY PAID' : 'UNPAID'}
-                              </span>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: 700, marginTop: '2px' }}>
-                                Due: LKR {balance.toLocaleString()}
-                              </div>
-                            </div>
-                          )}
+                      {/* 3 Explicit Payment Details: Order Total, Paid Amount, Balance Due */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '8px',
+                        backgroundColor: 'var(--bg-card)',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>Order Total</span>
+                          <span style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                            {orderTotal > 0 ? `LKR ${orderTotal.toLocaleString()}` : 'Pending'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block' }}>Paid Amount</span>
+                          <span style={{ fontWeight: 800, fontSize: '0.82rem', color: paidAmount > 0 ? '#16a34a' : 'var(--text-muted)' }}>
+                            LKR {paidAmount.toLocaleString()}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block' }}>Balance Due</span>
+                          <span style={{ fontWeight: 800, fontSize: '0.82rem', color: balanceDue > 0 ? '#dc2626' : '#16a34a' }}>
+                            LKR {balanceDue.toLocaleString()}
+                          </span>
                         </div>
                       </div>
+
+                      {/* Action Button: Record Payment if balance due */}
+                      {balanceDue > 0 && (
+                        <button
+                          onClick={() => setPaymentOrder(targetOrder)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: '#10b981',
+                            color: '#fff',
+                            border: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <CreditCard size={13} />
+                          Record Payment
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -4219,7 +4401,7 @@ export const SalesERP = () => {
                       </button>
                     )}
 
-                    {isFullAccess && total > 0 && balance > 0 && (
+                    {isFullAccess && balanceDue > 0 && (
                       <button
                         onClick={() => setPaymentOrder(targetOrder)}
                         className="touch-target-btn"
@@ -4525,7 +4707,7 @@ export const SalesERP = () => {
           if (selectedInvoiceOrder && selectedInvoiceOrder.id === updatedOrder.id) {
             setSelectedInvoiceOrder(prev => ({ ...prev, ...updatedOrder }));
           }
-          fetchDashboardSummary();
+          refreshAll();
         }}
       />
       <PriceSettingModal

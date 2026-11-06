@@ -18,6 +18,7 @@ import {
   Award,
   LogOut,
   ShieldCheck,
+  Receipt,
   X
 } from 'lucide-react';
 
@@ -56,7 +57,8 @@ export const Sidebar = () => {
       title: 'FINANCE & PAYROLL',
       items: [
         { id: 'payroll',     label: 'Weekly Tailor Salary',  icon: CreditCard, badge: 'ERP' },
-        { id: 'finance',     label: 'Finance',               icon: DollarSign }
+        { id: 'finance',     label: 'Finance',               icon: DollarSign },
+        { id: 'expenses',    label: 'Expense Management',    icon: Receipt, badge: 'Expenses' }
       ]
     },
     {
@@ -295,7 +297,7 @@ export const Sidebar = () => {
             <LogOut size={14} /> Sign Out
           </button>
         )}
-        <p style={{ fontSize: '0.7rem', marginTop: '4px' }}>Version 3.2.0 • 3 Branches Linked</p>
+        <p style={{ fontSize: '0.7rem', marginTop: '4px' }}>Version 3.2.0 • 2 Active Branches</p>
       </div>
     </aside>
     </>

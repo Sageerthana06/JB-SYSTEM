@@ -14,30 +14,13 @@ const {
   recordFailedAttempt,
   resetRateLimit
 } = require('../utils/rateLimiter');
+const { generateOrderNumberTx } = require('../utils/orderNumberGenerator');
 
-// Helper to generate the exact existing ERP order number (e.g., ORD-2026-0001)
+// Helper to generate sequential order number - preserved for backwards compatibility
 const generateOrderNumber = async () => {
-  const currentYear = new Date().getFullYear();
-  const prefix = `ORD-${currentYear}-`;
-
-  const lastOrder = await prisma.order.findFirst({
-    where: {
-      orderNumber: { startsWith: prefix }
-    },
-    orderBy: {
-      orderNumber: 'desc'
-    }
+  return await prisma.$transaction(async (tx) => {
+    return await generateOrderNumberTx(tx);
   });
-
-  if (!lastOrder) {
-    return `${prefix}0001`;
-  }
-
-  const lastNumberStr = lastOrder.orderNumber.split('-')[2];
-  const nextNumber = parseInt(lastNumberStr, 10) + 1;
-  const nextNumberStr = nextNumber.toString().padStart(4, '0');
-
-  return `${prefix}${nextNumberStr}`;
 };
 
 /**
@@ -771,26 +754,6 @@ exports.createCustomerOrder = async (req, res, next) => {
       }
     }
 
-    // Save Customer Measurement record in history
-    let customerMeasurementRecord = null;
-    if (garmentDetails.measurements && Object.keys(garmentDetails.measurements).length > 0) {
-      customerMeasurementRecord = await prisma.customerMeasurement.create({
-        data: {
-          customerId,
-          dressType: garmentDetails.dressType,
-          measurementUnit: garmentDetails.measurementUnit || 'Inches',
-          fitPreference: garmentDetails.fitPreference || 'Regular',
-          takenBy: garmentDetails.takenBy || 'Customer',
-          measurementDate: garmentDetails.measurementDate ? new Date(garmentDetails.measurementDate) : new Date(),
-          measurements: garmentDetails.measurements,
-          fittingInstructions: garmentDetails.fittingInstructions || garmentDetails.specialDesignInstructions || null
-        }
-      });
-    }
-
-    // Generate unique order number (e.g., ORD-2026-0001)
-    const orderNumber = await generateOrderNumber();
-
     // Default to first active branch if not specified
     let targetBranchId = branchId ? parseInt(branchId) : null;
     if (!targetBranchId) {
@@ -802,61 +765,86 @@ exports.createCustomerOrder = async (req, res, next) => {
       }
     }
 
-    // Construct order data
-    const orderData = {
-      orderNumber,
-      customerId,
-      branchId: targetBranchId,
-      orderSource: 'ONLINE',
-      status: 'PENDING_APPROVAL', // Starts in PENDING_APPROVAL for CEO / Manager review
-      priceStatus: 'PENDING',
-      priceAcceptedByCustomer: false,
-      totalAmount: 0,
-      advancePayment: 0,
-      balanceAmount: 0,
-      serviceCharge: 0,
-      additionalWorkCharge: 0,
-      materialCharge: 0,
-      discountAmount: 0,
-      garmentDetails: {
-        create: {
-          dressType: garmentDetails.dressType,
-          quantity: quantity,
-          occasion: garmentDetails.occasion || null,
-          fabricSuppliedBy: garmentDetails.fabricSuppliedBy || null,
-          fabricType: garmentDetails.fabricType || null,
-          fabricColour: garmentDetails.fabricColour || null,
-          liningRequired: garmentDetails.liningRequired === 'Yes' || garmentDetails.liningRequired === true,
-          paddingCupRequired: garmentDetails.paddingCupRequired === 'Yes' || garmentDetails.paddingCupRequired === true,
-          workRequired: garmentDetails.workRequired === 'Yes' || garmentDetails.workRequired === true,
-          workDetails: garmentDetails.workDetails || null,
-          accessoriesSupplied: garmentDetails.accessoriesSupplied || null,
-          specialDesignInstructions: garmentDetails.specialDesignInstructions || null,
-          designReferenceImage: garmentDetails.designReferenceImage || null,
-          measurements: garmentDetails.measurements || null,
-          measurementUnit: garmentDetails.measurementUnit || 'Inches',
-          fitPreference: garmentDetails.fitPreference || 'Regular',
-          additionalImages: garmentDetails.additionalImages || null,
-          customerMeasurementId: customerMeasurementRecord ? customerMeasurementRecord.id : null
+    // Atomic transaction: advisory lock -> order sequence calculation -> measurement -> order -> link
+    const newOrder = await prisma.$transaction(async (tx) => {
+      // 1. Generate unique order number with transaction-scoped advisory lock
+      const orderNumber = await generateOrderNumberTx(tx);
+
+      // 2. Save Customer Measurement record in history if provided
+      let customerMeasurementRecord = null;
+      if (garmentDetails.measurements && Object.keys(garmentDetails.measurements).length > 0) {
+        customerMeasurementRecord = await tx.customerMeasurement.create({
+          data: {
+            customerId,
+            dressType: garmentDetails.dressType,
+            measurementUnit: garmentDetails.measurementUnit || 'Inches',
+            fitPreference: garmentDetails.fitPreference || 'Regular',
+            takenBy: garmentDetails.takenBy || 'Customer',
+            measurementDate: garmentDetails.measurementDate ? new Date(garmentDetails.measurementDate) : new Date(),
+            measurements: garmentDetails.measurements,
+            fittingInstructions: garmentDetails.fittingInstructions || garmentDetails.specialDesignInstructions || null
+          }
+        });
+      }
+
+      // 3. Construct order data
+      const orderData = {
+        orderNumber,
+        customerId,
+        branchId: targetBranchId,
+        orderSource: 'ONLINE',
+        status: 'PENDING_APPROVAL', // Starts in PENDING_APPROVAL for CEO / Manager review
+        priceStatus: 'PENDING',
+        priceAcceptedByCustomer: false,
+        totalAmount: 0,
+        advancePayment: 0,
+        balanceAmount: 0,
+        serviceCharge: 0,
+        additionalWorkCharge: 0,
+        materialCharge: 0,
+        discountAmount: 0,
+        garmentDetails: {
+          create: {
+            dressType: garmentDetails.dressType,
+            quantity: quantity,
+            occasion: garmentDetails.occasion || null,
+            fabricSuppliedBy: garmentDetails.fabricSuppliedBy || null,
+            fabricType: garmentDetails.fabricType || null,
+            fabricColour: garmentDetails.fabricColour || null,
+            liningRequired: garmentDetails.liningRequired === 'Yes' || garmentDetails.liningRequired === true,
+            paddingCupRequired: garmentDetails.paddingCupRequired === 'Yes' || garmentDetails.paddingCupRequired === true,
+            workRequired: garmentDetails.workRequired === 'Yes' || garmentDetails.workRequired === true,
+            workDetails: garmentDetails.workDetails || null,
+            accessoriesSupplied: garmentDetails.accessoriesSupplied || null,
+            specialDesignInstructions: garmentDetails.specialDesignInstructions || null,
+            designReferenceImage: garmentDetails.designReferenceImage || null,
+            measurements: garmentDetails.measurements || null,
+            measurementUnit: garmentDetails.measurementUnit || 'Inches',
+            fitPreference: garmentDetails.fitPreference || 'Regular',
+            additionalImages: garmentDetails.additionalImages || null,
+            customerMeasurementId: customerMeasurementRecord ? customerMeasurementRecord.id : null
+          }
         }
-      }
-    };
+      };
 
-    const newOrder = await prisma.order.create({
-      data: orderData,
-      include: {
-        garmentDetails: true,
-        branch: true
-      }
-    });
-
-    // Link measurement record to order
-    if (customerMeasurementRecord && newOrder) {
-      await prisma.customerMeasurement.update({
-        where: { id: customerMeasurementRecord.id },
-        data: { orderId: newOrder.id }
+      const createdOrder = await tx.order.create({
+        data: orderData,
+        include: {
+          garmentDetails: true,
+          branch: true
+        }
       });
-    }
+
+      // 4. Link measurement record to order
+      if (customerMeasurementRecord && createdOrder) {
+        await tx.customerMeasurement.update({
+          where: { id: customerMeasurementRecord.id },
+          data: { orderId: createdOrder.id }
+        });
+      }
+
+      return createdOrder;
+    }, { maxWait: 10000, timeout: 20000 });
 
     return res.status(201).json({
       success: true,
