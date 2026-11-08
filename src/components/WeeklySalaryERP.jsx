@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../config/api';
-import { generateWeeklySalaryPDF } from '../utils/weeklySalaryPdf';
+import {
+  generateWeeklySalaryPDF,
+  generateAllAllocationsPDF,
+  generateTailorsSummaryPDF,
+  generateSingleTailorPDF,
+  generateCuttingVsStitchingPDF,
+  generateCustomerHoldsPDF,
+  generateDisbursementHistoryPDF
+} from '../utils/weeklySalaryPdf';
 import {
   CreditCard,
   DollarSign,
@@ -214,32 +222,59 @@ export const WeeklySalaryERP = () => {
     }
   };
 
-  // Download Full Multi-Page Professional PDF
-  const handleDownloadFullPDF = async () => {
+  // Helper to resolve display branch
+  const getBranchDisplay = () => {
+    return branchFilter === '1'
+      ? 'JB Group (Main)'
+      : branchFilter === '2'
+        ? 'Bella Design'
+        : 'Consolidated HQ (All Branches)';
+  };
+
+  // Helper for generic PDF generation & download
+  const triggerPdfDownload = async (generatorFn, extraArgs = {}) => {
     if (!reportData) return;
     try {
       setIsGeneratingPdf(true);
-      const branchDisplay = branchFilter === '1'
-        ? 'JB Group (Main)'
-        : branchFilter === '2'
-          ? 'Bella Design'
-          : 'Consolidated HQ (All Branches)';
-
-      const { doc, fileName } = generateWeeklySalaryPDF({
+      const { doc, fileName } = generatorFn({
         reportData,
         user: { name: user?.name || user?.email, role: user?.role },
-        branchName: branchDisplay,
-        generatedAt: new Date()
+        branchName: getBranchDisplay(),
+        generatedAt: new Date(),
+        ...extraArgs
       });
-
       doc.save(fileName);
     } catch (err) {
-      console.error('Error generating salary PDF:', err);
-      alert('Failed to generate salary PDF document. Please try again.');
+      console.error('Error generating salary PDF report:', err);
+      alert('Failed to generate PDF document. Please try again.');
     } finally {
       setIsGeneratingPdf(false);
     }
   };
+
+  // 1. Download Full Multi-Page Professional PDF
+  const handleDownloadFullPDF = () => triggerPdfDownload(generateWeeklySalaryPDF);
+
+  // 2. Download All Salary Allocations PDF
+  const handleDownloadAllocationsPDF = () => triggerPdfDownload(generateAllAllocationsPDF);
+
+  // 3. Download Tailors Summary PDF
+  const handleDownloadTailorsSummaryPDF = () => triggerPdfDownload(generateTailorsSummaryPDF);
+
+  // 4. Download Single Tailor Statement PDF
+  const handleDownloadSingleTailorPDF = (tailor) => {
+    if (!tailor) return;
+    triggerPdfDownload(generateSingleTailorPDF, { tailor });
+  };
+
+  // 5. Download Cutting vs Stitching Breakdown PDF
+  const handleDownloadCuttingVsStitchingPDF = () => triggerPdfDownload(generateCuttingVsStitchingPDF);
+
+  // 6. Download Customer Payment Holds PDF
+  const handleDownloadCustomerHoldsPDF = () => triggerPdfDownload(generateCustomerHoldsPDF);
+
+  // 7. Download Disbursement History PDF
+  const handleDownloadDisbursementHistoryPDF = () => triggerPdfDownload(generateDisbursementHistoryPDF);
 
   // Trigger Print / PDF
   const handlePrint = () => {
@@ -927,6 +962,30 @@ export const WeeklySalaryERP = () => {
       {/* 8. TAB 1: ALL ALLOCATIONS LEDGER */}
       {!loading && !error && activeSubTab === 'allocations' && (
         <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '12px 18px', borderBottom: '1px solid var(--border-color)',
+            backgroundColor: 'rgba(0,0,0,0.015)', flexWrap: 'wrap', gap: '8px'
+          }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              Showing <strong>{reportData?.allocations?.length || 0}</strong> verified allocations for selected filters
+            </div>
+            <button
+              onClick={handleDownloadAllocationsPDF}
+              disabled={loading || isGeneratingPdf || !reportData?.allocations?.length}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '6px 14px', borderRadius: '6px',
+                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                color: 'var(--jb-blue-accent)', fontSize: '0.78rem', fontWeight: 800,
+                cursor: (loading || isGeneratingPdf || !reportData?.allocations?.length) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}
+              title="Download separate PDF containing all salary allocations matching current filters"
+            >
+              <Download size={14} /> Download Allocations PDF
+            </button>
+          </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
               <thead>
@@ -1094,88 +1153,165 @@ export const WeeklySalaryERP = () => {
 
       {/* 9. TAB 2: INDIVIDUAL TAILOR STATEMENTS */}
       {!loading && !error && activeSubTab === 'tailors' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-          {tailorsList.length === 0 ? (
-            <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1 / -1' }}>
-              No active tailor statements for this period.
+        <div>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: '16px', flexWrap: 'wrap', gap: '10px'
+          }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 850, color: 'var(--text-main)' }}>
+                Active Craftsmen Statements ({tailorsList.length} Tailors)
+              </h3>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Individual piece-rate performance, payable dues, and job allocations per tailor
+              </p>
             </div>
-          ) : (
-            tailorsList.map((stmt) => (
-              <div key={stmt.tailorId} className="card" style={{ padding: '18px', borderTop: '4px solid var(--jb-blue-accent)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 850, color: 'var(--text-main)' }}>
-                      {stmt.tailorName}
-                    </h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {stmt.branchName} • {stmt.jobsCount} Assigned Jobs
-                    </span>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800 }}>
-                      Outstanding Due
-                    </div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#059669' }}>
-                      LKR {stmt.outstandingBalance.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
+            <button
+              onClick={handleDownloadTailorsSummaryPDF}
+              disabled={loading || isGeneratingPdf || !tailorsList.length}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '7px 16px', borderRadius: '8px',
+                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                color: '#1e40af', fontSize: '0.8rem', fontWeight: 800,
+                cursor: (loading || isGeneratingPdf || !tailorsList.length) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}
+              title="Download executive summary PDF comparing all active tailor statements"
+            >
+              <Download size={14} /> Download Tailors Summary PDF
+            </button>
+          </div>
 
-                <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px',
-                  backgroundColor: 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '8px', marginBottom: '14px'
-                }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Earned (Week):</span>
-                    <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>LKR {stmt.totalEarnedInWeek.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Payable Now:</span>
-                    <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#059669' }}>LKR {stmt.totalPayable.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Held (Customer Due):</span>
-                    <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#b45309' }}>LKR {stmt.totalHeld.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Paid (Week):</span>
-                    <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#6b21a8' }}>LKR {stmt.totalPaidInWeek.toLocaleString()}</div>
-                  </div>
-                </div>
-
-                {/* Job List preview */}
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, marginBottom: '6px', color: 'var(--text-muted)' }}>
-                  Assigned Jobs Breakdown ({stmt.jobs.length})
-                </div>
-                <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {stmt.jobs.map(job => (
-                    <div
-                      key={job.allocationKey}
-                      style={{
-                        padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem'
-                      }}
-                    >
-                      <div>
-                        <strong>{job.orderNumber}</strong> ({job.workType})
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{job.dressType}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 800 }}>LKR {job.allocatedAmount.toLocaleString()}</div>
-                        {renderStatusBadge(job.status)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {tailorsList.length === 0 ? (
+              <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1 / -1' }}>
+                No active tailor statements for this period.
               </div>
-            ))
-          )}
+            ) : (
+              tailorsList.map((stmt) => (
+                <div key={stmt.tailorId} className="card" style={{ padding: '18px', borderTop: '4px solid var(--jb-blue-accent)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 850, color: 'var(--text-main)' }}>
+                        {stmt.tailorName}
+                      </h3>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {stmt.branchName} • {stmt.jobsCount} Assigned Jobs
+                      </span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800 }}>
+                        Outstanding Due
+                      </div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#059669' }}>
+                        LKR {stmt.outstandingBalance.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px',
+                    backgroundColor: 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '8px', marginBottom: '14px'
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Earned (Week):</span>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>LKR {stmt.totalEarnedInWeek.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Payable Now:</span>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#059669' }}>LKR {stmt.totalPayable.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Held (Customer Due):</span>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#b45309' }}>LKR {stmt.totalHeld.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Paid (Week):</span>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#6b21a8' }}>LKR {stmt.totalPaidInWeek.toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Job List preview */}
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, marginBottom: '6px', color: 'var(--text-muted)' }}>
+                    Assigned Jobs Breakdown ({stmt.jobs.length})
+                  </div>
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                    {stmt.jobs.map(job => (
+                      <div
+                        key={job.allocationKey}
+                        style={{
+                          padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem'
+                        }}
+                      >
+                        <div>
+                          <strong>{job.orderNumber}</strong> ({job.workType})
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{job.dressType}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800 }}>LKR {job.allocatedAmount.toLocaleString()}</div>
+                          {renderStatusBadge(job.status)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Dedicated Individual Tailor Statement PDF Download */}
+                  <button
+                    onClick={() => handleDownloadSingleTailorPDF(stmt)}
+                    disabled={loading || isGeneratingPdf}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      width: '100%', marginTop: '12px', padding: '8px 12px', borderRadius: '6px',
+                      border: '1px solid rgba(2, 132, 199, 0.3)', backgroundColor: 'rgba(2, 132, 199, 0.06)',
+                      color: '#0284c7', fontSize: '0.76rem', fontWeight: 800, cursor: (loading || isGeneratingPdf) ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={`Download official salary statement PDF for ${stmt.tailorName}`}
+                  >
+                    <Download size={13} /> Download {stmt.tailorName}'s Statement PDF
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
       {/* 10. TAB 3: CUTTING VS STITCHING BREAKDOWN */}
       {!loading && !error && activeSubTab === 'breakdown' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+        <div>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: '16px', flexWrap: 'wrap', gap: '10px'
+          }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 850, color: 'var(--text-main)' }}>
+                Cutting vs Stitching Allocation Breakdown (25/25/50)
+              </h3>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Analysis across Office Overhead (50%), Cutting Tailors (25%), and Stitching Tailors (25%)
+              </p>
+            </div>
+            <button
+              onClick={handleDownloadCuttingVsStitchingPDF}
+              disabled={loading || isGeneratingPdf || !reportData}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '7px 16px', borderRadius: '8px',
+                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                color: '#6b21a8', fontSize: '0.8rem', fontWeight: 800,
+                cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}
+              title="Download separate PDF breakdown of cutting vs stitching allocations"
+            >
+              <Download size={14} /> Download Breakdown PDF
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
           {/* Office 50% Card */}
           <div className="card" style={{ padding: '20px', borderTop: '4px solid #1e3a8a' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
@@ -1222,18 +1358,40 @@ export const WeeklySalaryERP = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* 11. TAB 4: CUSTOMER PAYMENT HOLDS */}
       {!loading && !error && activeSubTab === 'holds' && (
         <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-          <div style={{ padding: '16px', backgroundColor: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#92400e', fontWeight: 800 }}>
-              <AlertTriangle size={18} /> Customer Payment Hold Radar
+          <div style={{
+            padding: '16px', backgroundColor: '#fffbeb', borderBottom: '1px solid #fde68a',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            flexWrap: 'wrap', gap: '12px'
+          }}>
+            <div style={{ flex: 1, minWidth: '280px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#92400e', fontWeight: 800 }}>
+                <AlertTriangle size={18} /> Customer Payment Hold Radar
+              </div>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#92400e' }}>
+                These bespoke garments have been completed by the tailor, but the salary allocation is held because the customer has an outstanding balance. Once full payment is settled, the salary immediately becomes PAYABLE.
+              </p>
             </div>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#92400e' }}>
-              These bespoke garments have been completed by the tailor, but the salary allocation is held because the customer has an outstanding balance. Once full payment is settled, the salary immediately becomes PAYABLE.
-            </p>
+            <button
+              onClick={handleDownloadCustomerHoldsPDF}
+              disabled={loading || isGeneratingPdf || !reportData}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '7px 16px', borderRadius: '8px',
+                border: '1px solid rgba(180, 83, 9, 0.3)', backgroundColor: '#ffffff',
+                color: '#b45309', fontSize: '0.8rem', fontWeight: 800,
+                cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(180, 83, 9, 0.1)'
+              }}
+              title="Download separate PDF of customer payment salary holds ledger"
+            >
+              <Download size={14} /> Download Holds PDF
+            </button>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -1280,8 +1438,27 @@ export const WeeklySalaryERP = () => {
       {/* 12. TAB 5: SALARY PAYMENT HISTORY LEDGER */}
       {!loading && !error && activeSubTab === 'history' && (
         <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-color)', fontWeight: 800 }}>
-            Audit Trail of Recorded Salary Disbursements
+          <div style={{
+            padding: '14px 18px', borderBottom: '1px solid var(--border-color)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            flexWrap: 'wrap', gap: '10px'
+          }}>
+            <span style={{ fontWeight: 800 }}>Audit Trail of Recorded Salary Disbursements</span>
+            <button
+              onClick={handleDownloadDisbursementHistoryPDF}
+              disabled={loading || isGeneratingPdf || !reportData?.recentPayments?.length}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '6px 14px', borderRadius: '6px',
+                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                color: '#059669', fontSize: '0.78rem', fontWeight: 800,
+                cursor: (loading || isGeneratingPdf || !reportData?.recentPayments?.length) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+              }}
+              title="Download separate PDF of recorded salary disbursements audit trail"
+            >
+              <Download size={14} /> Download History PDF
+            </button>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
