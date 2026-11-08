@@ -57,6 +57,8 @@ export const WeeklySalaryERP = () => {
   const isManager = userRole === 'MANAGER';
   const isAdmin = userRole === 'ADMIN';
   const canDisburse = isCeo || isManager;
+  // Authority to view & download salary PDF reports (CEO, Manager, and Admin)
+  const canDownloadPdf = isCeo || isManager || isAdmin;
 
   // Data states
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export const WeeklySalaryERP = () => {
 
   // Filter states: Manager is strictly locked to their assigned branch
   const [branchFilter, setBranchFilter] = useState(() => {
-    if (user?.role === 'MANAGER' && user?.branchId) {
+    if (isManager && user?.branchId) {
       return String(user.branchId);
     }
     return activeBranch || 'ALL';
@@ -233,7 +235,7 @@ export const WeeklySalaryERP = () => {
 
   // Helper for generic PDF generation & download
   const triggerPdfDownload = async (generatorFn, extraArgs = {}) => {
-    if (!reportData) return;
+    if (!reportData || !canDownloadPdf) return;
     try {
       setIsGeneratingPdf(true);
       const { doc, fileName } = generatorFn({
@@ -381,22 +383,24 @@ export const WeeklySalaryERP = () => {
 
         {/* Action Controls: Download Full PDF + Print + Refresh */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleDownloadFullPDF}
-            disabled={loading || isGeneratingPdf || !reportData}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              padding: '8px 16px', borderRadius: '8px',
-              border: 'none', backgroundColor: '#059669',
-              color: '#ffffff', fontSize: '0.82rem', fontWeight: 800,
-              cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
-              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)',
-              transition: 'all 0.15s ease'
-            }}
-            title="Download complete multi-page PDF salary report with full job details"
-          >
-            <Download size={15} /> {isGeneratingPdf ? 'Generating PDF...' : 'Download Full PDF'}
-          </button>
+          {canDownloadPdf && (
+            <button
+              onClick={handleDownloadFullPDF}
+              disabled={loading || isGeneratingPdf || !reportData}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                padding: '8px 16px', borderRadius: '8px',
+                border: 'none', backgroundColor: '#059669',
+                color: '#ffffff', fontSize: '0.82rem', fontWeight: 800,
+                cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)',
+                transition: 'all 0.15s ease'
+              }}
+              title="Download complete multi-page PDF salary report with full job details"
+            >
+              <Download size={15} /> {isGeneratingPdf ? 'Generating PDF...' : 'Download Full PDF'}
+            </button>
+          )}
           <button
             onClick={handlePrint}
             style={{
@@ -970,21 +974,23 @@ export const WeeklySalaryERP = () => {
             <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               Showing <strong>{reportData?.allocations?.length || 0}</strong> verified allocations for selected filters
             </div>
-            <button
-              onClick={handleDownloadAllocationsPDF}
-              disabled={loading || isGeneratingPdf || !reportData?.allocations?.length}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '6px 14px', borderRadius: '6px',
-                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
-                color: 'var(--jb-blue-accent)', fontSize: '0.78rem', fontWeight: 800,
-                cursor: (loading || isGeneratingPdf || !reportData?.allocations?.length) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-              }}
-              title="Download separate PDF containing all salary allocations matching current filters"
-            >
-              <Download size={14} /> Download Allocations PDF
-            </button>
+            {canDownloadPdf && (
+              <button
+                onClick={handleDownloadAllocationsPDF}
+                disabled={loading || isGeneratingPdf || !reportData?.allocations?.length}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '6px',
+                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                  color: 'var(--jb-blue-accent)', fontSize: '0.78rem', fontWeight: 800,
+                  cursor: (loading || isGeneratingPdf || !reportData?.allocations?.length) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+                title="Download separate PDF containing all salary allocations matching current filters"
+              >
+                <Download size={14} /> Download Allocations PDF
+              </button>
+            )}
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
@@ -1166,21 +1172,23 @@ export const WeeklySalaryERP = () => {
                 Individual piece-rate performance, payable dues, and job allocations per tailor
               </p>
             </div>
-            <button
-              onClick={handleDownloadTailorsSummaryPDF}
-              disabled={loading || isGeneratingPdf || !tailorsList.length}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '7px 16px', borderRadius: '8px',
-                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
-                color: '#1e40af', fontSize: '0.8rem', fontWeight: 800,
-                cursor: (loading || isGeneratingPdf || !tailorsList.length) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-              }}
-              title="Download executive summary PDF comparing all active tailor statements"
-            >
-              <Download size={14} /> Download Tailors Summary PDF
-            </button>
+            {canDownloadPdf && (
+              <button
+                onClick={handleDownloadTailorsSummaryPDF}
+                disabled={loading || isGeneratingPdf || !tailorsList.length}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 16px', borderRadius: '8px',
+                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                  color: '#1e40af', fontSize: '0.8rem', fontWeight: 800,
+                  cursor: (loading || isGeneratingPdf || !tailorsList.length) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+                title="Download executive summary PDF comparing all active tailor statements"
+              >
+                <Download size={14} /> Download Tailors Summary PDF
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
@@ -1258,20 +1266,22 @@ export const WeeklySalaryERP = () => {
                   </div>
 
                   {/* Dedicated Individual Tailor Statement PDF Download */}
-                  <button
-                    onClick={() => handleDownloadSingleTailorPDF(stmt)}
-                    disabled={loading || isGeneratingPdf}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                      width: '100%', marginTop: '12px', padding: '8px 12px', borderRadius: '6px',
-                      border: '1px solid rgba(2, 132, 199, 0.3)', backgroundColor: 'rgba(2, 132, 199, 0.06)',
-                      color: '#0284c7', fontSize: '0.76rem', fontWeight: 800, cursor: (loading || isGeneratingPdf) ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title={`Download official salary statement PDF for ${stmt.tailorName}`}
-                  >
-                    <Download size={13} /> Download {stmt.tailorName}'s Statement PDF
-                  </button>
+                  {canDownloadPdf && (
+                    <button
+                      onClick={() => handleDownloadSingleTailorPDF(stmt)}
+                      disabled={loading || isGeneratingPdf}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                        width: '100%', marginTop: '12px', padding: '8px 12px', borderRadius: '6px',
+                        border: '1px solid rgba(2, 132, 199, 0.3)', backgroundColor: 'rgba(2, 132, 199, 0.06)',
+                        color: '#0284c7', fontSize: '0.76rem', fontWeight: 800, cursor: (loading || isGeneratingPdf) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={`Download official salary statement PDF for ${stmt.tailorName}`}
+                    >
+                      <Download size={13} /> Download {stmt.tailorName}'s Statement PDF
+                    </button>
+                  )}
                 </div>
               ))
             )}
@@ -1294,21 +1304,23 @@ export const WeeklySalaryERP = () => {
                 Analysis across Office Overhead (50%), Cutting Tailors (25%), and Stitching Tailors (25%)
               </p>
             </div>
-            <button
-              onClick={handleDownloadCuttingVsStitchingPDF}
-              disabled={loading || isGeneratingPdf || !reportData}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '7px 16px', borderRadius: '8px',
-                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
-                color: '#6b21a8', fontSize: '0.8rem', fontWeight: 800,
-                cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-              }}
-              title="Download separate PDF breakdown of cutting vs stitching allocations"
-            >
-              <Download size={14} /> Download Breakdown PDF
-            </button>
+            {canDownloadPdf && (
+              <button
+                onClick={handleDownloadCuttingVsStitchingPDF}
+                disabled={loading || isGeneratingPdf || !reportData}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 16px', borderRadius: '8px',
+                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                  color: '#6b21a8', fontSize: '0.8rem', fontWeight: 800,
+                  cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+                title="Download separate PDF breakdown of cutting vs stitching allocations"
+              >
+                <Download size={14} /> Download Breakdown PDF
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
@@ -1377,21 +1389,23 @@ export const WeeklySalaryERP = () => {
                 These bespoke garments have been completed by the tailor, but the salary allocation is held because the customer has an outstanding balance. Once full payment is settled, the salary immediately becomes PAYABLE.
               </p>
             </div>
-            <button
-              onClick={handleDownloadCustomerHoldsPDF}
-              disabled={loading || isGeneratingPdf || !reportData}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '7px 16px', borderRadius: '8px',
-                border: '1px solid rgba(180, 83, 9, 0.3)', backgroundColor: '#ffffff',
-                color: '#b45309', fontSize: '0.8rem', fontWeight: 800,
-                cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 1px 3px rgba(180, 83, 9, 0.1)'
-              }}
-              title="Download separate PDF of customer payment salary holds ledger"
-            >
-              <Download size={14} /> Download Holds PDF
-            </button>
+            {canDownloadPdf && (
+              <button
+                onClick={handleDownloadCustomerHoldsPDF}
+                disabled={loading || isGeneratingPdf || !reportData}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 16px', borderRadius: '8px',
+                  border: '1px solid rgba(180, 83, 9, 0.3)', backgroundColor: '#ffffff',
+                  color: '#b45309', fontSize: '0.8rem', fontWeight: 800,
+                  cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 3px rgba(180, 83, 9, 0.1)'
+                }}
+                title="Download separate PDF of customer payment salary holds ledger"
+              >
+                <Download size={14} /> Download Holds PDF
+              </button>
+            )}
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -1444,21 +1458,23 @@ export const WeeklySalaryERP = () => {
             flexWrap: 'wrap', gap: '10px'
           }}>
             <span style={{ fontWeight: 800 }}>Audit Trail of Recorded Salary Disbursements</span>
-            <button
-              onClick={handleDownloadDisbursementHistoryPDF}
-              disabled={loading || isGeneratingPdf || !reportData?.recentPayments?.length}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '6px 14px', borderRadius: '6px',
-                border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
-                color: '#059669', fontSize: '0.78rem', fontWeight: 800,
-                cursor: (loading || isGeneratingPdf || !reportData?.recentPayments?.length) ? 'not-allowed' : 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-              }}
-              title="Download separate PDF of recorded salary disbursements audit trail"
-            >
-              <Download size={14} /> Download History PDF
-            </button>
+            {canDownloadPdf && (
+              <button
+                onClick={handleDownloadDisbursementHistoryPDF}
+                disabled={loading || isGeneratingPdf || !reportData?.recentPayments?.length}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '6px',
+                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+                  color: '#059669', fontSize: '0.78rem', fontWeight: 800,
+                  cursor: (loading || isGeneratingPdf || !reportData?.recentPayments?.length) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                }}
+                title="Download separate PDF of recorded salary disbursements audit trail"
+              >
+                <Download size={14} /> Download History PDF
+              </button>
+            )}
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
