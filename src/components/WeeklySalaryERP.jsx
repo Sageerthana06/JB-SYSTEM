@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../config/api';
+import { generateWeeklySalaryPDF } from '../utils/weeklySalaryPdf';
 import {
   CreditCard,
   DollarSign,
@@ -16,6 +17,7 @@ import {
   Users,
   Award,
   Printer,
+  Download,
   FileText,
   X,
   Check,
@@ -83,6 +85,7 @@ export const WeeklySalaryERP = () => {
   }));
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [paymentFeedback, setPaymentFeedback] = useState(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Fetch report data from backend API
   const fetchSalaryReport = async (refDate = selectedWeekDate) => {
@@ -211,6 +214,33 @@ export const WeeklySalaryERP = () => {
     }
   };
 
+  // Download Full Multi-Page Professional PDF
+  const handleDownloadFullPDF = async () => {
+    if (!reportData) return;
+    try {
+      setIsGeneratingPdf(true);
+      const branchDisplay = branchFilter === '1'
+        ? 'JB Group (Main)'
+        : branchFilter === '2'
+          ? 'Bella Design'
+          : 'Consolidated HQ (All Branches)';
+
+      const { doc, fileName } = generateWeeklySalaryPDF({
+        reportData,
+        user: { name: user?.name || user?.email, role: user?.role },
+        branchName: branchDisplay,
+        generatedAt: new Date()
+      });
+
+      doc.save(fileName);
+    } catch (err) {
+      console.error('Error generating salary PDF:', err);
+      alert('Failed to generate salary PDF document. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   // Trigger Print / PDF
   const handlePrint = () => {
     window.print();
@@ -314,8 +344,24 @@ export const WeeklySalaryERP = () => {
           </div>
         </div>
 
-        {/* Action Controls: Print + Refresh */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Action Controls: Download Full PDF + Print + Refresh */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleDownloadFullPDF}
+            disabled={loading || isGeneratingPdf || !reportData}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              padding: '8px 16px', borderRadius: '8px',
+              border: 'none', backgroundColor: '#059669',
+              color: '#ffffff', fontSize: '0.82rem', fontWeight: 800,
+              cursor: (loading || isGeneratingPdf || !reportData) ? 'not-allowed' : 'pointer',
+              boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Download complete multi-page PDF salary report with full job details"
+          >
+            <Download size={15} /> {isGeneratingPdf ? 'Generating PDF...' : 'Download Full PDF'}
+          </button>
           <button
             onClick={handlePrint}
             style={{

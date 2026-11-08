@@ -229,8 +229,28 @@ function isOrderPriceApproved(order) {
     return false;
   }
 
+  // Shop-approved orders vs unaccepted online quotes:
+  // If priceStatus is 'SENT' and customer portal approval flag is not true,
+  // do not exclude if genuine shop order has verified payment or has entered production/ready stages.
   if (order.priceStatus === 'SENT' && order.priceAcceptedByCustomer !== true) {
-    return false;
+    const hasAdvance = Number(order.advancePayment || 0) > 0;
+    const hasVerifiedPayment = Array.isArray(order.payments) && order.payments.some(p => {
+      const st = String(p.status || '').trim().toUpperCase();
+      return !st || st === 'VERIFIED' || st === 'COMPLETED' || st === 'APPROVED';
+    });
+    const isInProductionOrReady = [
+      'CUTTING',
+      'STITCHING',
+      'QUALITY_CHECK',
+      'FINISHING',
+      'READY',
+      'DELIVERED',
+      'COMPLETED'
+    ].includes(String(order.status || '').toUpperCase());
+
+    if (!hasAdvance && !hasVerifiedPayment && !isInProductionOrReady) {
+      return false;
+    }
   }
 
   // 4. Unresolved price revisions or changes requested (unresolved price)
