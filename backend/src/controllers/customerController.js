@@ -682,3 +682,440 @@ exports.registerCustomerOnly = async (req, res, next) => {
     return res.status(500).json({ success: false, message: 'Internal server error while registering customer.' });
   }
 };
+
+// GET MONTHLY TOP 3 CUSTOMER WINNERS & LEADERBOARD
+exports.getMonthlyCustomerWinners = async (req, res, next) => {
+  try {
+    const roleUpper = (req.user?.role || '').toUpperCase();
+    const isExecutiveOrManager = ['SUPER_ADMIN', 'ADMIN', 'CEO', 'MANAGER'].includes(roleUpper);
+
+    if (!isExecutiveOrManager && req.user?.role !== 'STAFF') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Monthly winners are restricted to authorized personnel.'
+      });
+    }
+
+    // Asia/Colombo timezone offset is UTC+5.5 (330 minutes)
+    const now = new Date();
+    const colomboOffsetMs = 5.5 * 60 * 60 * 1000;
+    const colomboNow = new Date(now.getTime() + colomboOffsetMs);
+
+    let year = req.query.year ? parseInt(req.query.year, 10) : colomboNow.getUTCFullYear();
+    let month = req.query.month ? parseInt(req.query.month, 10) : colomboNow.getUTCMonth() + 1;
+
+    if (isNaN(year) || year < 2020 || year > 2100) year = colomboNow.getUTCFullYear();
+    if (isNaN(month) || month < 1 || month > 12) month = colomboNow.getUTCMonth() + 1;
+
+    // Build ISO timestamps aligned with Asia/Colombo (+05:30)
+    const monthPadded = String(month).padStart(2, '0');
+    const lastDay = new Date(year, month, 0).getDate();
+    const lastDayPadded = String(lastDay).padStart(2, '0');
+
+    const startIso = `${year}-${monthPadded}-01T00:00:00.000+05:30`;
+    const endIso = `${year}-${monthPadded}-${lastDayPadded}T23:59:59.999+05:30`;
+
+    const startDateUtc = new Date(startIso);
+    const endDateUtc = new Date(endIso);
+
+    // Branch isolation / filtering
+    let targetBranchId = null;
+    if (roleUpper === 'MANAGER' && req.user?.branchId) {
+      targetBranchId = req.user.branchId;
+    } else if (req.query.branchId && req.query.branchId !== 'ALL') {
+      const parsedBranch = parseInt(req.query.branchId, 10);
+      if (!isNaN(parsedBranch)) {
+        targetBranchId = parsedBranch;
+      }
+    }
+
+    // Exclude rejected, cancelled, and price declined orders
+    const invalidStatuses = ['REJECTED', 'CANCELLED', 'PRICE_DECLINED'];
+
+    // =========================================================================
+    // 1. ORDERS RANKING DATASET
+    // =========================================================================
+    const orderWhere = {
+      createdAt: { gte: startDateUtc, lte: endDateUtc },
+      status: { notIn: invalidStatuses }
+    };
+
+    if (targetBranchId) {
+      orderWhere.branchId = targetBranchId;
+    }
+
+    // Fetch valid orders for the target month
+    const orders = await prisma.order.findMany({
+      where: orderWhere,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            primaryPhone: true,
+            alternativePhone: true,
+            address: true,
+            profilePhoto: true
+          }
+        },
+        garmentDetails: {
+          select: {
+            dressType: true,
+            specialDesignInstructions: true,
+            fabricType: true,
+            workDetails: true
+          }
+        },
+        assignedTailor: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        payments: {
+          select: {
+            amount: true,
+            status: true
+          }
+        }
+      }
+    });
+
+    // Aggregate by customer for Orders Ranking
+    const ordersCustomerMap = new Map();
+
+    for (const o of orders) {
+      const custId = o.customerId;
+      if (!ordersCustomerMap.has(custId)) {
+        ordersCustomerMap.set(custId, {
+          customerId: custId,
+          customerName: o.customer?.name || 'Unknown Client',
+          primaryPhone: o.customer?.primaryPhone || '',
+          alternativePhone: o.customer?.alternativePhone || '',
+          address: o.customer?.address || '',
+          profilePhoto: o.customer?.profilePhoto || null,
+          orderCount: 0,
+          totalOrderValue: 0,
+          totalPaid: 0,
+          outstandingBalance: 0,
+          orders: []
+        });
+      }
+
+      const cData = ordersCustomerMap.get(custId);
+      cData.orderCount += 1;
+
+      const total = Number(o.totalAmount) || 0;
+      const balance = Number(o.balanceAmount) || 0;
+      const paid = Math.max(0, total - balance);
+
+      cData.totalOrderValue += total;
+      cData.totalPaid += paid;
+      cData.outstandingBalance += balance;
+
+      cData.orders.push({
+        id: o.id,
+        orderNumber: o.orderNumber || `ORD-${o.id}`,
+        date: o.createdAt || o.orderDate,
+        design: o.garmentDetails?.dressType || o.garmentDetails?.specialDesignInstructions || 'Custom Design',
+        dressType: o.garmentDetails?.dressType || 'Custom Dress',
+        status: o.status,
+        assignedTailor: o.assignedTailor,
+        totalAmount: total,
+        paidAmount: paid,
+        balanceAmount: balance
+      });
+    }
+
+    // Rank customers: primary by orderCount DESC, tie-breaker by totalOrderValue DESC
+    const ordersRanked = Array.from(ordersCustomerMap.values()).sort((a, b) => {
+      if (b.orderCount !== a.orderCount) {
+        return b.orderCount - a.orderCount;
+      }
+      return b.totalOrderValue - a.totalOrderValue;
+    });
+
+    const medals = ['GOLD', 'SILVER', 'BRONZE'];
+    const ordersLeaderboard = ordersRanked.map((c, idx) => ({
+      rank: idx + 1,
+      medal: idx < 3 ? medals[idx] : null,
+      ...c
+    }));
+
+    const ordersTopThree = ordersLeaderboard.slice(0, 3);
+
+    const ordersSummary = {
+      totalValidOrders: orders.length,
+      totalCustomers: ordersLeaderboard.length,
+      totalOrderValue: ordersLeaderboard.reduce((acc, c) => acc + c.totalOrderValue, 0),
+      totalPaid: ordersLeaderboard.reduce((acc, c) => acc + c.totalPaid, 0),
+      totalOutstanding: ordersLeaderboard.reduce((acc, c) => acc + c.outstandingBalance, 0)
+    };
+
+    // =========================================================================
+    // 2. PAYMENTS RANKING DATASET (Only VERIFIED payments in the month)
+    // =========================================================================
+    const paymentWhere = {
+      createdAt: { gte: startDateUtc, lte: endDateUtc },
+      status: 'VERIFIED',
+      order: {
+        status: { notIn: invalidStatuses },
+        ...(targetBranchId ? { branchId: targetBranchId } : {})
+      }
+    };
+
+    const verifiedPayments = await prisma.payment.findMany({
+      where: paymentWhere,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        order: {
+          include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                primaryPhone: true,
+                alternativePhone: true,
+                address: true,
+                profilePhoto: true
+              }
+            },
+            garmentDetails: {
+              select: {
+                dressType: true,
+                specialDesignInstructions: true,
+                fabricType: true,
+                workDetails: true
+              }
+            },
+            assignedTailor: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Aggregate by customer for Payments Ranking
+    const paymentsCustomerMap = new Map();
+
+    for (const p of verifiedPayments) {
+      const o = p.order;
+      const c = o?.customer;
+      if (!c) continue;
+      const custId = c.id;
+
+      if (!paymentsCustomerMap.has(custId)) {
+        paymentsCustomerMap.set(custId, {
+          customerId: custId,
+          customerName: c.name || 'Unknown Client',
+          primaryPhone: c.primaryPhone || '',
+          alternativePhone: c.alternativePhone || '',
+          address: c.address || '',
+          profilePhoto: c.profilePhoto || null,
+          totalVerifiedPayments: 0,
+          paymentCount: 0,
+          uniqueOrderIds: new Set(),
+          ordersMap: new Map(),
+          payments: []
+        });
+      }
+
+      const cData = paymentsCustomerMap.get(custId);
+      const amount = Number(p.amount) || 0;
+      cData.totalVerifiedPayments += amount;
+      cData.paymentCount += 1;
+      cData.uniqueOrderIds.add(o.id);
+
+      if (!cData.ordersMap.has(o.id)) {
+        const total = Number(o.totalAmount) || 0;
+        const balance = Number(o.balanceAmount) || 0;
+        const paid = Math.max(0, total - balance);
+        cData.ordersMap.set(o.id, {
+          id: o.id,
+          orderNumber: o.orderNumber || `ORD-${o.id}`,
+          date: o.createdAt || o.orderDate,
+          design: o.garmentDetails?.dressType || o.garmentDetails?.specialDesignInstructions || 'Custom Design',
+          dressType: o.garmentDetails?.dressType || 'Custom Dress',
+          status: o.status,
+          assignedTailor: o.assignedTailor,
+          totalAmount: total,
+          paidAmount: paid,
+          balanceAmount: balance,
+          monthlyVerifiedPayments: 0
+        });
+      }
+
+      cData.ordersMap.get(o.id).monthlyVerifiedPayments += amount;
+
+      cData.payments.push({
+        id: p.id,
+        amount,
+        paymentMethod: p.paymentMethod || 'Cash',
+        createdAt: p.createdAt,
+        orderId: o.id,
+        orderNumber: o.orderNumber || `ORD-${o.id}`,
+        notes: p.notes,
+        transactionRef: p.transactionRef
+      });
+    }
+
+    // Rank customers: primary by totalVerifiedPayments DESC, tie-breaker by uniqueOrderCount DESC
+    const paymentsRanked = Array.from(paymentsCustomerMap.values()).map(c => {
+      const ordersList = Array.from(c.ordersMap.values());
+      const totalOrderValue = ordersList.reduce((sum, ord) => sum + ord.totalAmount, 0);
+      const outstandingBalance = ordersList.reduce((sum, ord) => sum + ord.balanceAmount, 0);
+      return {
+        customerId: c.customerId,
+        customerName: c.customerName,
+        primaryPhone: c.primaryPhone,
+        alternativePhone: c.alternativePhone,
+        address: c.address,
+        profilePhoto: c.profilePhoto,
+        totalVerifiedPayments: c.totalVerifiedPayments,
+        paymentCount: c.paymentCount,
+        uniqueOrderCount: c.uniqueOrderIds.size,
+        orderCount: c.uniqueOrderIds.size, // for compatibility with order modal view
+        totalPaid: c.totalVerifiedPayments, // for modal display consistency
+        totalOrderValue,
+        outstandingBalance,
+        orders: ordersList,
+        payments: c.payments
+      };
+    }).sort((a, b) => {
+      if (b.totalVerifiedPayments !== a.totalVerifiedPayments) {
+        return b.totalVerifiedPayments - a.totalVerifiedPayments;
+      }
+      return b.uniqueOrderCount - a.uniqueOrderCount;
+    });
+
+    const paymentsLeaderboard = paymentsRanked.map((c, idx) => ({
+      rank: idx + 1,
+      medal: idx < 3 ? medals[idx] : null,
+      ...c
+    }));
+
+    const paymentsTopThree = paymentsLeaderboard.slice(0, 3);
+
+    const paymentsSummary = {
+      totalVerifiedPayments: paymentsLeaderboard.reduce((acc, c) => acc + c.totalVerifiedPayments, 0),
+      totalPaymentTransactions: verifiedPayments.length,
+      totalCustomers: paymentsLeaderboard.length,
+      uniqueOrdersPaid: new Set(verifiedPayments.map(p => p.orderId)).size,
+      totalOrderValue: paymentsLeaderboard.reduce((acc, c) => acc + c.totalOrderValue, 0),
+      totalOutstanding: paymentsLeaderboard.reduce((acc, c) => acc + c.outstandingBalance, 0)
+    };
+
+    // =========================================================================
+    // 3. AVAILABLE MONTHS FROM VALID ORDERS & VERIFIED PAYMENTS
+    // =========================================================================
+    const allValidOrders = await prisma.order.findMany({
+      where: {
+        status: { notIn: invalidStatuses },
+        ...(targetBranchId ? { branchId: targetBranchId } : {})
+      },
+      select: { createdAt: true }
+    });
+
+    const allVerifiedPayments = await prisma.payment.findMany({
+      where: {
+        status: 'VERIFIED',
+        order: {
+          status: { notIn: invalidStatuses },
+          ...(targetBranchId ? { branchId: targetBranchId } : {})
+        }
+      },
+      select: { createdAt: true }
+    });
+
+    const monthsMap = new Map();
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    for (const o of allValidOrders) {
+      const d = new Date(o.createdAt.getTime() + colomboOffsetMs);
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth() + 1;
+      const key = `${y}-${String(m).padStart(2, '0')}`;
+      if (!monthsMap.has(key)) {
+        monthsMap.set(key, {
+          year: y,
+          month: m,
+          label: `${monthNames[m - 1]} ${y}`,
+          orderCount: 0,
+          paymentCount: 0
+        });
+      }
+      monthsMap.get(key).orderCount += 1;
+    }
+
+    for (const p of allVerifiedPayments) {
+      const d = new Date(p.createdAt.getTime() + colomboOffsetMs);
+      const y = d.getUTCFullYear();
+      const m = d.getUTCMonth() + 1;
+      const key = `${y}-${String(m).padStart(2, '0')}`;
+      if (!monthsMap.has(key)) {
+        monthsMap.set(key, {
+          year: y,
+          month: m,
+          label: `${monthNames[m - 1]} ${y}`,
+          orderCount: 0,
+          paymentCount: 0
+        });
+      }
+      monthsMap.get(key).paymentCount += 1;
+    }
+
+    // Ensure currently requested month is present in the list even if 0 records
+    const currentKey = `${year}-${String(month).padStart(2, '0')}`;
+    if (!monthsMap.has(currentKey)) {
+      monthsMap.set(currentKey, {
+        year,
+        month,
+        label: `${monthNames[month - 1]} ${year}`,
+        orderCount: orders.length,
+        paymentCount: verifiedPayments.length
+      });
+    }
+
+    const availableMonths = Array.from(monthsMap.values()).sort((a, b) => {
+      if (b.year !== a.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+    return res.status(200).json({
+      success: true,
+      year,
+      month,
+      monthName: `${monthNames[month - 1]} ${year}`,
+      branchId: targetBranchId || 'ALL',
+      availableMonths,
+      ordersRanking: {
+        summary: ordersSummary,
+        topThree: ordersTopThree,
+        leaderboard: ordersLeaderboard
+      },
+      paymentsRanking: {
+        summary: paymentsSummary,
+        topThree: paymentsTopThree,
+        leaderboard: paymentsLeaderboard
+      },
+      // Backward compatibility fields
+      summary: ordersSummary,
+      topThree: ordersTopThree,
+      leaderboard: ordersLeaderboard
+    });
+  } catch (error) {
+    console.error('Error calculating monthly customer winners:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error calculating monthly customer winners.'
+    });
+  }
+};

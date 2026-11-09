@@ -9,6 +9,9 @@ router.use(authenticateToken);
 // Search customers — all authenticated roles
 router.get('/search', customerController.searchCustomer);
 
+// Monthly top 3 winners and leaderboard
+router.get('/monthly-winners', customerController.getMonthlyCustomerWinners);
+
 // Get customer measurements
 router.get('/:id/measurements/latest', customerController.getLatestCustomerMeasurement);
 router.get('/:id/measurements', customerController.getCustomerMeasurements);
