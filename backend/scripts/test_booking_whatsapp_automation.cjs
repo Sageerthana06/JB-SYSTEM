@@ -40,14 +40,44 @@ async function runTests() {
   assert(msg.includes('📋 ORDER QUOTATION'), 'Order quotation header must match');
   assert(msg.includes('🔖 Quotation No: QT-2026-0042'), 'Quotation No must match dynamic value');
   assert(msg.includes('👗 Item: Designer Lehanga × 2'), 'Item and quantity must match dynamic values');
-  assert(msg.includes('💰 Total Amount: LKR 45,000.00'), 'Total Amount must match formatted LKR');
-  assert(msg.includes('💵 Advance Payment: LKR 15,000.00'), 'Advance Payment must match formatted LKR');
-  assert(msg.includes('💳 Balance Payable: LKR 30,000.00'), 'Balance Payable must match formatted LKR');
+  assert(msg.includes('💰 Total Amount: LKR 45,000'), 'Total Amount must match formatted LKR without unnecessary decimals');
+  assert(msg.includes('💵 Advance Payment: LKR 15,000'), 'Advance Payment must match formatted LKR without unnecessary decimals');
+  assert(msg.includes('💳 Balance Payable: LKR 30,000'), 'Balance Payable must match formatted LKR without unnecessary decimals');
   assert(msg.includes('✅ Kindly review and confirm your quotation so we can proceed with your order.'), 'Review note must match');
   assert(msg.includes('💖 Your satisfaction is our priority, and we look forward to serving you!'), 'Satisfaction message must match');
   assert(msg.includes('🏢 JB GROUP (PVT) LTD\n✨ Build • Lead • Inspire.'), 'Brand slogan must match');
   assert(msg.includes('🤖 Automated message from JB GROUP Management System.'), 'Footer notice must match');
   console.log('✓ TEST 1 PASSED: Message template matches exact JB GROUP design.\n');
+
+  // TEST 1B: User Example Formatting (e.g. 1,600, not 1,600.00)
+  console.log('--- TEST 1B: Integer vs Decimal Formatting (Example: 1,600, not 1,600.00) ---');
+  const mockOrder1600 = {
+    orderNumber: 'ORD-2026-0088',
+    customer: { name: 'Tharushi' },
+    garmentDetails: { dressType: 'Blouse', quantity: 1 },
+    totalAmount: 1600,
+    advancePayment: 600,
+    balanceAmount: 1000
+  };
+  const msg1600 = generateOrderBookingWhatsAppMessage(mockOrder1600);
+  assert(msg1600.includes('💰 Total Amount: LKR 1,600'), '1,600 formatted without .00');
+  assert(msg1600.includes('💵 Advance Payment: LKR 600'), '600 formatted without .00');
+  assert(msg1600.includes('💳 Balance Payable: LKR 1,000'), '1,000 formatted without .00');
+
+  // Decimal case
+  const mockOrderDecimal = {
+    orderNumber: 'ORD-2026-0089',
+    customer: { name: 'Ravi' },
+    garmentDetails: { dressType: 'Shirt', quantity: 1 },
+    totalAmount: 1600.5,
+    advancePayment: 600.25,
+    balanceAmount: 1000.25
+  };
+  const msgDec = generateOrderBookingWhatsAppMessage(mockOrderDecimal);
+  assert(msgDec.includes('💰 Total Amount: LKR 1,600.50'), 'Fractional .50 formatted');
+  assert(msgDec.includes('💵 Advance Payment: LKR 600.25'), 'Fractional .25 formatted');
+  assert(msgDec.includes('💳 Balance Payable: LKR 1,000.25'), 'Fractional .25 balance formatted');
+  console.log('✓ TEST 1B PASSED: Integer amounts formatted without .00 (e.g., 1,600), decimals preserved.\n');
 
   // TEST 2: Multi-Item Support & Automatic Quotation Fallback
   console.log('--- TEST 2: Multi-Item & Dynamic Quotation Number Fallback ---');
@@ -71,9 +101,9 @@ async function runTests() {
   assert(msgMulti.includes('🔖 Quotation No: QT-2026-0105'), 'Quotation number auto-derived from orderNumber');
   assert(msgMulti.includes('👗 Item: Abaya Silk × 1'), 'Multi item 1 formatted');
   assert(msgMulti.includes('👗 Item: Matching Hijab × 2'), 'Multi item 2 formatted');
-  assert(msgMulti.includes('💰 Total Amount: LKR 18,500.00'), 'Total 18,500.00');
-  assert(msgMulti.includes('💵 Advance Payment: LKR 18,500.00'), 'Advance 18,500.00');
-  assert(msgMulti.includes('💳 Balance Payable: LKR 0.00'), 'Balance 0.00');
+  assert(msgMulti.includes('💰 Total Amount: LKR 18,500'), 'Total 18,500 without .00');
+  assert(msgMulti.includes('💵 Advance Payment: LKR 18,500'), 'Advance 18,500 without .00');
+  assert(msgMulti.includes('💳 Balance Payable: LKR 0'), 'Balance 0 without .00');
   console.log('✓ TEST 2 PASSED: Multi-item & Quotation Number fallback verified.\n');
 
   // TEST 3: Duplicate Message Prevention
@@ -161,7 +191,7 @@ async function runTests() {
   assert.strictEqual(successResult.phone, '94778899001', 'Target phone normalized');
   assert(successResult.waUrl.startsWith('https://wa.me/94778899001?text='), 'WhatsApp URL formed correctly');
   assert(successResult.whatsAppMessage.includes('Kurti × 1'), 'Item details present');
-  assert(successResult.whatsAppMessage.includes('LKR 12,000.00'), 'Total amount present');
+  assert(successResult.whatsAppMessage.includes('LKR 12,000'), 'Total amount present without unnecessary decimal zeros');
 
   // Verify database record
   const verifiedDbOrder = await prisma.order.findUnique({ where: { id: testOrderInvalid.id } });

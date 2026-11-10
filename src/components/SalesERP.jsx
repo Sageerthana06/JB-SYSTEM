@@ -332,11 +332,13 @@ export const generateQuotationWhatsAppMessage = (order) => {
       : Math.max(0, totalAmount - advanceAmount)
   );
 
-  const formatLKR = (num) =>
-    Number(num || 0).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
+  const formatLKR = (num) => {
+    const n = Number(num || 0);
+    if (isNaN(n)) return '0';
+    return n % 1 === 0
+      ? n.toLocaleString('en-US')
+      : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   return `✨ JB GROUP (PVT) LTD ✨
 
