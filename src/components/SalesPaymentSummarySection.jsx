@@ -66,11 +66,17 @@ export const SalesPaymentSummarySection = ({ branchId, refreshTrigger }) => {
   const summary = data || {
     totalOrderValue: 0,
     totalCustomerPaymentsReceived: 0,
+    totalCustomerPaymentsApplied: 0,
+    totalCustomerOverpayments: 0,
     totalCustomerPendingBalance: 0,
+    netCustomerPendingBalance: 0,
+    averageOrderValue: 0,
     fullyPaidOrdersCount: 0,
     partiallyPaidOrdersCount: 0,
     unpaidOrdersCount: 0,
     totalOutstandingOrdersCount: 0,
+    overpaidOrdersCount: 0,
+    pricedOrdersCount: 0,
     processedOrdersCount: 0
   };
 
@@ -272,8 +278,13 @@ export const SalesPaymentSummarySection = ({ branchId, refreshTrigger }) => {
           <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#15803d' }}>
             LKR {formatLKR(summary.totalCustomerPaymentsReceived)}
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#166534' }}>
-            Verified customer settlements
+          <div style={{ fontSize: '0.72rem', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+            <span>Verified settlements</span>
+            {summary.totalCustomerOverpayments > 0 && (
+              <span style={{ backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem' }}>
+                +LKR {formatLKR(summary.totalCustomerOverpayments)} credit
+              </span>
+            )}
           </div>
         </div>
 
@@ -302,7 +313,9 @@ export const SalesPaymentSummarySection = ({ branchId, refreshTrigger }) => {
             LKR {formatLKR(summary.totalCustomerPendingBalance)}
           </div>
           <div style={{ fontSize: '0.72rem', color: summary.totalCustomerPendingBalance > 0 ? '#9a3412' : '#166534' }}>
-            Order Total − Payments Received
+            {summary.totalCustomerOverpayments > 0
+              ? `Gross: LKR ${formatLKR(summary.totalCustomerPendingBalance)} · Net Due: LKR ${formatLKR(summary.netCustomerPendingBalance != null ? summary.netCustomerPendingBalance : (summary.totalCustomerPendingBalance - summary.totalCustomerOverpayments))}`
+              : 'Order Total − Payments Received'}
           </div>
         </div>
 
@@ -477,13 +490,35 @@ export const SalesPaymentSummarySection = ({ branchId, refreshTrigger }) => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, color: '#0f172a' }}>Balance Formula:</span>
-          <span>Order Value (LKR {formatLKR(summary.totalOrderValue)})</span>
-          <span>−</span>
-          <span>Received (LKR {formatLKR(summary.totalCustomerPaymentsReceived)})</span>
-          <span>=</span>
-          <span style={{ fontWeight: 800, color: summary.totalCustomerPendingBalance > 0 ? '#c2410c' : '#15803d' }}>
-            Pending Balance (LKR {formatLKR(summary.totalCustomerPendingBalance)})
-          </span>
+          {summary.totalCustomerOverpayments > 0 ? (
+            <>
+              <span>Order Value (LKR {formatLKR(summary.totalOrderValue)})</span>
+              <span>−</span>
+              <span>Applied Payments (LKR {formatLKR(summary.totalCustomerPaymentsApplied != null ? summary.totalCustomerPaymentsApplied : (summary.totalOrderValue - summary.totalCustomerPendingBalance))})</span>
+              <span>=</span>
+              <span style={{ fontWeight: 800, color: summary.totalCustomerPendingBalance > 0 ? '#c2410c' : '#15803d' }}>
+                Pending Balance (LKR {formatLKR(summary.totalCustomerPendingBalance)})
+              </span>
+              <span style={{ color: '#94a3b8', margin: '0 4px' }}>|</span>
+              <span style={{ color: '#0369a1', fontWeight: 600 }}>
+                Total Cash Received: LKR {formatLKR(summary.totalCustomerPaymentsReceived)} (incl. LKR {formatLKR(summary.totalCustomerOverpayments)} customer credit)
+              </span>
+              <span style={{ color: '#94a3b8', margin: '0 4px' }}>|</span>
+              <span style={{ color: '#15803d', fontWeight: 700 }}>
+                Net Due: LKR {formatLKR(summary.netCustomerPendingBalance != null ? summary.netCustomerPendingBalance : (summary.totalOrderValue - summary.totalCustomerPaymentsReceived))}
+              </span>
+            </>
+          ) : (
+            <>
+              <span>Order Value (LKR {formatLKR(summary.totalOrderValue)})</span>
+              <span>−</span>
+              <span>Received (LKR {formatLKR(summary.totalCustomerPaymentsReceived)})</span>
+              <span>=</span>
+              <span style={{ fontWeight: 800, color: summary.totalCustomerPendingBalance > 0 ? '#c2410c' : '#15803d' }}>
+                Pending Balance (LKR {formatLKR(summary.totalCustomerPendingBalance)})
+              </span>
+            </>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontWeight: 700, color: '#0f172a' }}>Order Counts:</span>

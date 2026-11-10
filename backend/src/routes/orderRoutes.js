@@ -76,6 +76,20 @@ router.post(
   orderController.notifyOrderReady
 );
 
+// Customer Order Completion & Delivery WhatsApp Notification — Manager, Admin, CEO, Staff
+router.post(
+  '/:id/notify-delivered',
+  authorizeRoles('SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER', 'STAFF'),
+  orderController.notifyOrderDelivered
+);
+
+// Customer Order Booking Confirmation WhatsApp Notification — Manager, Admin, CEO, Staff
+router.post(
+  '/:id/notify-booking',
+  authorizeRoles('SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER', 'STAFF', 'Manager'),
+  orderController.notifyOrderBooking
+);
+
 // Record payment — management, staff, cashier, manager
 router.post(
   '/:id/payment',

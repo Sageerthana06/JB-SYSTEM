@@ -11,10 +11,12 @@ import {
   ExternalLink,
   Award,
   CreditCard,
-  DollarSign
+  DollarSign,
+  FileText
 } from 'lucide-react';
 import { getImageUrl } from '../config/api';
 import { getStatusLabel, STATUS_COLORS } from '../utils/orderStatus';
+import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 
 export const CustomerOrderHistoryModal = ({
   isOpen,
@@ -27,6 +29,7 @@ export const CustomerOrderHistoryModal = ({
   if (!isOpen || !customerData) return null;
 
   const [activeModalTab, setActiveModalTab] = useState(rankingType === 'PAYMENTS' && customerData.payments?.length > 0 ? 'payments' : 'orders');
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const orders = customerData.orders || [];
   const payments = customerData.payments || [];
   const isPaymentMode = rankingType === 'PAYMENTS';
@@ -424,6 +427,7 @@ export const CustomerOrderHistoryModal = ({
                         <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>Order Price</th>
                         <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>Paid Amount</th>
                         <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>Balance</th>
+                        <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Invoice</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -481,6 +485,35 @@ export const CustomerOrderHistoryModal = ({
                                   LKR {balance.toLocaleString()}
                                 </span>
                               )}
+                            </td>
+                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                              <button
+                                onClick={() => setSelectedInvoiceOrder({
+                                  ...ord,
+                                  garmentDetails: { dressType: ord.design || ord.dressType || 'Other', quantity: ord.quantity || 1 },
+                                  customer: {
+                                    name: customerData.name,
+                                    primaryPhone: customerData.primaryPhone,
+                                    address: customerData.address
+                                  }
+                                })}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '4px 9px',
+                                  backgroundColor: '#f0f9ff',
+                                  border: '1px solid #bae6fd',
+                                  borderRadius: '6px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  color: '#0369a1',
+                                  cursor: 'pointer'
+                                }}
+                                title="View & Download Digital Invoice"
+                              >
+                                <FileText size={12} color="#0369a1" /> Invoice
+                              </button>
                             </td>
                           </tr>
                         );
@@ -545,6 +578,15 @@ export const CustomerOrderHistoryModal = ({
           </button>
         </div>
       </div>
+
+      {/* Digital Invoice Preview Modal */}
+      {selectedInvoiceOrder && (
+        <DigitalInvoiceModal
+          order={selectedInvoiceOrder}
+          isOpen={Boolean(selectedInvoiceOrder)}
+          onClose={() => setSelectedInvoiceOrder(null)}
+        />
+      )}
     </div>
   );
 };

@@ -152,6 +152,15 @@ export const ProductionERP = () => {
         // Update state immediately with the updated order
         const updatedOrderObj = data.order || {};
         setOrders(prev => prev.map(o => (o.id === orderId ? { ...o, ...updatedOrderObj, status: targetStatus } : o)));
+
+        // Automatic WhatsApp Completion Trigger when order transitions to DELIVERED
+        if (targetStatus === 'DELIVERED') {
+          const fullDeliveredOrder = { ...updatedOrderObj, status: 'DELIVERED' };
+          setFinishedNotificationOrder(fullDeliveredOrder);
+          if (data.deliveryNotification?.waUrl) {
+            window.open(data.deliveryNotification.waUrl, '_blank');
+          }
+        }
       } else {
         alert(data.message || 'Failed to update order status');
       }
@@ -676,19 +685,19 @@ export const ProductionERP = () => {
                         </div>
 
 
-                        {isFullAccess && order.status === 'READY' && (
+                        {isFullAccess && (order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
                           <div style={{ marginTop: '6px' }}>
                             <button
                               type="button"
                               onClick={() => setFinishedNotificationOrder(order)}
-                              title={order.readyNotificationSent ? `Finished notification sent by ${order.readyNotificationSentBy || 'Manager'} at ${order.readyNotificationSentAt ? new Date(order.readyNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)` : 'Send Customer Finished Message'}
+                              title={order.deliveryNotificationSent ? `Completion thank-you message sent by ${order.deliveryNotificationSentBy || 'Staff'} at ${order.deliveryNotificationSentAt ? new Date(order.deliveryNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)` : 'Send Customer Completion Thank-You Message'}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
                                 padding: '4px 10px',
                                 borderRadius: '6px',
-                                backgroundColor: order.readyNotificationSent ? '#15803d' : '#16a34a',
+                                backgroundColor: order.deliveryNotificationSent ? '#15803d' : '#16a34a',
                                 color: '#ffffff',
                                 fontSize: '0.72rem',
                                 fontWeight: 700,
@@ -697,7 +706,7 @@ export const ProductionERP = () => {
                               }}
                             >
                               <MessageCircle size={12} />
-                              {order.readyNotificationSent ? '✓ Finished Sent' : 'Send Customer Finished Message'}
+                              {order.deliveryNotificationSent ? '✓ Thank-You Sent' : 'Send WhatsApp Thank-You'}
                             </button>
                           </div>
                         )}
@@ -901,14 +910,14 @@ export const ProductionERP = () => {
                       </button>
                     ) : null}
 
-                    {/* Customer Finished Notification Button (Manager only) */}
-                    {isFullAccess && order.status === 'READY' && (
+                    {/* Customer Completion WhatsApp Notification Button */}
+                    {isFullAccess && (order.status === 'DELIVERED' || order.status === 'COMPLETED') && (
                       <button
                         type="button"
                         onClick={() => setFinishedNotificationOrder(order)}
                         className="touch-target-btn"
                         style={{
-                          backgroundColor: order.readyNotificationSent ? '#15803d' : '#16a34a',
+                          backgroundColor: order.deliveryNotificationSent ? '#15803d' : '#16a34a',
                           color: '#ffffff',
                           fontSize: '0.78rem',
                           display: 'flex',
@@ -923,7 +932,7 @@ export const ProductionERP = () => {
                         }}
                       >
                         <MessageCircle size={15} />
-                        {order.readyNotificationSent ? '✓ Finished Msg Sent (JB GROUP)' : 'Send Customer Finished Message'}
+                        {order.deliveryNotificationSent ? '✓ WhatsApp Thank-You Sent' : 'Send WhatsApp Thank-You'}
                       </button>
                     )}
 

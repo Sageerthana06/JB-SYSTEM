@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MessageCircle, AlertCircle, CheckCircle, ShieldCheck, Phone, User, Hash, Clock, Send, AlertTriangle } from 'lucide-react';
+import { X, MessageCircle, AlertCircle, CheckCircle, ShieldCheck, Phone, User, Hash, Clock, Send, AlertTriangle, Sparkles, CheckCheck } from 'lucide-react';
 import { API_URL } from '../config/api';
 
 const normalizePhoneForWhatsApp = (phone) => {
@@ -26,29 +26,67 @@ export const CustomerFinishedNotificationModal = ({
   if (!isOpen || !order) return null;
 
   const userRole = (user?.role || '').toUpperCase();
-  const isAuthorized = ['SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER'].includes(userRole);
-  const isReady = order.status === 'READY';
+  const isAuthorized = ['SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER', 'STAFF'].includes(userRole);
+  const isDelivered = ['DELIVERED', 'COMPLETED'].includes(order.status);
 
   const customerName = order.customer?.name || order.customerName || 'Customer';
-  const rawPhone = order.customer?.primaryPhone || order.phone || '';
-  const cleanedDigits = rawPhone.replace(/[^0-9]/g, '');
+  const rawPhone = order.customer?.primaryPhone || order.customer?.phone || order.phone || '';
+  const cleanedDigits = rawPhone.toString().replace(/[^0-9]/g, '');
   const isPhoneValid = Boolean(rawPhone && cleanedDigits.length >= 7);
   const orderNumber = order.orderNumber || (order.id ? `ORD-${order.id}` : 'N/A');
 
-  const approvedMessage = `Dear ${customerName},\n\nYour order ${orderNumber} from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!`;
+  const itemName = order.garmentDetails?.dressType || 'Bespoke Garment';
+  const quantity = Number(order.garmentDetails?.quantity || 1);
+  const totalAmount = Number(order.totalAmount || 0);
 
-  const alreadySent = Boolean(order.readyNotificationSent);
-  const previousSentAt = order.readyNotificationSentAt ? new Date(order.readyNotificationSentAt).toLocaleString() : null;
-  const previousSentBy = order.readyNotificationSentBy || 'Authorized Manager';
+  // Verified payment calculation
+  let verifiedPaid = 0;
+  if (Array.isArray(order.payments) && order.payments.length > 0) {
+    verifiedPaid = order.payments
+      .filter(p => p.status === 'VERIFIED')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }
+  const amountPaid = verifiedPaid > 0 ? verifiedPaid : Number(order.advancePayment || 0);
+  const balanceDue = Math.max(0, totalAmount - amountPaid);
+
+  const formatLKR = (num) => Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // EXACT APPROVED WHATSAPP MESSAGE
+  const approvedMessage = `✨ JB GROUP (PVT) LTD ✨
+
+Dear ${customerName}, 🌸
+
+Thank you for choosing JB GROUP! 💐 We truly appreciate your trust in us.
+
+🎉 YOUR ORDER IS COMPLETED!
+
+🔖 Order No: ${orderNumber}
+👗 Item: ${itemName} × ${quantity}
+💰 Total Amount: LKR ${formatLKR(totalAmount)}
+💵 Amount Paid: LKR ${formatLKR(amountPaid)}
+💳 Balance Due: LKR ${formatLKR(balanceDue)}
+
+💖 We hope you love your outfit! Your satisfaction is our priority.
+
+Thank you for trusting JB GROUP. We look forward to serving you again! 🌸
+
+🏢 JB GROUP (PVT) LTD
+✨ Build • Lead • Inspire.
+
+🤖 Automated message from JB GROUP Management System.`;
+
+  const alreadySent = Boolean(order.deliveryNotificationSent);
+  const previousSentAt = order.deliveryNotificationSentAt ? new Date(order.deliveryNotificationSentAt).toLocaleString() : null;
+  const previousSentBy = order.deliveryNotificationSentBy || 'Authorized Staff';
 
   const handleSend = async () => {
     if (!isAuthorized) {
-      setError('Access denied. Only authorized Managers, Admins, and CEO can send customer finished notifications.');
+      setError('Access denied. You do not have permission to send delivery thank-you messages.');
       return;
     }
 
-    if (!isReady) {
-      setError(`Cannot send notification. Order must pass final completion & quality-check (Status: READY). Current status: ${order.status}`);
+    if (!isDelivered) {
+      setError(`Cannot send completion message. Order must be DELIVERED. Current status: ${order.status}`);
       return;
     }
 
@@ -58,7 +96,7 @@ export const CustomerFinishedNotificationModal = ({
     }
 
     if (alreadySent && !allowResend) {
-      setError('Notification was already sent previously. Check "Allow resend" to send again.');
+      setError('Completion message was already sent previously. Check "Allow resend" to send again.');
       return;
     }
 
@@ -68,7 +106,7 @@ export const CustomerFinishedNotificationModal = ({
       setSuccessInfo(null);
 
       const token = localStorage.getItem('jb_token');
-      const res = await fetch(`${API_URL}/api/orders/${order.id}/notify-ready`, {
+      const res = await fetch(`${API_URL}/api/orders/${order.id}/notify-delivered`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +118,7 @@ export const CustomerFinishedNotificationModal = ({
       const data = await res.json();
 
       if (res.status === 409 || data.duplicatePrevented) {
-        setError(data.message || 'Notification was already sent previously. Duplicate prevented.');
+        setError(data.message || 'Completion notification was already sent previously. Duplicate prevented.');
         return;
       }
 
@@ -90,20 +128,20 @@ export const CustomerFinishedNotificationModal = ({
       }
 
       // Successful notification recorded
-      setSuccessInfo('✓ Customer finished notification successfully recorded and logged!');
+      setSuccessInfo('✓ Order completion thank-you message successfully recorded and dispatched!');
 
       // Open WhatsApp with approved message
       const targetPhone = normalizePhoneForWhatsApp(rawPhone);
-      const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(data.whatsAppMessage || approvedMessage)}`;
+      const waUrl = data.waUrl || `https://wa.me/${targetPhone}?text=${encodeURIComponent(data.whatsAppMessage || approvedMessage)}`;
       window.open(waUrl, '_blank');
 
       if (onSuccess) {
         onSuccess(data.order || {
           ...order,
-          readyNotificationSent: true,
-          readyNotificationSentAt: data.sentAt,
-          readyNotificationSentBy: data.sentBy,
-          readyNotificationStatus: 'SENT'
+          deliveryNotificationSent: true,
+          deliveryNotificationSentAt: data.sentAt,
+          deliveryNotificationSentBy: data.sentBy,
+          deliveryNotificationStatus: 'SENT'
         }, data);
       }
 
@@ -112,7 +150,7 @@ export const CustomerFinishedNotificationModal = ({
       }, 1400);
 
     } catch (err) {
-      console.error('Customer Finished Notification Error:', err);
+      console.error('Customer Completion Notification Error:', err);
       setError('Network or server error while sending notification. Please check connection and try again.');
     } finally {
       setSending(false);
@@ -144,7 +182,7 @@ export const CustomerFinishedNotificationModal = ({
       }}>
         {/* Header */}
         <div style={{
-          padding: '20px 24px',
+          padding: '18px 22px',
           backgroundColor: '#0a192f',
           color: '#ffffff',
           display: 'flex',
@@ -164,11 +202,12 @@ export const CustomerFinishedNotificationModal = ({
               <MessageCircle size={22} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
-                Send Customer Finished Message
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>Order Completed Thank-You Message</span>
+                <Sparkles size={16} color="#fbbf24" />
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                Manager controlled collection notification • JB GROUP
+                Automated Customer Delivery WhatsApp • JB GROUP (PVT) LTD
               </p>
             </div>
           </div>
@@ -191,7 +230,7 @@ export const CustomerFinishedNotificationModal = ({
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: 'calc(85vh - 140px)', overflowY: 'auto' }}>
+        <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: 'calc(85vh - 140px)', overflowY: 'auto' }}>
           {/* Permission / Authorization Warning */}
           {!isAuthorized && (
             <div style={{
@@ -207,13 +246,13 @@ export const CustomerFinishedNotificationModal = ({
             }}>
               <AlertCircle size={20} style={{ flexShrink: 0 }} />
               <div>
-                <strong>Unauthorized Role:</strong> Only Manager, Admin, and CEO/SUPER_ADMIN roles can send customer notifications.
+                <strong>Unauthorized Role:</strong> You do not have permission to send customer notifications.
               </div>
             </div>
           )}
 
-          {/* Readiness / Quality Check Notice */}
-          {!isReady && (
+          {/* Delivery Stage Notice */}
+          {!isDelivered && (
             <div style={{
               backgroundColor: '#fffbeb',
               border: '1px solid #fde68a',
@@ -227,8 +266,7 @@ export const CustomerFinishedNotificationModal = ({
             }}>
               <AlertTriangle size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <strong>Order Not Ready for Collection:</strong> This order is currently in stage{' '}
-                <span style={{ fontWeight: 800 }}>{order.status}</span>. Customer Finished notifications can only be sent once cutting, stitching, alterations, and quality checks are fully completed (Status: <strong>READY</strong>).
+                <strong>Order Not Yet Delivered:</strong> This completion thank-you message is sent ONLY when the order reaches final completed status (<strong>DELIVERED</strong>). Current status: <span style={{ fontWeight: 800 }}>{order.status}</span>.
               </div>
             </div>
           )}
@@ -248,10 +286,10 @@ export const CustomerFinishedNotificationModal = ({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldCheck size={18} color="#16a34a" />
-                <span style={{ fontWeight: 800 }}>Notification Already Delivered</span>
+                <span style={{ fontWeight: 800 }}>Completion Message Already Delivered</span>
               </div>
               <div style={{ fontSize: '0.8rem', color: '#15803d' }}>
-                Sent on <strong>{previousSentAt || 'Earlier'}</strong> by <strong>{previousSentBy}</strong>. Duplicate protection is active.
+                Sent on <strong>{previousSentAt || 'Earlier'}</strong> by <strong>{previousSentBy}</strong>. Duplicate protection active.
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', cursor: 'pointer', fontWeight: 600 }}>
                 <input
@@ -260,7 +298,7 @@ export const CustomerFinishedNotificationModal = ({
                   onChange={(e) => setAllowResend(e.target.checked)}
                   style={{ width: '16px', height: '16px', accentColor: '#16a34a' }}
                 />
-                <span>Allow resending finished notification to customer</span>
+                <span>Allow resending completion thank-you message to customer</span>
               </label>
             </div>
           )}
@@ -270,10 +308,10 @@ export const CustomerFinishedNotificationModal = ({
             backgroundColor: '#f8fafc',
             border: '1px solid #e2e8f0',
             borderRadius: '12px',
-            padding: '14px 18px',
+            padding: '12px 16px',
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
-            gap: '12px'
+            gap: '10px'
           }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
@@ -295,7 +333,7 @@ export const CustomerFinishedNotificationModal = ({
 
             <div style={{ gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                <Phone size={13} /> Customer Phone Number
+                <Phone size={13} /> Customer WhatsApp Number
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
                 <span style={{ fontSize: '0.92rem', fontWeight: 800, color: isPhoneValid ? '#0f172a' : '#dc2626' }}>
@@ -318,8 +356,8 @@ export const CustomerFinishedNotificationModal = ({
           {/* Message Preview */}
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>APPROVED MESSAGE PREVIEW</span>
-              <span style={{ color: '#16a34a' }}>WhatsApp Template</span>
+              <span>WHATSAPP MESSAGE TEMPLATE</span>
+              <span style={{ color: '#16a34a', fontWeight: 800 }}>DELIVERED Order Thank-You</span>
             </div>
             <div style={{
               backgroundColor: '#f0fdf4',
@@ -327,10 +365,12 @@ export const CustomerFinishedNotificationModal = ({
               borderRadius: '10px',
               padding: '14px 16px',
               fontFamily: 'monospace',
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               color: '#14532d',
               whiteSpace: 'pre-line',
-              lineHeight: 1.5
+              lineHeight: 1.5,
+              maxHeight: '220px',
+              overflowY: 'auto'
             }}>
               {approvedMessage}
             </div>
@@ -374,7 +414,7 @@ export const CustomerFinishedNotificationModal = ({
 
         {/* Modal Footer */}
         <div style={{
-          padding: '16px 24px',
+          padding: '14px 22px',
           borderTop: '1px solid #e2e8f0',
           backgroundColor: '#f8fafc',
           display: 'flex',
@@ -387,7 +427,7 @@ export const CustomerFinishedNotificationModal = ({
             onClick={onClose}
             disabled={sending}
             style={{
-              padding: '9px 18px',
+              padding: '8px 16px',
               borderRadius: '8px',
               border: '1px solid #cbd5e1',
               backgroundColor: '#ffffff',
@@ -403,24 +443,24 @@ export const CustomerFinishedNotificationModal = ({
           <button
             type="button"
             onClick={handleSend}
-            disabled={!isAuthorized || !isReady || !isPhoneValid || (alreadySent && !allowResend) || sending}
+            disabled={!isAuthorized || !isDelivered || !isPhoneValid || (alreadySent && !allowResend) || sending}
             style={{
               padding: '9px 20px',
               borderRadius: '8px',
               border: 'none',
-              backgroundColor: (!isAuthorized || !isReady || !isPhoneValid || (alreadySent && !allowResend))
+              backgroundColor: (!isAuthorized || !isDelivered || !isPhoneValid || (alreadySent && !allowResend))
                 ? '#94a3b8'
                 : '#16a34a',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: '0.88rem',
-              cursor: (!isAuthorized || !isReady || !isPhoneValid || (alreadySent && !allowResend) || sending)
+              cursor: (!isAuthorized || !isDelivered || !isPhoneValid || (alreadySent && !allowResend) || sending)
                 ? 'not-allowed'
                 : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              boxShadow: (!isAuthorized || !isReady || !isPhoneValid || (alreadySent && !allowResend))
+              boxShadow: (!isAuthorized || !isDelivered || !isPhoneValid || (alreadySent && !allowResend))
                 ? 'none'
                 : '0 2px 8px rgba(22, 163, 74, 0.35)'
             }}
@@ -428,12 +468,12 @@ export const CustomerFinishedNotificationModal = ({
             {sending ? (
               <>
                 <Clock size={16} className="animate-spin" />
-                <span>Sending Notification...</span>
+                <span>Sending Message...</span>
               </>
             ) : (
               <>
                 <Send size={16} />
-                <span>{alreadySent ? 'Resend Customer Finished Message' : 'Send Customer Finished Message'}</span>
+                <span>{alreadySent ? 'Resend WhatsApp Thank-You' : 'Send WhatsApp Thank-You'}</span>
               </>
             )}
           </button>

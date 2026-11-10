@@ -215,10 +215,24 @@ model Order {
   tailorRejectionReason String?
 
   // Notification Tracking
-  readyNotificationSent   Boolean?  @default(false)
-  readyNotificationSentAt DateTime?
-  readyNotificationSentBy String?
-  readyNotificationStatus String?
+  readyNotificationSent       Boolean?  @default(false)
+  readyNotificationSentAt     DateTime?
+  readyNotificationSentBy     String?
+  readyNotificationStatus     String?
+  deliveryNotificationSent    Boolean?  @default(false)
+  deliveryNotificationSentAt  DateTime?
+  deliveryNotificationSentBy  String?
+  deliveryNotificationStatus  String?
+  deliveryNotificationPhone   String?
+  deliveryNotificationMessage String?
+  bookingNotificationSent     Boolean?  @default(false)
+  bookingNotificationSentAt   DateTime?
+  bookingNotificationSentBy   String?
+  bookingNotificationStatus   String?   @default("PENDING")
+  bookingNotificationPhone    String?
+  bookingNotificationMessage  String?
+  bookingNotificationError    String?
+  quotationNumber             String?
 
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt

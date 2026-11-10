@@ -7,6 +7,7 @@ const {
   getPhoneSearchVariants,
   validatePhoneNumber
 } = require('../utils/phoneUtils');
+const { processBookingWhatsAppNotification } = require('./orderController');
 
 // Helper to generate a unique order number (e.g., JB-20260916-0001)
 const generateOrderNumber = async () => {
@@ -295,11 +296,30 @@ exports.createCustomer = async (req, res, next) => {
       }
     });
 
+    // Automatically generate and dispatch WhatsApp Booking Confirmation Notification
+    let bookingNotification = null;
+    try {
+      const actorName = req.user?.name || req.user?.email || 'Staff';
+      bookingNotification = await processBookingWhatsAppNotification(
+        completeOrder || newOrder,
+        actorName,
+        req
+      );
+    } catch (notifErr) {
+      console.warn('Booking WhatsApp notification non-blocking error in createCustomerAndOrder:', notifErr.message);
+      bookingNotification = {
+        sent: false,
+        status: 'FAILED',
+        error: notifErr.message
+      };
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Customer and order created successfully',
       customer,
-      order: completeOrder || newOrder
+      order: bookingNotification?.order || completeOrder || newOrder,
+      bookingNotification
     });
 
   } catch (error) {

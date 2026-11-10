@@ -34,6 +34,7 @@ import { CustomerCreationModal } from './CustomerCreationModal';
 import { ImageUploadCapture } from './common/ImageUploadCapture';
 import { validateImageFileClient } from '../utils/imageUploadHelper';
 import { MonthlyCustomerWinnersSection } from './MonthlyCustomerWinnersSection';
+import { DigitalInvoiceModal } from './DigitalInvoiceModal';
 
 const normalizePhoneForWhatsApp = (phone) => {
   if (!phone) return '';
@@ -80,6 +81,7 @@ export const CustomerVaultERP = () => {
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [activeVaultTab, setActiveVaultTab] = useState('winners'); // 'winners' | 'vault'
   const [selectedMeasurementIdx, setSelectedMeasurementIdx] = useState(0);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
 
   const ordersTableRef = useRef(null);
 
@@ -1186,6 +1188,7 @@ export const CustomerVaultERP = () => {
                             <th style={{ padding: '12px 14px', fontWeight: 800, textAlign: 'right' }}>Order Price</th>
                             <th style={{ padding: '12px 14px', fontWeight: 800, textAlign: 'right' }}>Paid Amount</th>
                             <th style={{ padding: '12px 14px', fontWeight: 800, textAlign: 'right' }}>Balance</th>
+                            <th style={{ padding: '12px 14px', fontWeight: 800, textAlign: 'center' }}>Invoice</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1255,6 +1258,30 @@ export const CustomerVaultERP = () => {
                                     </span>
                                   )}
                                 </td>
+                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                  <button
+                                    onClick={() => setSelectedInvoiceOrder({
+                                      ...ord,
+                                      customer: customerDetails || selectedCustomer
+                                    })}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      padding: '4px 9px',
+                                      backgroundColor: '#f0f9ff',
+                                      border: '1px solid #bae6fd',
+                                      borderRadius: '6px',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      color: '#0369a1',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="View & Download Digital Invoice"
+                                  >
+                                    <FileText size={12} color="#0369a1" /> Invoice
+                                  </button>
+                                </td>
                               </tr>
                             );
                           })}
@@ -1323,6 +1350,15 @@ export const CustomerVaultERP = () => {
         onClose={() => setIsCustomerModalOpen(false)}
         onSuccess={() => fetchCustomers(searchQuery)}
       />
+
+      {/* Digital Invoice Preview Modal */}
+      {selectedInvoiceOrder && (
+        <DigitalInvoiceModal
+          order={selectedInvoiceOrder}
+          isOpen={Boolean(selectedInvoiceOrder)}
+          onClose={() => setSelectedInvoiceOrder(null)}
+        />
+      )}
 
     </div>
   );

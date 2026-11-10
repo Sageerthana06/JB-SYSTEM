@@ -226,10 +226,38 @@ exports.createOrder = async (req, res, next) => {
       });
     }
 
+    // Trigger automatic booking WhatsApp notification (safe, non-blocking)
+    let bookingNotification = null;
+    try {
+      const completeCreatedOrder = await prisma.order.findUnique({
+        where: { id: newOrder.id },
+        include: {
+          customer: true,
+          garmentDetails: true,
+          branch: true,
+          payments: { orderBy: { createdAt: 'asc' } }
+        }
+      });
+      const actorName = getActorDisplayName(req.user) || req.user?.name || 'Staff';
+      bookingNotification = await processBookingWhatsAppNotification(
+        completeCreatedOrder || newOrder,
+        actorName,
+        req
+      );
+    } catch (notifErr) {
+      console.warn('Booking WhatsApp notification non-blocking error in createOrder:', notifErr.message);
+      bookingNotification = {
+        sent: false,
+        status: 'FAILED',
+        error: notifErr.message
+      };
+    }
+
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      order: newOrder
+      order: bookingNotification?.order || newOrder,
+      bookingNotification
     });
   } catch (error) {
     console.error('Error creating order:', error);
@@ -740,11 +768,21 @@ exports.updateOrderStatus = async (req, res, next) => {
       }
     });
 
+    let deliveryNotification = null;
+    if (status === 'DELIVERED') {
+      try {
+        deliveryNotification = await processDeliveryWhatsAppNotification(order, getActorDisplayName(req.user), req);
+      } catch (notifErr) {
+        console.warn('Delivery WhatsApp notification non-blocking warning:', notifErr.message);
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: `Status updated to: ${ORDER_STATUS_LABELS[status] || status}`,
       order,
-      historyRecord
+      historyRecord,
+      deliveryNotification
     });
   } catch (error) {
     console.error('Error updating order status:', error);
@@ -1671,11 +1709,15 @@ exports.getSalesPaymentSummary = async (req, res, next) => {
 
     let totalOrderValueCents = 0;
     let totalPaymentsReceivedCents = 0;
+    let totalCustomerPaymentsAppliedCents = 0;
+    let totalCustomerOverpaymentsCents = 0;
     let totalPendingBalanceCents = 0;
     let fullyPaidOrdersCount = 0;
     let partiallyPaidOrdersCount = 0;
     let unpaidOrdersCount = 0;
     let totalOutstandingOrdersCount = 0;
+    let overpaidOrdersCount = 0;
+    let pricedOrdersCount = 0;
 
     periodOrders.forEach(o => {
       const orderTotalCents = getOrderTotalCents(o);
@@ -1692,11 +1734,16 @@ exports.getSalesPaymentSummary = async (req, res, next) => {
       const legacyAdvanceCents = Math.max(0, advanceCents - verifiedPaidCents);
       const actualPaidCents = verifiedPaidCents + legacyAdvanceCents;
 
+      const appliedPaidCents = Math.min(orderTotalCents, actualPaidCents);
+      const overpaymentCents = Math.max(0, actualPaidCents - orderTotalCents);
       const balanceDueCents = orderTotalCents > 0 ? Math.max(0, orderTotalCents - actualPaidCents) : 0;
 
       if (orderTotalCents > 0) {
+        pricedOrdersCount++;
         totalOrderValueCents += orderTotalCents;
         totalPaymentsReceivedCents += actualPaidCents;
+        totalCustomerPaymentsAppliedCents += appliedPaidCents;
+        totalCustomerOverpaymentsCents += overpaymentCents;
         totalPendingBalanceCents += balanceDueCents;
 
         if (balanceDueCents === 0) {
@@ -1708,8 +1755,15 @@ exports.getSalesPaymentSummary = async (req, res, next) => {
           unpaidOrdersCount++;
           totalOutstandingOrdersCount++;
         }
+
+        if (overpaymentCents > 0) {
+          overpaidOrdersCount++;
+        }
       }
     });
+
+    const netPendingBalanceCents = Math.max(0, totalOrderValueCents - totalPaymentsReceivedCents);
+    const averageOrderValueCents = pricedOrdersCount > 0 ? Math.round(totalOrderValueCents / pricedOrdersCount) : 0;
 
     res.json({
       success: true,
@@ -1719,11 +1773,17 @@ exports.getSalesPaymentSummary = async (req, res, next) => {
       summary: {
         totalOrderValue: fromMoneyCents(totalOrderValueCents),
         totalCustomerPaymentsReceived: fromMoneyCents(totalPaymentsReceivedCents),
+        totalCustomerPaymentsApplied: fromMoneyCents(totalCustomerPaymentsAppliedCents),
+        totalCustomerOverpayments: fromMoneyCents(totalCustomerOverpaymentsCents),
         totalCustomerPendingBalance: fromMoneyCents(totalPendingBalanceCents),
+        netCustomerPendingBalance: fromMoneyCents(netPendingBalanceCents),
+        averageOrderValue: fromMoneyCents(averageOrderValueCents),
         fullyPaidOrdersCount,
         partiallyPaidOrdersCount,
         unpaidOrdersCount,
         totalOutstandingOrdersCount,
+        overpaidOrdersCount,
+        pricedOrdersCount,
         processedOrdersCount: periodOrders.length
       }
     });
@@ -2658,10 +2718,18 @@ exports.deliverOrder = async (req, res, next) => {
       console.warn('Production history error:', err.message);
     }
 
+    let deliveryNotification = null;
+    try {
+      deliveryNotification = await processDeliveryWhatsAppNotification(updated, deliveredBy, req);
+    } catch (notifErr) {
+      console.warn('Delivery WhatsApp notification non-blocking warning:', notifErr.message);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Order marked as DELIVERED successfully.',
-      order: updated
+      order: updated,
+      deliveryNotification
     });
   } catch (error) {
     console.error('Error delivering order:', error);
@@ -3337,3 +3405,510 @@ exports.notifyOrderReady = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Generate Approved Order Completion WhatsApp Message
+ * Strictly matching JB GROUP requirements
+ */
+const generateOrderDeliveredWhatsAppMessage = (order) => {
+  const customerName = order.customer?.name || 'Customer';
+  const orderNumber = order.orderNumber || (order.id ? `ORD-${order.id}` : 'N/A');
+  const itemName = order.garmentDetails?.dressType || 'Bespoke Garment';
+  const quantity = Number(order.garmentDetails?.quantity || 1);
+  const totalAmount = Number(order.totalAmount || 0);
+
+  // Real verified payments calculation from PostgreSQL
+  let verifiedPaid = 0;
+  if (Array.isArray(order.payments) && order.payments.length > 0) {
+    verifiedPaid = order.payments
+      .filter(p => p.status === 'VERIFIED')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }
+  const amountPaid = verifiedPaid > 0 ? verifiedPaid : Number(order.advancePayment || 0);
+  const balanceDue = Math.max(0, totalAmount - amountPaid);
+
+  const formatLKR = (num) => Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  return `✨ JB GROUP (PVT) LTD ✨
+
+Dear ${customerName}, 🌸
+
+Thank you for choosing JB GROUP! 💐 We truly appreciate your trust in us.
+
+🎉 YOUR ORDER IS COMPLETED!
+
+🔖 Order No: ${orderNumber}
+👗 Item: ${itemName} × ${quantity}
+💰 Total Amount: LKR ${formatLKR(totalAmount)}
+💵 Amount Paid: LKR ${formatLKR(amountPaid)}
+💳 Balance Due: LKR ${formatLKR(balanceDue)}
+
+💖 We hope you love your outfit! Your satisfaction is our priority.
+
+Thank you for trusting JB GROUP. We look forward to serving you again! 🌸
+
+🏢 JB GROUP (PVT) LTD
+✨ Build • Lead • Inspire.
+
+🤖 Automated message from JB GROUP Management System.`;
+};
+
+/**
+ * Process Delivery WhatsApp Notification with Duplicate Protection and Audit Logging
+ */
+const processDeliveryWhatsAppNotification = async (order, actorName, req, force = false) => {
+  if (!['DELIVERED', 'COMPLETED'].includes(order.status)) {
+    return {
+      sent: false,
+      error: `Order Completion WhatsApp message can only be sent when the order is DELIVERED. Current status: ${ORDER_STATUS_LABELS[order.status] || order.status}.`
+    };
+  }
+
+  // Prevent duplicate messages if DELIVERED is updated again
+  if (order.deliveryNotificationSent && !force) {
+    return {
+      sent: false,
+      duplicatePrevented: true,
+      message: `Order completion thank-you message was already sent on ${order.deliveryNotificationSentAt ? new Date(order.deliveryNotificationSentAt).toLocaleString() : 'earlier'} by ${order.deliveryNotificationSentBy || 'Staff'}. Duplicate prevented.`,
+      sentAt: order.deliveryNotificationSentAt,
+      sentBy: order.deliveryNotificationSentBy,
+      status: order.deliveryNotificationStatus || 'SENT'
+    };
+  }
+
+  const rawPhone = order.customer?.primaryPhone || order.customer?.phone;
+  if (!rawPhone || !rawPhone.toString().trim()) {
+    return {
+      sent: false,
+      error: 'Customer phone number is missing. Cannot send completion WhatsApp message.'
+    };
+  }
+
+  const cleanedDigits = rawPhone.toString().replace(/[^0-9]/g, '');
+  if (cleanedDigits.length < 7) {
+    return {
+      sent: false,
+      error: `Invalid customer phone number (${rawPhone}). Cannot send completion WhatsApp message.`
+    };
+  }
+
+  let targetPhone = cleanedDigits;
+  if (targetPhone.startsWith('00')) targetPhone = targetPhone.slice(2);
+  else if (targetPhone.startsWith('0')) targetPhone = '94' + targetPhone.slice(1);
+  else if (!targetPhone.startsWith('94') && targetPhone.length === 9) targetPhone = '94' + targetPhone;
+
+  const msg = generateOrderDeliveredWhatsAppMessage(order);
+  const now = new Date();
+
+  // Save WhatsApp delivery status and timestamp in PostgreSQL
+  const updatedOrder = await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      deliveryNotificationSent: true,
+      deliveryNotificationSentAt: now,
+      deliveryNotificationSentBy: actorName || 'Authorized Staff',
+      deliveryNotificationStatus: 'SENT',
+      deliveryNotificationPhone: targetPhone,
+      deliveryNotificationMessage: msg
+    },
+    include: {
+      customer: true,
+      garmentDetails: true,
+      branch: true,
+      payments: { orderBy: { createdAt: 'asc' } }
+    }
+  });
+
+  // Save audit log
+  await logAudit({
+    action: 'ORDER_DELIVERY_NOTIFICATION_SENT',
+    entityType: 'ORDER',
+    entityId: order.id,
+    req,
+    details: {
+      orderNumber: order.orderNumber,
+      customerName: order.customer?.name,
+      customerPhone: targetPhone,
+      sentBy: actorName,
+      sentByRole: req?.user?.role,
+      sentAt: now.toISOString(),
+      message: msg
+    }
+  });
+
+  const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
+
+  return {
+    sent: true,
+    orderNumber: order.orderNumber,
+    customerName: order.customer?.name,
+    phone: targetPhone,
+    whatsAppMessage: msg,
+    waUrl,
+    sentAt: now,
+    sentBy: actorName,
+    status: 'SENT',
+    order: updatedOrder
+  };
+};
+
+/**
+ * Dispatch or Retry Order Completion WhatsApp Message (Staff / Manager / Admin / CEO)
+ */
+exports.notifyOrderDelivered = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { force } = req.body || {};
+    const orderId = parseInt(id);
+
+    if (isNaN(orderId)) {
+      return res.status(400).json({ success: false, message: 'Invalid order ID.' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        garmentDetails: true,
+        branch: true,
+        payments: { orderBy: { createdAt: 'asc' } }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    if (!['DELIVERED', 'COMPLETED'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Customer completion thank-you message can only be sent when the order is DELIVERED. Current status: ${ORDER_STATUS_LABELS[order.status] || order.status}.`
+      });
+    }
+
+    const actorName = getActorDisplayName(req.user) || req.user?.name || req.user?.email || 'Authorized Staff';
+    const result = await processDeliveryWhatsAppNotification(order, actorName, req, Boolean(force));
+
+    if (result.duplicatePrevented) {
+      return res.status(409).json({
+        success: false,
+        duplicatePrevented: true,
+        message: result.message,
+        sentAt: result.sentAt,
+        sentBy: result.sentBy,
+        status: result.status,
+        order
+      });
+    }
+
+    if (result.error) {
+      return res.status(400).json({
+        success: false,
+        message: result.error
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Order completion thank-you message dispatched successfully.',
+      ...result
+    });
+  } catch (error) {
+    console.error('Error notifying order delivered:', error);
+    next(error);
+  }
+};
+
+exports.generateOrderDeliveredWhatsAppMessage = generateOrderDeliveredWhatsAppMessage;
+exports.processDeliveryWhatsAppNotification = processDeliveryWhatsAppNotification;
+
+/**
+ * Generate Approved Order Booking Quotation WhatsApp Message
+ * Strictly matching JB GROUP requirements
+ */
+const generateOrderBookingWhatsAppMessage = (order) => {
+  const customerName = (order.customer?.name || order.customerName || 'Customer').trim();
+  const quotationNo = order.quotationNumber || order.orderNumber?.replace(/^ORD-/, 'QT-') || (order.id ? `QT-${order.id}` : 'QT-0001');
+
+  let itemsBlock = '';
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    itemsBlock = order.items
+      .map((it) => {
+        const name = it.itemName || it.dressType || it.name || 'Bespoke Garment';
+        const qty = Number(it.quantity || 1);
+        return `👗 Item: ${name} × ${qty}`;
+      })
+      .join('\n');
+  } else {
+    const itemName = order.garmentDetails?.dressType || order.dressType || order.itemName || 'Bespoke Garment';
+    const quantity = Number(order.garmentDetails?.quantity || order.quantity || 1);
+    itemsBlock = `👗 Item: ${itemName} × ${quantity}`;
+  }
+
+  const totalAmount = Number(
+    order.totalAmount !== undefined && order.totalAmount !== null
+      ? order.totalAmount
+      : (order.agreedTotal !== undefined && order.agreedTotal !== null ? order.agreedTotal : 0)
+  );
+
+  const advanceAmount = Number(
+    order.advancePayment !== undefined && order.advancePayment !== null
+      ? order.advancePayment
+      : (order.advanceRequired !== undefined && order.advanceRequired !== null
+          ? order.advanceRequired
+          : (order.agreedAdvance || 0))
+  );
+
+  const balanceAmount = Number(
+    order.balanceAmount !== undefined && order.balanceAmount !== null
+      ? order.balanceAmount
+      : Math.max(0, totalAmount - advanceAmount)
+  );
+
+  const formatLKR = (num) =>
+    Number(num || 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+  return `✨ JB GROUP (PVT) LTD ✨
+
+Dear ${customerName}, 🌸
+
+Thank you for choosing JB GROUP! 💐 We truly appreciate your trust in us.
+
+📋 ORDER QUOTATION
+
+🔖 Quotation No: ${quotationNo}
+${itemsBlock}
+💰 Total Amount: LKR ${formatLKR(totalAmount)}
+💵 Advance Payment: LKR ${formatLKR(advanceAmount)}
+💳 Balance Payable: LKR ${formatLKR(balanceAmount)}
+
+✅ Kindly review and confirm your quotation so we can proceed with your order.
+
+💖 Your satisfaction is our priority, and we look forward to serving you!
+
+🏢 JB GROUP (PVT) LTD
+✨ Build • Lead • Inspire.
+
+🤖 Automated message from JB GROUP Management System.`;
+};
+
+/**
+ * Process Booking WhatsApp Notification with Duplicate Protection, Status Tracking & Audit Logging
+ */
+const processBookingWhatsAppNotification = async (order, actorName, req, force = false) => {
+  const quotationNo = order.quotationNumber || order.orderNumber?.replace(/^ORD-/, 'QT-') || (order.id ? `QT-${order.id}` : 'QT-0001');
+
+  // Prevent duplicate messages if booking notification already sent and not forcing
+  if (order.bookingNotificationSent && !force) {
+    return {
+      sent: false,
+      duplicatePrevented: true,
+      message: `Order booking quotation message was already sent on ${order.bookingNotificationSentAt ? new Date(order.bookingNotificationSentAt).toLocaleString() : 'earlier'} by ${order.bookingNotificationSentBy || 'Staff'}. Duplicate prevented.`,
+      sentAt: order.bookingNotificationSentAt,
+      sentBy: order.bookingNotificationSentBy,
+      status: order.bookingNotificationStatus || 'SENT',
+      quotationNo
+    };
+  }
+
+  const rawPhone = order.customer?.primaryPhone || order.customer?.phone || order.primaryContact;
+  if (!rawPhone || !rawPhone.toString().trim()) {
+    // Record FAILED status in PostgreSQL
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        quotationNumber: quotationNo,
+        bookingNotificationStatus: 'FAILED',
+        bookingNotificationError: 'Customer phone number is missing. Cannot send booking quotation WhatsApp message.'
+      }
+    });
+
+    await logAudit({
+      action: 'ORDER_BOOKING_NOTIFICATION_FAILED',
+      entityType: 'ORDER',
+      entityId: order.id,
+      req,
+      details: {
+        orderNumber: order.orderNumber,
+        quotationNumber: quotationNo,
+        error: 'Customer phone number is missing.',
+        actor: actorName
+      }
+    });
+
+    return {
+      sent: false,
+      status: 'FAILED',
+      error: 'Customer phone number is missing. Cannot send booking quotation WhatsApp message.',
+      quotationNo,
+      order: updated
+    };
+  }
+
+  const cleanedDigits = rawPhone.toString().replace(/[^0-9]/g, '');
+  if (cleanedDigits.length < 7) {
+    const errorMsg = `Invalid customer phone number (${rawPhone}). Must contain at least 7 digits.`;
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        quotationNumber: quotationNo,
+        bookingNotificationStatus: 'FAILED',
+        bookingNotificationError: errorMsg
+      }
+    });
+
+    await logAudit({
+      action: 'ORDER_BOOKING_NOTIFICATION_FAILED',
+      entityType: 'ORDER',
+      entityId: order.id,
+      req,
+      details: {
+        orderNumber: order.orderNumber,
+        quotationNumber: quotationNo,
+        phone: rawPhone,
+        error: errorMsg,
+        actor: actorName
+      }
+    });
+
+    return {
+      sent: false,
+      status: 'FAILED',
+      error: errorMsg,
+      quotationNo,
+      order: updated
+    };
+  }
+
+  let targetPhone = cleanedDigits;
+  if (targetPhone.startsWith('00')) targetPhone = targetPhone.slice(2);
+  else if (targetPhone.startsWith('0')) targetPhone = '94' + targetPhone.slice(1);
+  else if (!targetPhone.startsWith('94') && targetPhone.length === 9) targetPhone = '94' + targetPhone;
+
+  const msg = generateOrderBookingWhatsAppMessage({ ...order, quotationNumber: quotationNo });
+  const now = new Date();
+
+  // Save WhatsApp booking status and timestamp in PostgreSQL
+  const updatedOrder = await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      quotationNumber: quotationNo,
+      bookingNotificationSent: true,
+      bookingNotificationSentAt: now,
+      bookingNotificationSentBy: actorName || 'Authorized Staff',
+      bookingNotificationStatus: 'SENT',
+      bookingNotificationPhone: targetPhone,
+      bookingNotificationMessage: msg,
+      bookingNotificationError: null
+    },
+    include: {
+      customer: true,
+      garmentDetails: true,
+      branch: true,
+      payments: { orderBy: { createdAt: 'asc' } }
+    }
+  });
+
+  // Record audit log
+  await logAudit({
+    action: 'ORDER_BOOKING_NOTIFICATION_SENT',
+    entityType: 'ORDER',
+    entityId: order.id,
+    req,
+    details: {
+      orderNumber: order.orderNumber,
+      quotationNumber: quotationNo,
+      customerName: order.customer?.name,
+      customerPhone: targetPhone,
+      sentBy: actorName,
+      sentByRole: req?.user?.role,
+      sentAt: now.toISOString(),
+      message: msg
+    }
+  });
+
+  const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
+
+  return {
+    sent: true,
+    status: 'SENT',
+    orderNumber: order.orderNumber,
+    quotationNo,
+    customerName: order.customer?.name,
+    phone: targetPhone,
+    whatsAppMessage: msg,
+    waUrl,
+    sentAt: now,
+    sentBy: actorName,
+    order: updatedOrder
+  };
+};
+
+/**
+ * Dispatch or Retry Order Booking Quotation WhatsApp Message (Staff / Manager / Admin / CEO)
+ */
+exports.notifyOrderBooking = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { force } = req.body || {};
+    const orderId = parseInt(id);
+
+    if (isNaN(orderId)) {
+      return res.status(400).json({ success: false, message: 'Invalid order ID.' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        garmentDetails: true,
+        branch: true,
+        payments: { orderBy: { createdAt: 'asc' } }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    const actorName = getActorDisplayName(req.user) || req.user?.name || req.user?.email || 'Authorized Staff';
+    const result = await processBookingWhatsAppNotification(order, actorName, req, Boolean(force));
+
+    if (result.duplicatePrevented) {
+      return res.status(409).json({
+        success: false,
+        duplicatePrevented: true,
+        message: result.message,
+        sentAt: result.sentAt,
+        sentBy: result.sentBy,
+        status: result.status,
+        order
+      });
+    }
+
+    if (result.status === 'FAILED') {
+      return res.status(400).json({
+        success: false,
+        message: result.error,
+        status: 'FAILED',
+        error: result.error,
+        order: result.order || order
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Order booking quotation message dispatched successfully.',
+      ...result
+    });
+  } catch (error) {
+    console.error('Error notifying order booking:', error);
+    next(error);
+  }
+};
+
+exports.generateOrderBookingWhatsAppMessage = generateOrderBookingWhatsAppMessage;
+exports.processBookingWhatsAppNotification = processBookingWhatsAppNotification;

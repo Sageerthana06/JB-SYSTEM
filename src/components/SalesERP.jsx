@@ -291,34 +291,75 @@ Your order ${orderNumber} from JB GROUP is now ready for collection.
 Thank you for choosing JB GROUP!`;
 };
 
-const generateQuotationWhatsAppMessage = (order) => {
+export const generateQuotationWhatsAppMessage = (order) => {
   if (!order) return '';
-  const customerName = order.customer?.name || order.customerName || 'Customer';
-  const orderNumber = order.orderNumber || order.id || 'N/A';
-  const dressType = order.garmentDetails?.dressType || 'Bespoke Garment';
-  const quantity = order.garmentDetails?.quantity || 1;
-  const total = Number(order.totalAmount || 0);
-  const advanceReq = Number(order.advanceRequired || order.advancePayment || 0);
-  const balance = Math.max(0, total - advanceReq);
-  const deliveryDate = order.garmentDetails?.deliveryDate ? new Date(order.garmentDetails.deliveryDate).toLocaleDateString() : 'Standard';
+  const customerName = (order.customer?.name || order.customerName || 'Customer').trim();
+  const quotationNumber = order.quotationNumber || order.orderNumber?.replace(/^ORD-/, 'QT-') || (order.id ? `QT-${order.id}` : 'QT-0001');
 
-  return `Hello ${customerName} 👋
+  // Support single item or multiple items dynamically
+  let itemsBlock = '';
+  if (Array.isArray(order.items) && order.items.length > 0) {
+    itemsBlock = order.items
+      .map((it) => {
+        const name = it.itemName || it.dressType || it.name || 'Bespoke Garment';
+        const qty = Number(it.quantity || 1);
+        return `👗 Item: ${name} × ${qty}`;
+      })
+      .join('\n');
+  } else {
+    const itemName = order.garmentDetails?.dressType || order.dressType || order.itemName || 'Bespoke Garment';
+    const quantity = Number(order.garmentDetails?.quantity || order.quantity || 1);
+    itemsBlock = `👗 Item: ${itemName} × ${quantity}`;
+  }
 
-Thank you for choosing *JB GROUP*! ✨
+  const totalAmount = Number(
+    order.totalAmount !== undefined && order.totalAmount !== null
+      ? order.totalAmount
+      : (order.agreedTotal !== undefined && order.agreedTotal !== null ? order.agreedTotal : 0)
+  );
 
-Here is the Price Quotation for your bespoke tailoring order:
+  const advanceAmount = Number(
+    order.advancePayment !== undefined && order.advancePayment !== null
+      ? order.advancePayment
+      : (order.advanceRequired !== undefined && order.advanceRequired !== null
+          ? order.advanceRequired
+          : (order.agreedAdvance || 0))
+  );
 
-📋 *ORDER QUOTATION — ${orderNumber}*
-👗 *Item:* ${dressType} (Qty: ${quantity})
-💰 *Total Price:* LKR ${total.toLocaleString()}
-💵 *Advance Required:* LKR ${advanceReq.toLocaleString()}
-💳 *Balance on Delivery:* LKR ${balance.toLocaleString()}
-📅 *Estimated Delivery:* ${deliveryDate}
+  const balanceAmount = Number(
+    order.balanceAmount !== undefined && order.balanceAmount !== null
+      ? order.balanceAmount
+      : Math.max(0, totalAmount - advanceAmount)
+  );
 
-Please review and confirm to begin production. You can also view details and confirm via our Customer Portal.
+  const formatLKR = (num) =>
+    Number(num || 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
 
-Thank you! 🙏
-*JB GROUP*`;
+  return `✨ JB GROUP (PVT) LTD ✨
+
+Dear ${customerName}, 🌸
+
+Thank you for choosing JB GROUP! 💐 We truly appreciate your trust in us.
+
+📋 ORDER QUOTATION
+
+🔖 Quotation No: ${quotationNumber}
+${itemsBlock}
+💰 Total Amount: LKR ${formatLKR(totalAmount)}
+💵 Advance Payment: LKR ${formatLKR(advanceAmount)}
+💳 Balance Payable: LKR ${formatLKR(balanceAmount)}
+
+✅ Kindly review and confirm your quotation so we can proceed with your order.
+
+💖 Your satisfaction is our priority, and we look forward to serving you!
+
+🏢 JB GROUP (PVT) LTD
+✨ Build • Lead • Inspire.
+
+🤖 Automated message from JB GROUP Management System.`;
 };
 
 const PriceSettingModal = ({ order, isOpen, onClose, onPriceSaved, user }) => {
@@ -1504,9 +1545,9 @@ const ViewOrderModal = ({
                     )}
 
                     {/* Send Quote WhatsApp button */}
-                    {order.customer?.primaryPhone && Number(order.totalAmount || 0) > 0 && (
+                    {(order.customer?.primaryPhone || order.customer?.phone) && Number(order.totalAmount || 0) > 0 && (
                       <a
-                        href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
+                        href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer?.primaryPhone || order.customer?.phone)}?text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
                         target="_blank"
                         rel="noreferrer"
                         style={{
@@ -1922,9 +1963,9 @@ const ViewOrderModal = ({
                     <Check size={15} /> Confirm Price
                   </button>
                 )}
-                {order.customer?.primaryPhone && Number(order.totalAmount || 0) > 0 && (
+                {(order.customer?.primaryPhone || order.customer?.phone) && Number(order.totalAmount || 0) > 0 && (
                   <a
-                    href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer.primaryPhone)}?text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
+                    href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer?.primaryPhone || order.customer?.phone)}?text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -2554,6 +2595,15 @@ export const SalesERP = () => {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...(data.order || {}), status: newStatus } : o));
         if (viewingOrder?.id === orderId) {
           setViewingOrder(prev => ({ ...prev, ...(data.order || {}), status: newStatus }));
+        }
+
+        // Automatic WhatsApp Completion Trigger when order transitions to DELIVERED
+        if (newStatus === 'DELIVERED') {
+          const fullDeliveredOrder = { ...(data.order || {}), id: orderId, status: 'DELIVERED' };
+          setFinishedNotificationOrder(fullDeliveredOrder);
+          if (data.deliveryNotification?.waUrl) {
+            window.open(data.deliveryNotification.waUrl, '_blank');
+          }
         }
       } else {
         alert(data.message || 'Failed to update status');
@@ -3864,15 +3914,15 @@ export const SalesERP = () => {
                               );
                             })()}
 
-                            {isFullAccess && ord.status === 'READY' && (
+                            {isFullAccess && (ord.status === 'DELIVERED' || ord.status === 'COMPLETED') && (
                               <button
                                 type="button"
                                 onClick={() => setFinishedNotificationOrder(targetOrder)}
-                                title={targetOrder.readyNotificationSent ? `Finished notification sent by ${targetOrder.readyNotificationSentBy || 'Manager'}` : 'Send Customer Finished Message'}
+                                title={targetOrder.deliveryNotificationSent ? `Completion thank-you message sent by ${targetOrder.deliveryNotificationSentBy || 'Staff'}` : 'Send Customer Completion Thank-You Message'}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', gap: '4px',
                                   padding: '4px 8px', borderRadius: '6px',
-                                  backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#16a34a',
+                                  backgroundColor: targetOrder.deliveryNotificationSent ? '#15803d' : '#16a34a',
                                   color: '#fff',
                                   fontSize: '0.72rem', fontWeight: 800,
                                   whiteSpace: 'nowrap',
@@ -3881,7 +3931,7 @@ export const SalesERP = () => {
                                 }}
                               >
                                 <MessageCircle size={12} />
-                                <span>{targetOrder.readyNotificationSent ? '✓ Finished Sent' : 'Send Customer Finished Message'}</span>
+                                <span>{targetOrder.deliveryNotificationSent ? '✓ Thank-You Sent' : 'Send WhatsApp Thank-You'}</span>
                               </button>
                             )}
                           </div>
@@ -3980,20 +4030,20 @@ export const SalesERP = () => {
                             </button>
                           )}
 
-                          {/* Manager-controlled Finished Notification */}
-                          {isFullAccess && ord.status === 'READY' && (
+                          {/* Manager/Staff Completion WhatsApp Notification */}
+                          {isFullAccess && (ord.status === 'DELIVERED' || ord.status === 'COMPLETED') && (
                             <button
                               type="button"
                               onClick={() => setFinishedNotificationOrder(targetOrder)}
                               title={
-                                targetOrder.readyNotificationSent
-                                  ? `Finished notification sent by ${targetOrder.readyNotificationSentBy || 'Manager'} at ${targetOrder.readyNotificationSentAt ? new Date(targetOrder.readyNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)`
-                                  : 'Send Customer Finished Message'
+                                targetOrder.deliveryNotificationSent
+                                  ? `Completion thank-you message sent by ${targetOrder.deliveryNotificationSentBy || 'Staff'} at ${targetOrder.deliveryNotificationSentAt ? new Date(targetOrder.deliveryNotificationSentAt).toLocaleString() : 'Earlier'} (Duplicate protected)`
+                                  : 'Send Customer Completion Thank-You Message'
                               }
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                                 padding: '4px 8px', borderRadius: '6px',
-                                backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#16a34a',
+                                backgroundColor: targetOrder.deliveryNotificationSent ? '#15803d' : '#16a34a',
                                 color: '#fff',
                                 fontSize: '0.72rem', fontWeight: 700,
                                 border: 'none', cursor: 'pointer',
@@ -4001,7 +4051,7 @@ export const SalesERP = () => {
                               }}
                             >
                               <MessageCircle size={12} />
-                              <span>{targetOrder.readyNotificationSent ? '✓ Finished' : 'Send Finished Msg'}</span>
+                              <span>{targetOrder.deliveryNotificationSent ? '✓ Thank-You' : 'Send Thank-You'}</span>
                             </button>
                           )}
                         </div>
@@ -4444,13 +4494,13 @@ export const SalesERP = () => {
                       </button>
                     )}
 
-                    {isFullAccess && ord.status === 'READY' && (
+                    {isFullAccess && (ord.status === 'DELIVERED' || ord.status === 'COMPLETED') && (
                       <button
                         type="button"
                         onClick={() => setFinishedNotificationOrder(targetOrder)}
                         className="touch-target-btn"
                         style={{
-                          backgroundColor: targetOrder.readyNotificationSent ? '#15803d' : '#16a34a',
+                          backgroundColor: targetOrder.deliveryNotificationSent ? '#15803d' : '#16a34a',
                           color: '#fff',
                           fontSize: '0.78rem',
                           padding: '6px 10px',
@@ -4466,7 +4516,7 @@ export const SalesERP = () => {
                         }}
                       >
                         <MessageCircle size={14} />
-                        <span>{targetOrder.readyNotificationSent ? '✓ Finished Sent' : 'Send Finished Msg'}</span>
+                        <span>{targetOrder.deliveryNotificationSent ? '✓ WhatsApp Sent' : 'Send WhatsApp Thank-You'}</span>
                       </button>
                     )}
                   </div>
