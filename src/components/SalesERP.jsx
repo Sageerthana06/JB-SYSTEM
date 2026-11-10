@@ -291,6 +291,25 @@ Your order ${orderNumber} from JB GROUP is now ready for collection.
 Thank you for choosing JB GROUP!`;
 };
 
+// ASCII-safe escape sequences ensure 100% immunity to environment locales or encoding corruption
+const EMOJIS = {
+  SPARKLES: '\u2728',          // ✨
+  CHERRY_BLOSSOM: '\u{1F338}', // 🌸
+  BOUQUET: '\u{1F490}',        // 💐
+  CLIPBOARD: '\u{1F4CB}',      // 📋
+  BOOKMARK: '\u{1F516}',       // 🔖
+  DRESS: '\u{1F457}',          // 👗
+  MONEY_BAG: '\u{1F4B0}',      // 💰
+  DOLLAR_BILL: '\u{1F4B5}',    // 💵
+  CREDIT_CARD: '\u{1F4B3}',    // 💳
+  CHECK: '\u2705',             // ✅
+  HEART: '\u{1F496}',          // 💖
+  OFFICE: '\u{1F3E2}',         // 🏢
+  ROBOT: '\u{1F916}',          // 🤖
+  BULLET: '\u2022',            // •
+  TIMES: '\u00D7'              // ×
+};
+
 export const generateQuotationWhatsAppMessage = (order) => {
   if (!order) return '';
   const customerName = (order.customer?.name || order.customerName || 'Customer').trim();
@@ -303,13 +322,13 @@ export const generateQuotationWhatsAppMessage = (order) => {
       .map((it) => {
         const name = it.itemName || it.dressType || it.name || 'Bespoke Garment';
         const qty = Number(it.quantity || 1);
-        return `👗 Item: ${name} × ${qty}`;
+        return `${EMOJIS.DRESS} Item: ${name} ${EMOJIS.TIMES} ${qty}`;
       })
       .join('\n');
   } else {
     const itemName = order.garmentDetails?.dressType || order.dressType || order.itemName || 'Bespoke Garment';
     const quantity = Number(order.garmentDetails?.quantity || order.quantity || 1);
-    itemsBlock = `👗 Item: ${itemName} × ${quantity}`;
+    itemsBlock = `${EMOJIS.DRESS} Item: ${itemName} ${EMOJIS.TIMES} ${quantity}`;
   }
 
   const totalAmount = Number(
@@ -340,28 +359,28 @@ export const generateQuotationWhatsAppMessage = (order) => {
       : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  return `✨ JB GROUP (PVT) LTD ✨
+  return `${EMOJIS.SPARKLES} JB GROUP (PVT) LTD ${EMOJIS.SPARKLES}
 
-Dear ${customerName}, 🌸
+Dear ${customerName}, ${EMOJIS.CHERRY_BLOSSOM}
 
-Thank you for choosing JB GROUP! 💐 We truly appreciate your trust in us.
+Thank you for choosing JB GROUP! ${EMOJIS.BOUQUET} We truly appreciate your trust in us.
 
-📋 ORDER QUOTATION
+${EMOJIS.CLIPBOARD} ORDER QUOTATION
 
-🔖 Quotation No: ${quotationNumber}
+${EMOJIS.BOOKMARK} Quotation No: ${quotationNumber}
 ${itemsBlock}
-💰 Total Amount: LKR ${formatLKR(totalAmount)}
-💵 Advance Payment: LKR ${formatLKR(advanceAmount)}
-💳 Balance Payable: LKR ${formatLKR(balanceAmount)}
+${EMOJIS.MONEY_BAG} Total Amount: LKR ${formatLKR(totalAmount)}
+${EMOJIS.DOLLAR_BILL} Advance Payment: LKR ${formatLKR(advanceAmount)}
+${EMOJIS.CREDIT_CARD} Balance Payable: LKR ${formatLKR(balanceAmount)}
 
-✅ Kindly review and confirm your quotation so we can proceed with your order.
+${EMOJIS.CHECK} Kindly review and confirm your quotation so we can proceed with your order.
 
-💖 Your satisfaction is our priority, and we look forward to serving you!
+${EMOJIS.HEART} Your satisfaction is our priority, and we look forward to serving you!
 
-🏢 JB GROUP (PVT) LTD
-✨ Build • Lead • Inspire.
+${EMOJIS.OFFICE} JB GROUP (PVT) LTD
+${EMOJIS.SPARKLES} Build ${EMOJIS.BULLET} Lead ${EMOJIS.BULLET} Inspire.
 
-🤖 Automated message from JB GROUP Management System.`;
+${EMOJIS.ROBOT} Automated message from JB GROUP Management System.`;
 };
 
 const PriceSettingModal = ({ order, isOpen, onClose, onPriceSaved, user }) => {

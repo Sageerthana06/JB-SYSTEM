@@ -53,39 +53,39 @@ export const generateDigitalInvoiceWhatsAppMessage = (order) => {
       ? 'PAID'
       : 'BALANCE DUE';
 
-  return `🧾 *DIGITAL INVOICE — JB GROUP (PVT) LTD*
+  return `\u{1F9FE} *DIGITAL INVOICE — JB GROUP (PVT) LTD*
 Headquarters: First floor, No 71, Thirugnanasampanthar Street, Trincomalee. Sri Lanka.
 WhatsApp: +94 72 627 8727 | +44 7847 431970
 
 *STATUS:* [ ${statusStamp} ]
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-👤 *BILLED TO:*
+\u{1F464} *BILLED TO:*
 *${customerName}*
 ${customerPhone}
 
-🔖 *INVOICE REFERENCE:*
+\u{1F516} *INVOICE REFERENCE:*
 *Order No:* ${orderNo}
 *Bill No:* ${billNo}
 *Booked:* ${bookedDate}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 *ITEMS & SERVICES:*
+\u{1F4CB} *ITEMS & SERVICES:*
 *Stitching*
 Dress: ${dressType}
 Qty: ${quantity}  |  Rate: Rs. ${rate.toFixed(2)}
 *Total: Rs. ${totalAmount.toFixed(2)}*
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-💰 *PAYMENT SUMMARY:*
-• Gross Subtotal: Rs. ${grossSubtotal.toFixed(2)}
-${discountAmount > 0 ? `• Discount: -Rs. ${discountAmount.toFixed(2)}\n` : ''}• *Net Payable:* *Rs. ${totalAmount.toFixed(2)}*
-• *Amount Paid:* *Rs. ${amountPaid.toFixed(2)}*
-• *Balance Due:* *Rs. ${balanceDue.toFixed(2)}*
+\u{1F4B0} *PAYMENT SUMMARY:*
+\u2022 Gross Subtotal: Rs. ${grossSubtotal.toFixed(2)}
+${discountAmount > 0 ? `\u2022 Discount: -Rs. ${discountAmount.toFixed(2)}\n` : ''}\u2022 *Net Payable:* *Rs. ${totalAmount.toFixed(2)}*
+\u2022 *Amount Paid:* *Rs. ${amountPaid.toFixed(2)}*
+\u2022 *Balance Due:* *Rs. ${balanceDue.toFixed(2)}*
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-✨ _Fits guaranteed for 30 days. Thank you for choosing us!_
-📍 *JB GROUP (PVT) LTD*`;
+\u2728 _Fits guaranteed for 30 days. Thank you for choosing us!_
+\u{1F4CD} *JB GROUP (PVT) LTD*`;
 };
 
 export const DigitalInvoiceModal = ({ order, isOpen, onClose }) => {

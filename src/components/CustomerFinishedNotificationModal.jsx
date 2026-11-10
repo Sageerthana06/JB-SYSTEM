@@ -11,6 +11,26 @@ const normalizePhoneForWhatsApp = (phone) => {
   return raw;
 };
 
+// ASCII-safe escape sequences ensure 100% immunity to environment locales or encoding corruption
+const EMOJIS = {
+  SPARKLES: '\u2728',          // ✨
+  CHERRY_BLOSSOM: '\u{1F338}', // 🌸
+  BOUQUET: '\u{1F490}',        // 💐
+  CLIPBOARD: '\u{1F4CB}',      // 📋
+  BOOKMARK: '\u{1F516}',       // 🔖
+  DRESS: '\u{1F457}',          // 👗
+  MONEY_BAG: '\u{1F4B0}',      // 💰
+  DOLLAR_BILL: '\u{1F4B5}',    // 💵
+  CREDIT_CARD: '\u{1F4B3}',    // 💳
+  CHECK: '\u2705',             // ✅
+  HEART: '\u{1F496}',          // 💖
+  OFFICE: '\u{1F3E2}',         // 🏢
+  ROBOT: '\u{1F916}',          // 🤖
+  PARTY: '\u{1F389}',          // 🎉
+  BULLET: '\u2022',            // •
+  TIMES: '\u00D7'              // ×
+};
+
 export const CustomerFinishedNotificationModal = ({
   order,
   isOpen,
@@ -49,31 +69,37 @@ export const CustomerFinishedNotificationModal = ({
   const amountPaid = verifiedPaid > 0 ? verifiedPaid : Number(order.advancePayment || 0);
   const balanceDue = Math.max(0, totalAmount - amountPaid);
 
-  const formatLKR = (num) => Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatLKR = (num) => {
+    const n = Number(num || 0);
+    if (isNaN(n)) return '0';
+    return n % 1 === 0
+      ? n.toLocaleString('en-US')
+      : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   // EXACT APPROVED WHATSAPP MESSAGE
-  const approvedMessage = `✨ JB GROUP (PVT) LTD ✨
+  const approvedMessage = `${EMOJIS.SPARKLES} JB GROUP (PVT) LTD ${EMOJIS.SPARKLES}
 
-Dear ${customerName}, 🌸
+Dear ${customerName}, ${EMOJIS.CHERRY_BLOSSOM}
 
-Thank you for choosing JB GROUP! 💐 We truly appreciate your trust in us.
+Thank you for choosing JB GROUP! ${EMOJIS.BOUQUET} We truly appreciate your trust in us.
 
-🎉 YOUR ORDER IS COMPLETED!
+${EMOJIS.PARTY} YOUR ORDER IS COMPLETED!
 
-🔖 Order No: ${orderNumber}
-👗 Item: ${itemName} × ${quantity}
-💰 Total Amount: LKR ${formatLKR(totalAmount)}
-💵 Amount Paid: LKR ${formatLKR(amountPaid)}
-💳 Balance Due: LKR ${formatLKR(balanceDue)}
+${EMOJIS.BOOKMARK} Order No: ${orderNumber}
+${EMOJIS.DRESS} Item: ${itemName} ${EMOJIS.TIMES} ${quantity}
+${EMOJIS.MONEY_BAG} Total Amount: LKR ${formatLKR(totalAmount)}
+${EMOJIS.DOLLAR_BILL} Amount Paid: LKR ${formatLKR(amountPaid)}
+${EMOJIS.CREDIT_CARD} Balance Due: LKR ${formatLKR(balanceDue)}
 
-💖 We hope you love your outfit! Your satisfaction is our priority.
+${EMOJIS.HEART} We hope you love your outfit! Your satisfaction is our priority.
 
-Thank you for trusting JB GROUP. We look forward to serving you again! 🌸
+Thank you for trusting JB GROUP. We look forward to serving you again! ${EMOJIS.CHERRY_BLOSSOM}
 
-🏢 JB GROUP (PVT) LTD
-✨ Build • Lead • Inspire.
+${EMOJIS.OFFICE} JB GROUP (PVT) LTD
+${EMOJIS.SPARKLES} Build ${EMOJIS.BULLET} Lead ${EMOJIS.BULLET} Inspire.
 
-🤖 Automated message from JB GROUP Management System.`;
+${EMOJIS.ROBOT} Automated message from JB GROUP Management System.`;
 
   const alreadySent = Boolean(order.deliveryNotificationSent);
   const previousSentAt = order.deliveryNotificationSentAt ? new Date(order.deliveryNotificationSentAt).toLocaleString() : null;

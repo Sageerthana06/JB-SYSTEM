@@ -79,6 +79,43 @@ async function runTests() {
   assert(msgDec.includes('💳 Balance Payable: LKR 1,000.25'), 'Fractional .25 balance formatted');
   console.log('✓ TEST 1B PASSED: Integer amounts formatted without .00 (e.g., 1,600), decimals preserved.\n');
 
+  // TEST 1C: Unicode Emoji Encoding & Replacement Character Immunity
+  console.log('--- TEST 1C: Unicode Emoji Encoding Integrity & Replacement Immunity ---');
+  // Check no replacement characters (\uFFFD or byte sequence EF BF BD) in message
+  assert(!msg.includes('\uFFFD'), 'Message must NOT contain Unicode replacement character \uFFFD');
+  assert(!Buffer.from(msg, 'utf8').includes(Buffer.from([0xEF, 0xBF, 0xBD])), 'Message UTF-8 buffer must not contain EF BF BD');
+
+  // Check all specific emoji code points
+  const expectedEmojis = [
+    { name: 'SPARKLES', char: '\u2728', hex: '2728' },
+    { name: 'CHERRY_BLOSSOM', char: '\u{1F338}', hex: '1f338' },
+    { name: 'BOUQUET', char: '\u{1F490}', hex: '1f490' },
+    { name: 'CLIPBOARD', char: '\u{1F4CB}', hex: '1f4cb' },
+    { name: 'BOOKMARK', char: '\u{1F516}', hex: '1f516' },
+    { name: 'DRESS', char: '\u{1F457}', hex: '1f457' },
+    { name: 'MONEY_BAG', char: '\u{1F4B0}', hex: '1f4b0' },
+    { name: 'DOLLAR_BILL', char: '\u{1F4B5}', hex: '1f4b5' },
+    { name: 'CREDIT_CARD', char: '\u{1F4B3}', hex: '1f4b3' },
+    { name: 'CHECK', char: '\u2705', hex: '2705' },
+    { name: 'HEART', char: '\u{1F496}', hex: '1f496' },
+    { name: 'OFFICE', char: '\u{1F3E2}', hex: '1f3e2' },
+    { name: 'ROBOT', char: '\u{1F916}', hex: '1f916' },
+    { name: 'BULLET', char: '\u2022', hex: '2022' },
+    { name: 'TIMES', char: '\u00D7', hex: '00d7' }
+  ];
+
+  for (const item of expectedEmojis) {
+    assert(msg.includes(item.char), `Message must include valid emoji ${item.name} (${item.char}, U+${item.hex.toUpperCase()})`);
+  }
+
+  // Check URL encoding
+  const encodedUrlText = encodeURIComponent(msg);
+  assert(!encodedUrlText.includes('%EF%BF%BD'), 'Encoded URL must NOT contain %EF%BF%BD replacement bytes');
+  // Check that sparks %E2%9C%A8 and cherry blossom %F0%9F%8C%B8 are properly encoded
+  assert(encodedUrlText.includes('%E2%9C%A8'), 'Sparkles must be properly percent-encoded as %E2%9C%A8');
+  assert(encodedUrlText.includes('%F0%9F%8C%B8'), 'Cherry blossom must be properly percent-encoded as %F0%9F%8C%B8');
+  console.log('✓ TEST 1C PASSED: Unicode emojis match exact code points without replacement characters.\n');
+
   // TEST 2: Multi-Item Support & Automatic Quotation Fallback
   console.log('--- TEST 2: Multi-Item & Dynamic Quotation Number Fallback ---');
   const mockOrderMulti = {
