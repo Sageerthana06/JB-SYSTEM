@@ -60,10 +60,10 @@ exports.getDailyReports = async (req, res, next) => {
     }
 
     const role = (user.role || '').toUpperCase();
-    const isExecutive = role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'CEO';
-    const isManager = role === 'MANAGER';
+    const isExecutive = role === 'SUPER_ADMIN' || role === 'CEO';
+    const isManagerOrAdmin = role === 'MANAGER' || role === 'ADMIN';
 
-    if (!isExecutive && !isManager) {
+    if (!isExecutive && !isManagerOrAdmin) {
       return res.status(403).json({ success: false, message: 'Access denied. Management authorization required.' });
     }
 
@@ -101,11 +101,11 @@ exports.getDailyReports = async (req, res, next) => {
         managerBranchId = dbUser?.branchId || 1;
       }
 
-      // Cross-branch isolation check: Managers cannot request reports for another branch
-      if (req.query.branchId && req.query.branchId !== 'ALL' && parseInt(req.query.branchId, 10) !== managerBranchId) {
+      // Cross-branch isolation check: Managers/Admins cannot request ALL branches or another branch
+      if (req.query.branchId && (req.query.branchId.toUpperCase() === 'ALL' || parseInt(req.query.branchId, 10) !== managerBranchId)) {
         return res.status(403).json({
           success: false,
-          message: `Access denied: Managers are restricted to their assigned branch (${managerBranchId}). Cannot access branch ${req.query.branchId}.`
+          message: `Access denied: Only CEO can access All Branches Combined. You are restricted to your assigned branch (${managerBranchId}).`
         });
       }
 

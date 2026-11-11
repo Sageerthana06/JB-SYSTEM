@@ -16,7 +16,27 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('jb_token') || null);
   const [authLoading, setAuthLoading] = useState(true); // true while restoring session
 
-  const [activeBranch, setActiveBranch] = useState('ALL');
+  const [activeBranchState, setActiveBranchState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('jb_user');
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed && parsed.role !== 'SUPER_ADMIN') {
+        return String(parsed.branchId || 1);
+      }
+    } catch {}
+    return 'ALL';
+  });
+
+  const setActiveBranch = useCallback((branch) => {
+    if (user && user.role !== 'SUPER_ADMIN') {
+      // Non-CEO staff are strictly locked to their assigned branch
+      setActiveBranchState(String(user.branchId || 1));
+      return;
+    }
+    setActiveBranchState(branch);
+  }, [user]);
+
+  const activeBranch = (user && user.role !== 'SUPER_ADMIN') ? String(user.branchId || 1) : activeBranchState;
   const [activeTab, setActiveTab] = useState('overview');
   const [theme, setTheme] = useState('light');
   const [isLoginOpen, setIsLoginOpen] = useState(true);
@@ -64,6 +84,9 @@ export const AuthProvider = ({ children }) => {
           setToken(storedToken);
           setUser(data.data);
           try { localStorage.setItem('jb_user', JSON.stringify(data.data)); } catch {}
+          if (data.data.role !== 'SUPER_ADMIN') {
+            setActiveBranchState(String(data.data.branchId || 1));
+          }
           setIsLoginOpen(false);
         } else {
           // Token expired or invalid
@@ -103,6 +126,11 @@ export const AuthProvider = ({ children }) => {
         try { localStorage.setItem('jb_user', JSON.stringify(userData)); } catch {}
         setToken(newToken);
         setUser(userData);
+        if (userData.role !== 'SUPER_ADMIN') {
+          setActiveBranchState(String(userData.branchId || 1));
+        } else {
+          setActiveBranchState('ALL');
+        }
         setIsLoginOpen(false);
         // Set starting tab based on role
         const defaultTab = {

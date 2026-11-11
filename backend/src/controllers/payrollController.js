@@ -12,9 +12,9 @@ const { logFinancialAudit } = require('../utils/financialAuditLogger');
 const resolveBranchId = (req, targetBranchId) => {
   const user = req.user;
   const role = String(user?.role || '').toUpperCase();
-  const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
 
-  if (isExecutive) {
+  if (isCeo) {
     const bId = parseInt(targetBranchId, 10);
     if (bId !== 1 && bId !== 2) {
       throw { status: 400, message: 'Invalid branch ID. Must be 1 (JB Group Main) or 2 (Bella Design).' };
@@ -22,16 +22,16 @@ const resolveBranchId = (req, targetBranchId) => {
     return bId;
   }
 
-  const managerBranch = Number(user?.branchId);
-  if (!managerBranch || (managerBranch !== 1 && managerBranch !== 2)) {
-    throw { status: 403, message: 'Access denied: Manager is not assigned to an active branch.' };
+  const assignedBranch = Number(user?.branchId);
+  if (!assignedBranch || (assignedBranch !== 1 && assignedBranch !== 2)) {
+    throw { status: 403, message: `Access denied: ${role} is not assigned to an active branch.` };
   }
 
-  if (targetBranchId && parseInt(targetBranchId, 10) !== managerBranch) {
-    throw { status: 403, message: 'Access denied: Managers cannot manage payroll for another branch.' };
+  if (targetBranchId && parseInt(targetBranchId, 10) !== assignedBranch) {
+    throw { status: 403, message: `Access denied: ${role} cannot manage payroll for another branch.` };
   }
 
-  return managerBranch;
+  return assignedBranch;
 };
 
 /**
@@ -42,16 +42,23 @@ exports.getStaffPayroll = async (req, res, next) => {
   try {
     const { branchId, month, status } = req.query;
     const role = String(req.user?.role || '').toUpperCase();
-    const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
 
     const where = {};
 
-    if (isExecutive) {
+    if (isCeo) {
       if (branchId && String(branchId).trim().toUpperCase() !== 'ALL') {
         where.branchId = parseInt(branchId, 10);
       }
     } else {
-      where.branchId = req.user.branchId || 1;
+      const assigned = req.user.branchId || 1;
+      if (branchId) {
+        const clean = String(branchId).trim().toUpperCase();
+        if (clean === 'ALL' || parseInt(clean, 10) !== assigned) {
+          return res.status(403).json({ success: false, message: `Access denied: You are restricted to your assigned branch (${assigned}).` });
+        }
+      }
+      where.branchId = assigned;
     }
 
     if (month && /^\d{4}-\d{2}$/.test(month)) {
@@ -240,7 +247,8 @@ exports.disburseStaffSalary = async (req, res, next) => {
     }
 
     const role = String(req.user?.role || '').toUpperCase();
-    if (role === 'MANAGER' && salaryRecord.branchId !== req.user.branchId) {
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+    if (!isCeo && salaryRecord.branchId !== req.user.branchId) {
       return res.status(403).json({ success: false, message: 'Access denied: Cannot disburse salary for another branch.' });
     }
 
@@ -351,16 +359,23 @@ exports.getSalaryAdvances = async (req, res, next) => {
   try {
     const { branchId, status } = req.query;
     const role = String(req.user?.role || '').toUpperCase();
-    const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
 
     const where = {};
 
-    if (isExecutive) {
+    if (isCeo) {
       if (branchId && String(branchId).trim().toUpperCase() !== 'ALL') {
         where.branchId = parseInt(branchId, 10);
       }
     } else {
-      where.branchId = req.user.branchId || 1;
+      const assigned = req.user.branchId || 1;
+      if (branchId) {
+        const clean = String(branchId).trim().toUpperCase();
+        if (clean === 'ALL' || parseInt(clean, 10) !== assigned) {
+          return res.status(403).json({ success: false, message: `Access denied: You are restricted to your assigned branch (${assigned}).` });
+        }
+      }
+      where.branchId = assigned;
     }
 
     if (status && status !== 'ALL') {

@@ -31,13 +31,22 @@ const checkManagementPermission = (caller, targetUser = null, targetRole = null,
     return { allowed: true };
   }
 
-  // ADMIN has full access except cannot modify SUPER_ADMIN
+  // ADMIN restrictions
   if (caller.role === 'ADMIN') {
     if (targetUser && targetUser.role === 'SUPER_ADMIN') {
       return { allowed: false, reason: 'Admins cannot modify CEO/Super Admin accounts.' };
     }
     if (targetRole === 'SUPER_ADMIN') {
       return { allowed: false, reason: 'Admins cannot create or assign CEO/Super Admin role.' };
+    }
+    // Branch isolation for ADMIN
+    if (caller.branchId) {
+      if (targetUser && targetUser.branchId && Number(targetUser.branchId) !== Number(caller.branchId)) {
+        return { allowed: false, reason: 'Admins can only manage users within their assigned branch.' };
+      }
+      if (targetBranchId && parseInt(targetBranchId, 10) !== Number(caller.branchId)) {
+        return { allowed: false, reason: 'Admins cannot create or move accounts to other branches.' };
+      }
     }
     return { allowed: true };
   }
@@ -94,8 +103,14 @@ exports.listUsers = async (req, res, next) => {
 
     // Build branch filter
     let effectiveBranchId = null;
-    if (caller.role === 'MANAGER') {
+    if (caller.role !== 'SUPER_ADMIN') {
       effectiveBranchId = caller.branchId;
+      if (branchId && (branchId.toUpperCase() === 'ALL' || parseInt(branchId, 10) !== caller.branchId)) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. You are restricted to your assigned branch (${caller.branchId}). Cross-branch or consolidated 'ALL' access is prohibited.`
+        });
+      }
     } else if (branchId && branchId !== 'ALL') {
       effectiveBranchId = parseInt(branchId, 10);
     }
@@ -244,9 +259,11 @@ exports.listEligibleEmployees = async (req, res, next) => {
     }
 
     const where = { userId: null };
-    if (caller.role === 'MANAGER') {
+    if (caller.role !== 'SUPER_ADMIN') {
       where.branchId = caller.branchId;
-      where.role = { in: MANAGER_PERMITTED_ROLES };
+      if (caller.role === 'MANAGER') {
+        where.role = { in: MANAGER_PERMITTED_ROLES };
+      }
     }
 
     const employees = await prisma.employee.findMany({

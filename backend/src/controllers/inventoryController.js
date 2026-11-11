@@ -257,9 +257,38 @@ function shapeItem(i, showCost) {
   return o;
 }
 
-function branchFilter(f, alias, branchId) {
-  const b = parseInt(branchId, 10);
-  if (Number.isInteger(b) && b > 0) f.add(`(${alias}."branchId" = ? OR ${alias}."branchId" IS NULL)`, b);
+function resolveEffectiveInventoryBranch(req) {
+  const user = req.user;
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(user?.role);
+  if (isCeo) {
+    const qBranch = req.query?.branchId || req.body?.branchId;
+    if (qBranch && String(qBranch).trim().toUpperCase() !== 'ALL') {
+      const bId = parseInt(qBranch, 10);
+      if (bId > 0) return bId;
+    }
+    return null; // Consolidated
+  }
+  const assigned = user?.branchId ? Number(user.branchId) : 1;
+  const qBranch = req.query?.branchId || req.body?.branchId;
+  if (qBranch) {
+    const clean = String(qBranch).trim().toUpperCase();
+    if (clean === 'ALL' || parseInt(clean, 10) !== assigned) {
+      throw new InvError(403, `Access denied: You are restricted to your assigned branch (${assigned}). Cannot access other branches.`);
+    }
+  }
+  return assigned;
+}
+
+function branchFilter(f, alias, reqOrBranchId) {
+  let b = null;
+  if (typeof reqOrBranchId === 'object' && reqOrBranchId !== null && reqOrBranchId.user) {
+    b = resolveEffectiveInventoryBranch(reqOrBranchId);
+  } else if (reqOrBranchId !== undefined && reqOrBranchId !== null) {
+    b = parseInt(reqOrBranchId, 10);
+  }
+  if (Number.isInteger(b) && b > 0) {
+    f.add(`(${alias}."branchId" = ? OR ${alias}."branchId" IS NULL)`, b);
+  }
 }
 
 function dateRange(f, col, from, to) {
@@ -300,11 +329,11 @@ exports.getDashboard = handle(async (req, res) => {
   deny(req, 'VIEW_ITEMS');
   const showCost = can(req.user, 'VIEW_COSTS');
   const f = filters();
-  branchFilter(f, 'i', req.query.branchId);
+  branchFilter(f, 'i', req);
   const where = f.where();
 
   const spendF = filters();
-  branchFilter(spendF, 'm', req.query.branchId);
+  branchFilter(spendF, 'm', req);
   const spendWhere = spendF.where();
 
   const [totals, cats, pos, reqs, usage, trend, recent, spend] = await Promise.all([
@@ -440,7 +469,7 @@ async function computeAlerts(branchId) {
 exports.getAlerts = handle(async (req, res) => {
   deny(req, 'VIEW_ITEMS');
   const showCost = can(req.user, 'VIEW_COSTS');
-  const alerts = (await computeAlerts(req.query.branchId)).map(a => {
+  const alerts = (await computeAlerts(resolveEffectiveInventoryBranch(req))).map(a => {
     if (showCost) return a;
     const { unitCost, suggestedReorderValue, supplierName, ...rest } = a;
     return rest;
@@ -480,7 +509,7 @@ exports.listItems = handle(async (req, res) => {
   else if (q.stock === 'reorder') f.add('i."currentStock" <= GREATEST(i."reorderLevel", i."minStockLevel")');
   else if (q.stock === 'ok') f.add('i."currentStock" > GREATEST(i."reorderLevel", i."minStockLevel")');
   dateRange(f, 'i."updatedAt"', q.from, q.to);
-  branchFilter(f, 'i', q.branchId);
+  branchFilter(f, 'i', req);
 
   const sortCol = ITEM_SORTS[q.sort] || ITEM_SORTS.name;
   const dir = String(q.dir).toLowerCase() === 'desc' ? 'DESC' : 'ASC';
@@ -540,6 +569,9 @@ exports.createItem = handle(async (req, res) => {
   deny(req, 'MANAGE_ITEMS');
   const b = req.body || {};
   const data = readItemBody(b);
+  if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role)) {
+    data.branchId = req.user?.branchId || 1;
+  }
   const opening = b.openingStock === undefined || b.openingStock === '' ? 0 : Number(b.openingStock);
   if (!Number.isFinite(opening) || opening < 0) throw new InvError(400, 'Opening stock must be zero or positive.');
   const cost = money(b.unitCost) ?? 0;
@@ -1409,7 +1441,7 @@ exports.listAuditLogs = handle(async (req, res) => {
 // =================================================================== PURCHASE SPEND REPORT
 exports.getPurchaseSpendReport = handle(async (req, res) => {
   deny(req, 'VIEW_COSTS');
-  const branchId = req.query.branchId;
+  const branchId = resolveEffectiveInventoryBranch(req);
   const monthParam = req.query.month;
 
   const f = filters();

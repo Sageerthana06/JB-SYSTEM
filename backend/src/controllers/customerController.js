@@ -224,6 +224,11 @@ exports.createCustomer = async (req, res, next) => {
     const orderNumber = await generateOrderNumber();
 
     // Step 4: Create order with nested garment
+    let targetBranchId = branchId ? parseInt(branchId, 10) : (req.user?.branchId || 1);
+    if (req.user && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'CEO') {
+      targetBranchId = req.user.branchId || 1;
+    }
+
     const totalAmount = paymentDetails?.totalAmount ? parseFloat(paymentDetails.totalAmount) : 0;
     const advancePayment = paymentDetails?.advancePayment ? parseFloat(paymentDetails.advancePayment) : 0;
     const balanceAmount = Math.max(0, totalAmount - advancePayment);
@@ -236,7 +241,7 @@ exports.createCustomer = async (req, res, next) => {
       orderNumber,
       customerId: customer.id,
       previousOrderId: prevOrderId,
-      branchId: branchId ? parseInt(branchId) : null,
+      branchId: targetBranchId,
       orderSource: source,
       status: initialStatus,
       priceStatus: 'PENDING',
@@ -285,10 +290,11 @@ exports.createCustomer = async (req, res, next) => {
 
     createdCustomerId = null; // Success, no rollback needed
 
-    // Re-fetch order to include newly created payment record
+    // Re-fetch order to include newly created payment record and customer relation
     const completeOrder = await prisma.order.findUnique({
       where: { id: newOrder.id },
       include: {
+        customer: true,
         garmentDetails: true,
         branch: true,
         payments: { orderBy: { createdAt: 'asc' } },
@@ -525,10 +531,14 @@ exports.getCustomerById = async (req, res, next) => {
       }
     }
 
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
+    const userBranchId = req.user?.branchId || 1;
+
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
       include: {
         orders: {
+          where: isCeo ? undefined : { branchId: userBranchId },
           orderBy: { createdAt: 'desc' },
           include: {
             garmentDetails: true,

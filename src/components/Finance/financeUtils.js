@@ -37,10 +37,10 @@ export const getBranchName = (bId) => {
  */
 export const resolveEffectiveBranch = (activeBranch, user) => {
   const role = String(user?.role || '').toUpperCase();
-  const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
 
-  // Managers are strictly locked to their assigned branch
-  if (!isExecutive) {
+  // Admin, Managers, and Staff are strictly locked to their assigned branch
+  if (!isCeo) {
     return user?.branchId ? Number(user.branchId) : 1;
   }
 

@@ -66,22 +66,23 @@ exports.getWeeklySalaryReport = async (req, res, next) => {
     // 2. Build where filter for orders with strict role & branch scoping
     const orderWhere = {};
 
-    if (req.user?.role === 'MANAGER') {
-      const managerBranch = req.user.branchId;
-      if (!managerBranch) {
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(req.user?.role);
+    if (!isCeo) {
+      const assignedBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!assignedBranch) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied: Manager is not assigned to any branch.'
+          message: `Access denied: ${req.user?.role} is not assigned to any branch.`
         });
       }
-      if (branchId && branchId !== 'ALL' && parseInt(branchId, 10) !== managerBranch) {
+      if (branchId && (branchId === 'ALL' || parseInt(branchId, 10) !== assignedBranch)) {
         return res.status(403).json({
           success: false,
-          message: `Access denied: Managers are restricted to their assigned branch (${managerBranch}). Cannot access branch ${branchId}.`
+          message: `Access denied: You are restricted to your assigned branch (${assignedBranch}). Cannot access other branches.`
         });
       }
-      // Strictly enforce manager's assigned branch
-      orderWhere.branchId = managerBranch;
+      // Strictly enforce assigned branch
+      orderWhere.branchId = assignedBranch;
     } else if (branchId && branchId !== 'ALL') {
       orderWhere.branchId = parseInt(branchId, 10);
     }
@@ -696,16 +697,16 @@ exports.getSalaryPaymentHistory = async (req, res, next) => {
       where.tailorId = req.user.id;
     }
 
-    // Role check: Manager is restricted strictly to payments for orders in their assigned branch
-    if (req.user?.role === 'MANAGER') {
-      const managerBranch = req.user.branchId;
-      if (!managerBranch) {
+    // Role check: Non-CEO users restricted strictly to payments for orders in their assigned branch
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role)) {
+      const userBranch = req.user?.branchId ? Number(req.user.branchId) : null;
+      if (!userBranch) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied: Manager is not assigned to any branch.'
+          message: 'Access denied: User is not assigned to any branch.'
         });
       }
-      where.branchId = managerBranch;
+      where.branchId = userBranch;
     } else if (branchId && branchId !== 'ALL') {
       where.branchId = parseInt(branchId, 10);
     }

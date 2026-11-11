@@ -227,26 +227,27 @@ exports.clockOut = async (req, res, next) => {
 exports.getCeoAttendanceCenter = async (req, res, next) => {
   try {
     const date = getTodayDateString(req.query.date);
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(req.user?.role);
+    let targetBranchId = null;
+    if (isCeo) {
+      if (req.query.branchId && req.query.branchId !== 'ALL') {
+        targetBranchId = parseInt(req.query.branchId, 10);
+      }
+    } else {
+      targetBranchId = req.user?.branchId || 1;
+      if (req.query.branchId && req.query.branchId !== 'ALL' && parseInt(req.query.branchId, 10) !== targetBranchId) {
+        return res.status(403).json({ success: false, message: 'Access denied to other branch attendance.' });
+      }
+    }
 
-    // Fetch authorized working team: Admins, Manager, Pratheep (Staff), and 3 Tailors (Pushpamalar, Uruththiradevi, Susitha)
+    const whereEmployees = {
+      isActive: true,
+      ...(targetBranchId ? { branchId: targetBranchId } : {}),
+      role: { in: ['ADMIN', 'MANAGER', 'STAFF', 'TAILOR', 'CUTTING', 'EMBROIDERY', 'CASHIER'] }
+    };
+
     const employees = await prisma.user.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { role: 'ADMIN' },
-          {
-            email: {
-              in: [
-                'manager@jbgroup.com',
-                'staff@jbgroup.com',
-                'pushpamalar@jbgroup.com',
-                'uruththiradevi@jbgroup.com',
-                'susitha@jbgroup.com'
-              ]
-            }
-          }
-        ]
-      },
+      where: whereEmployees,
       include: {
         branch: { select: { id: true, name: true } }
       },
@@ -391,6 +392,13 @@ exports.markPresent = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id: parsedId }, include: { branch: true } });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role)) {
+      const userBranch = req.user?.branchId || 1;
+      if (user.branchId && user.branchId !== userBranch) {
+        return res.status(403).json({ success: false, message: 'Access denied: Cannot mark attendance for employees in another branch.' });
+      }
+    }
+
     const record = await prisma.attendance.upsert({
       where: { userId_date: { userId: parsedId, date } },
       create: {
@@ -422,6 +430,13 @@ exports.markAbsent = async (req, res, next) => {
     const date = getTodayDateString();
     const user = await prisma.user.findUnique({ where: { id: parsedId }, include: { branch: true } });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role)) {
+      const userBranch = req.user?.branchId || 1;
+      if (user.branchId && user.branchId !== userBranch) {
+        return res.status(403).json({ success: false, message: 'Access denied: Cannot mark attendance for employees in another branch.' });
+      }
+    }
 
     const record = await prisma.attendance.upsert({
       where: { userId_date: { userId: parsedId, date } },

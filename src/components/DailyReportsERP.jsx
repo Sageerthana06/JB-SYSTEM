@@ -59,7 +59,7 @@ function formatLKR(val) {
 export const DailyReportsERP = () => {
   const { user, token } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
-  const isExecutive = userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'CEO';
+  const isExecutive = userRole === 'SUPER_ADMIN' || userRole === 'CEO';
 
   // Date selection (default today Asia/Colombo)
   const [selectedDate, setSelectedDate] = useState(() => getColomboTodayString());

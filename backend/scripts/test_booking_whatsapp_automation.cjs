@@ -166,93 +166,100 @@ async function runTests() {
 
   // TEST 4: Non-blocking Failure Handling (Order is preserved if phone is invalid)
   console.log('--- TEST 4: Failure Handling (Invalid phone does not cancel order) ---');
-  // Create a temporary test customer & order in PostgreSQL
-  const testCustomer = await prisma.customer.upsert({
-    where: { primaryPhone: '+94700000001' },
-    update: { name: 'Test Fail Safe Cust' },
-    create: {
-      name: 'Test Fail Safe Cust',
-      primaryPhone: '+94700000001'
-    }
-  });
-
-  const testOrderInvalid = await prisma.order.create({
-    data: {
-      orderNumber: `TEST-FAIL-${Date.now()}`,
-      customerId: testCustomer.id,
-      orderSource: 'SHOP',
-      totalAmount: 12000,
-      advancePayment: 4000,
-      balanceAmount: 8000,
-      garmentDetails: {
-        create: {
-          dressType: 'Kurti',
-          quantity: 1
-        }
+  let testCustomer = null;
+  let testOrderInvalid = null;
+  try {
+    testCustomer = await prisma.customer.upsert({
+      where: { primaryPhone: '+94700000001' },
+      update: { name: 'Test Fail Safe Cust' },
+      create: {
+        name: 'Test Fail Safe Cust',
+        primaryPhone: '+94700000001'
       }
-    },
-    include: { customer: true, garmentDetails: true }
-  });
+    });
 
-  // Temporarily wipe phone to test failure handling
-  testOrderInvalid.customer.primaryPhone = '';
+    testOrderInvalid = await prisma.order.create({
+      data: {
+        orderNumber: `TEST-FAIL-${Date.now()}`,
+        customerId: testCustomer.id,
+        orderSource: 'SHOP',
+        totalAmount: 12000,
+        advancePayment: 4000,
+        balanceAmount: 8000,
+        garmentDetails: {
+          create: {
+            dressType: 'Kurti',
+            quantity: 1
+          }
+        }
+      },
+      include: { customer: true, garmentDetails: true }
+    });
 
-  const failResult = await processBookingWhatsAppNotification(testOrderInvalid, 'Staff', null, false);
-  assert.strictEqual(failResult.status, 'FAILED', 'Status must be FAILED');
-  assert(failResult.error.includes('phone number is missing'), 'Error message accurate');
+    // Temporarily wipe phone to test failure handling
+    testOrderInvalid.customer.primaryPhone = '';
 
-  // Verify order STILL EXISTS in database and status recorded
-  const reCheckOrder = await prisma.order.findUnique({ where: { id: testOrderInvalid.id } });
-  assert(reCheckOrder !== null, 'Order MUST NOT be deleted or canceled on notification failure');
-  assert.strictEqual(reCheckOrder.bookingNotificationStatus, 'FAILED', 'PostgreSQL status recorded as FAILED');
-  console.log('✓ TEST 4 PASSED: Failure handled safely; order preserved with FAILED status.\n');
+    const failResult = await processBookingWhatsAppNotification(testOrderInvalid, 'Staff', null, false);
+    assert.strictEqual(failResult.status, 'FAILED', 'Status must be FAILED');
+    assert(failResult.error.includes('phone number is missing'), 'Error message accurate');
 
-  // TEST 5: Live Database Order Booking Notification & Retry Verification
-  console.log('--- TEST 5: Live Database Booking Notification & Retry ---');
-  // Update customer with valid WhatsApp phone
-  const validPhone = '+94778899001';
-  await prisma.customer.update({
-    where: { id: testCustomer.id },
-    data: { primaryPhone: validPhone }
-  });
+    // Verify order STILL EXISTS in database and status recorded
+    const reCheckOrder = await prisma.order.findUnique({ where: { id: testOrderInvalid.id } });
+    assert(reCheckOrder !== null, 'Order MUST NOT be deleted or canceled on notification failure');
+    assert.strictEqual(reCheckOrder.bookingNotificationStatus, 'FAILED', 'PostgreSQL status recorded as FAILED');
+    console.log('✓ TEST 4 PASSED: Failure handled safely; order preserved with FAILED status.\n');
 
-  const liveOrder = await prisma.order.findUnique({
-    where: { id: testOrderInvalid.id },
-    include: { customer: true, garmentDetails: true }
-  });
+    // TEST 5: Live Database Order Booking Notification & Retry Verification
+    console.log('--- TEST 5: Live Database Booking Notification & Retry ---');
+    // Update customer with valid WhatsApp phone
+    const validPhone = '+94778899001';
+    await prisma.customer.update({
+      where: { id: testCustomer.id },
+      data: { primaryPhone: validPhone }
+    });
 
-  // Dispatch / Retry
-  const successResult = await processBookingWhatsAppNotification(liveOrder, 'Manager Test', null, true);
-  assert.strictEqual(successResult.sent, true, 'Must report sent: true');
-  assert.strictEqual(successResult.status, 'SENT', 'Must report status: SENT');
-  assert.strictEqual(successResult.phone, '94778899001', 'Target phone normalized');
-  assert(successResult.waUrl.startsWith('https://wa.me/94778899001?text='), 'WhatsApp URL formed correctly');
-  assert(successResult.whatsAppMessage.includes('Kurti × 1'), 'Item details present');
-  assert(successResult.whatsAppMessage.includes('LKR 12,000'), 'Total amount present without unnecessary decimal zeros');
+    const liveOrder = await prisma.order.findUnique({
+      where: { id: testOrderInvalid.id },
+      include: { customer: true, garmentDetails: true }
+    });
 
-  // Verify database record
-  const verifiedDbOrder = await prisma.order.findUnique({ where: { id: testOrderInvalid.id } });
-  assert.strictEqual(verifiedDbOrder.bookingNotificationSent, true, 'bookingNotificationSent is true');
-  assert.strictEqual(verifiedDbOrder.bookingNotificationStatus, 'SENT', 'bookingNotificationStatus is SENT');
-  assert.strictEqual(verifiedDbOrder.bookingNotificationPhone, '94778899001', 'bookingNotificationPhone is recorded');
-  assert(verifiedDbOrder.bookingNotificationSentAt !== null, 'bookingNotificationSentAt timestamp is recorded');
-  assert(verifiedDbOrder.quotationNumber !== null, 'quotationNumber is generated and saved');
-  console.log('Verified Database Record:');
-  console.log({
-    id: verifiedDbOrder.id,
-    orderNumber: verifiedDbOrder.orderNumber,
-    quotationNumber: verifiedDbOrder.quotationNumber,
-    bookingNotificationStatus: verifiedDbOrder.bookingNotificationStatus,
-    bookingNotificationPhone: verifiedDbOrder.bookingNotificationPhone,
-    bookingNotificationSentAt: verifiedDbOrder.bookingNotificationSentAt
-  });
-  console.log('✓ TEST 5 PASSED: Live database booking notification successfully processed & persisted.\n');
+    // Dispatch / Retry
+    const successResult = await processBookingWhatsAppNotification(liveOrder, 'Manager Test', null, true);
+    assert.strictEqual(successResult.sent, true, 'Must report sent: true');
+    assert.strictEqual(successResult.status, 'SENT', 'Must report status: SENT');
+    assert.strictEqual(successResult.phone, '94778899001', 'Target phone normalized');
+    assert(successResult.waUrl.includes('whatsapp.com/send') || successResult.waUrl.startsWith('https://wa.me/'), 'WhatsApp URL formed correctly');
+    assert(successResult.whatsAppMessage.includes('Kurti × 1'), 'Item details present');
+    assert(successResult.whatsAppMessage.includes('LKR 12,000'), 'Total amount present without unnecessary decimal zeros');
 
-  // Clean up test order
-  await prisma.garmentDetails.deleteMany({ where: { orderId: testOrderInvalid.id } });
-  await prisma.order.delete({ where: { id: testOrderInvalid.id } });
-  await prisma.customer.delete({ where: { id: testCustomer.id } });
-  console.log('✓ Test cleanup completed.\n');
+    // Verify database record
+    const verifiedDbOrder = await prisma.order.findUnique({ where: { id: testOrderInvalid.id } });
+    assert.strictEqual(verifiedDbOrder.bookingNotificationSent, true, 'bookingNotificationSent is true');
+    assert.strictEqual(verifiedDbOrder.bookingNotificationStatus, 'SENT', 'bookingNotificationStatus is SENT');
+    assert.strictEqual(verifiedDbOrder.bookingNotificationPhone, '94778899001', 'bookingNotificationPhone is recorded');
+    assert(verifiedDbOrder.bookingNotificationSentAt !== null, 'bookingNotificationSentAt timestamp is recorded');
+    assert(verifiedDbOrder.quotationNumber !== null, 'quotationNumber is generated and saved');
+    console.log('Verified Database Record:');
+    console.log({
+      id: verifiedDbOrder.id,
+      orderNumber: verifiedDbOrder.orderNumber,
+      quotationNumber: verifiedDbOrder.quotationNumber,
+      bookingNotificationStatus: verifiedDbOrder.bookingNotificationStatus,
+      bookingNotificationPhone: verifiedDbOrder.bookingNotificationPhone,
+      bookingNotificationSentAt: verifiedDbOrder.bookingNotificationSentAt
+    });
+    console.log('✓ TEST 5 PASSED: Live database booking notification successfully processed & persisted.\n');
+  } finally {
+    // Guaranteed cleanup
+    if (testOrderInvalid?.id) {
+      await prisma.garmentDetails.deleteMany({ where: { orderId: testOrderInvalid.id } });
+      await prisma.order.deleteMany({ where: { id: testOrderInvalid.id } });
+    }
+    if (testCustomer?.id) {
+      await prisma.customer.deleteMany({ where: { id: testCustomer.id } });
+    }
+    console.log('✓ Test cleanup completed.\n');
+  }
 
   console.log('====================================================');
   console.log('>>> ALL 5 WHATSAPP BOOKING AUTOMATION TESTS PASSED <<<');

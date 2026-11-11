@@ -16,7 +16,7 @@ export const TopHeader = () => {
   } = useAuth();
 
   const userRole = (user?.role || '').toUpperCase();
-  const canSwitchBranch = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
+  const canSwitchBranch = ['SUPER_ADMIN', 'CEO'].includes(userRole);
 
   const branches = [
     { id: 'ALL', name: 'All Branches', short: 'All Branches' },

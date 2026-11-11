@@ -158,7 +158,7 @@ ${EMOJIS.ROBOT} Automated message from JB GROUP Management System.`;
 
       // Open WhatsApp with approved message
       const targetPhone = normalizePhoneForWhatsApp(rawPhone);
-      const waUrl = data.waUrl || `https://wa.me/${targetPhone}?text=${encodeURIComponent(data.whatsAppMessage || approvedMessage)}`;
+      const waUrl = data.waUrl || `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(data.whatsAppMessage || approvedMessage)}`;
       window.open(waUrl, '_blank');
 
       if (onSuccess) {

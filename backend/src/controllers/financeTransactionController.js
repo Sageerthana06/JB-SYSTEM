@@ -12,9 +12,9 @@ const { logFinancialAudit } = require('../utils/financialAuditLogger');
 const resolveBranchId = (req, targetBranchId) => {
   const user = req.user;
   const role = String(user?.role || '').toUpperCase();
-  const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
 
-  if (isExecutive) {
+  if (isCeo) {
     const bId = parseInt(targetBranchId, 10);
     if (bId !== 1 && bId !== 2) {
       throw { status: 400, message: 'Invalid branch ID. Must be 1 (JB Group Main) or 2 (Bella Design).' };
@@ -22,17 +22,17 @@ const resolveBranchId = (req, targetBranchId) => {
     return bId;
   }
 
-  // Manager: Strictly locked to their branch
-  const managerBranch = Number(user?.branchId);
-  if (!managerBranch || (managerBranch !== 1 && managerBranch !== 2)) {
-    throw { status: 403, message: 'Access denied: Manager is not assigned to an active branch.' };
+  // Non-CEO staff (ADMIN, MANAGER, etc.): Strictly locked to their branch
+  const assignedBranch = Number(user?.branchId);
+  if (!assignedBranch || (assignedBranch !== 1 && assignedBranch !== 2)) {
+    throw { status: 403, message: `Access denied: ${role} is not assigned to an active branch.` };
   }
 
-  if (targetBranchId && parseInt(targetBranchId, 10) !== managerBranch) {
-    throw { status: 403, message: `Access denied: Managers cannot record transactions for another branch.` };
+  if (targetBranchId && parseInt(targetBranchId, 10) !== assignedBranch) {
+    throw { status: 403, message: `Access denied: ${role} accounts cannot record transactions for another branch.` };
   }
 
-  return managerBranch;
+  return assignedBranch;
 };
 
 /**
@@ -304,8 +304,9 @@ exports.transferFunds = async (req, res, next) => {
     }
 
     const role = String(req.user?.role || '').toUpperCase();
-    if (role === 'MANAGER' && fromAccount.branchId && fromAccount.branchId !== req.user.branchId) {
-      return res.status(403).json({ success: false, message: 'Access denied: Managers cannot transfer funds out of other branches.' });
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+    if (!isCeo && fromAccount.branchId && fromAccount.branchId !== req.user.branchId) {
+      return res.status(403).json({ success: false, message: 'Access denied: You cannot transfer funds out of another branch.' });
     }
 
     // Check transfer category
@@ -413,7 +414,8 @@ exports.reverseTransaction = async (req, res, next) => {
     }
 
     const role = String(req.user?.role || '').toUpperCase();
-    if (role === 'MANAGER' && existingTxn.branchId !== req.user.branchId) {
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+    if (!isCeo && existingTxn.branchId !== req.user.branchId) {
       return res.status(403).json({ success: false, message: 'Access denied: Cannot reverse transaction from another branch.' });
     }
 

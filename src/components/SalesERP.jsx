@@ -313,7 +313,19 @@ const EMOJIS = {
 export const generateQuotationWhatsAppMessage = (order) => {
   if (!order) return '';
   const customerName = (order.customer?.name || order.customerName || 'Customer').trim();
-  const quotationNumber = order.quotationNumber || order.orderNumber?.replace(/^ORD-/, 'QT-') || (order.id ? `QT-${order.id}` : 'QT-0001');
+
+  const isBella =
+    order.branchId === 2 ||
+    order.branch?.id === 2 ||
+    (typeof order.branch?.name === 'string' && /bella/i.test(order.branch.name)) ||
+    (typeof order.branchName === 'string' && /bella/i.test(order.branchName)) ||
+    (typeof order.orderNumber === 'string' && /bella/i.test(order.orderNumber)) ||
+    (typeof order.quotationNumber === 'string' && /bella/i.test(order.quotationNumber));
+
+  const quotationNumber = order.quotationNumber ||
+    (order.orderNumber
+      ? (order.orderNumber.startsWith('QT-') ? order.orderNumber : order.orderNumber.replace(/^(JB|ORD|BELLA)-/i, 'QT-'))
+      : (order.id ? `QT-${order.id}` : 'QT-0001'));
 
   // Support single item or multiple items dynamically
   let itemsBlock = '';
@@ -359,11 +371,14 @@ export const generateQuotationWhatsAppMessage = (order) => {
       : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  return `${EMOJIS.SPARKLES} JB GROUP (PVT) LTD ${EMOJIS.SPARKLES}
+  const companyHeader = isBella ? 'BELLA DESIGN' : 'JB GROUP (PVT) LTD';
+  const brandShort = isBella ? 'BELLA DESIGN' : 'JB GROUP';
+
+  return `${EMOJIS.SPARKLES} ${companyHeader} ${EMOJIS.SPARKLES}
 
 Dear ${customerName}, ${EMOJIS.CHERRY_BLOSSOM}
 
-Thank you for choosing JB GROUP! ${EMOJIS.BOUQUET} We truly appreciate your trust in us.
+Thank you for choosing ${brandShort}! ${EMOJIS.BOUQUET} We truly appreciate your trust in us.
 
 ${EMOJIS.CLIPBOARD} ORDER QUOTATION
 
@@ -377,10 +392,10 @@ ${EMOJIS.CHECK} Kindly review and confirm your quotation so we can proceed with 
 
 ${EMOJIS.HEART} Your satisfaction is our priority, and we look forward to serving you!
 
-${EMOJIS.OFFICE} JB GROUP (PVT) LTD
+${EMOJIS.OFFICE} ${companyHeader}
 ${EMOJIS.SPARKLES} Build ${EMOJIS.BULLET} Lead ${EMOJIS.BULLET} Inspire.
 
-${EMOJIS.ROBOT} Automated message from JB GROUP Management System.`;
+${EMOJIS.ROBOT} Automated message from ${brandShort} Management System.`;
 };
 
 const PriceSettingModal = ({ order, isOpen, onClose, onPriceSaved, user }) => {
@@ -1568,7 +1583,7 @@ const ViewOrderModal = ({
                     {/* Send Quote WhatsApp button */}
                     {(order.customer?.primaryPhone || order.customer?.phone) && Number(order.totalAmount || 0) > 0 && (
                       <a
-                        href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer?.primaryPhone || order.customer?.phone)}?text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
+                        href={`https://api.whatsapp.com/send?phone=${normalizePhoneForWhatsApp(order.customer?.primaryPhone || order.customer?.phone)}&text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
                         target="_blank"
                         rel="noreferrer"
                         style={{
@@ -1986,7 +2001,7 @@ const ViewOrderModal = ({
                 )}
                 {(order.customer?.primaryPhone || order.customer?.phone) && Number(order.totalAmount || 0) > 0 && (
                   <a
-                    href={`https://wa.me/${normalizePhoneForWhatsApp(order.customer?.primaryPhone || order.customer?.phone)}?text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
+                    href={`https://api.whatsapp.com/send?phone=${normalizePhoneForWhatsApp(order.customer?.primaryPhone || order.customer?.phone)}&text=${encodeURIComponent(generateQuotationWhatsAppMessage(order))}`}
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -2176,10 +2191,10 @@ const computeNiceChartMax = (maxVal) => {
 export const SalesERP = () => {
   const { activeBranch, setActiveBranch, getAuthHeaders, user, setActiveTab } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
-  const isSuperOrAdmin = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(userRole);
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(userRole);
   const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'CEO', 'STAFF', 'CASHIER'].includes(userRole);
-  const canSwitchBranch = isSuperOrAdmin;
-  const effectiveBranch = (userRole === 'MANAGER' && user?.branchId) ? String(user.branchId) : activeBranch;
+  const canSwitchBranch = isCeo;
+  const effectiveBranch = (!isCeo && user?.branchId) ? String(user.branchId) : activeBranch;
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState(null);

@@ -72,8 +72,8 @@ exports.getOrderTasks = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Branch security for Managers
-    if (req.user?.role === 'MANAGER' && order.branchId && order.branchId !== req.user.branchId) {
+    // Branch security for non-CEO roles
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role) && order.branchId && Number(order.branchId) !== Number(req.user.branchId)) {
       return res.status(403).json({ success: false, message: 'Access denied: Order belongs to another branch.' });
     }
 
@@ -166,11 +166,11 @@ exports.assignOrderTasks = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    // Branch restriction for Managers
-    if (req.user?.role === 'MANAGER' && order.branchId && Number(order.branchId) !== Number(req.user.branchId)) {
+    // Branch restriction for non-CEO roles
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role) && order.branchId && Number(order.branchId) !== Number(req.user.branchId)) {
       return res.status(403).json({
         success: false,
-        message: 'Permission denied: Managers can only assign tasks within their authorized branch.'
+        message: 'Permission denied: You can only assign tasks within your authorized branch.'
       });
     }
 
@@ -191,8 +191,8 @@ exports.assignOrderTasks = async (req, res, next) => {
       });
     }
 
-    // For managers, verify all tailors belong to the authorized branch
-    if (req.user?.role === 'MANAGER') {
+    // For non-CEO, verify all tailors belong to the authorized branch
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role)) {
       const crossBranchTailor = tailors.find(t => t.branchId && Number(t.branchId) !== Number(req.user.branchId));
       if (crossBranchTailor) {
         return res.status(403).json({
@@ -457,10 +457,10 @@ exports.getAllTasks = async (req, res, next) => {
 
     const where = {};
 
-    // Branch restriction: Manager is strictly locked to their branch
-    if (req.user?.role === 'MANAGER') {
+    // Branch restriction: Non-CEO users strictly locked to their branch
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role)) {
       where.branchId = req.user.branchId;
-    } else if (branchId) {
+    } else if (branchId && branchId !== 'ALL') {
       where.branchId = parseInt(branchId, 10);
     }
 
@@ -547,7 +547,7 @@ exports.updateTaskStatus = async (req, res, next) => {
       });
     }
 
-    if (isManager && task.branchId && task.branchId !== req.user.branchId) {
+    if (isManager && !['SUPER_ADMIN', 'CEO'].includes(req.user?.role) && task.branchId && Number(task.branchId) !== Number(req.user.branchId)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied: You can only update tasks in your authorized branch.'
@@ -665,11 +665,11 @@ exports.reassignTask = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    // Branch restriction for Managers
-    if (req.user?.role === 'MANAGER' && task.branchId && task.branchId !== req.user.branchId) {
+    // Branch restriction for non-CEO roles
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role) && task.branchId && Number(task.branchId) !== Number(req.user.branchId)) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied: Managers can only reassign tasks within their authorized branch.'
+        message: 'Access denied: You can only reassign tasks within your authorized branch.'
       });
     }
 
@@ -682,7 +682,7 @@ exports.reassignTask = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Assigned tailor does not exist or is inactive.' });
     }
 
-    if (req.user?.role === 'MANAGER' && newTailor.branchId && newTailor.branchId !== req.user.branchId) {
+    if (!['SUPER_ADMIN', 'CEO'].includes(req.user?.role) && newTailor.branchId && Number(newTailor.branchId) !== Number(req.user.branchId)) {
       return res.status(403).json({
         success: false,
         message: `Tailor ${newTailor.name} belongs to another branch.`

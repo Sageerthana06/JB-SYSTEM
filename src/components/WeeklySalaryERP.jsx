@@ -69,9 +69,9 @@ export const WeeklySalaryERP = () => {
   // Reference date in YYYY-MM-DD
   const [selectedWeekDate, setSelectedWeekDate] = useState(getColomboTodayDateString);
 
-  // Filter states: Manager is strictly locked to their assigned branch
+  // Filter states: Non-CEO users strictly locked to their assigned branch
   const [branchFilter, setBranchFilter] = useState(() => {
-    if (isManager && user?.branchId) {
+    if (!isCeo && user?.branchId) {
       return String(user.branchId);
     }
     return activeBranch || 'ALL';
@@ -914,8 +914,8 @@ export const WeeklySalaryERP = () => {
               ))}
             </select>
 
-            {/* Branch Filter — Locked to assigned branch for Managers */}
-            {isManager ? (
+            {/* Branch Filter — Locked to assigned branch for Non-CEO users */}
+            {!isCeo ? (
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 padding: '7px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-main)',

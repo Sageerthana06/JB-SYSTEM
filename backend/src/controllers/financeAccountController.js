@@ -11,10 +11,10 @@ const { logFinancialAudit } = require('../utils/financialAuditLogger');
 const resolveBranchScope = (req) => {
   const user = req.user;
   const role = String(user?.role || '').toUpperCase();
-  const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
-  const managerBranch = user?.branchId ? Number(user.branchId) : null;
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+  const assignedBranch = user?.branchId ? Number(user.branchId) : null;
 
-  if (isExecutive) {
+  if (isCeo) {
     const qBranch = req.query?.branchId || req.body?.branchId;
     if (qBranch && String(qBranch).trim().toUpperCase() !== 'ALL') {
       const bId = parseInt(qBranch, 10);
@@ -26,23 +26,23 @@ const resolveBranchScope = (req) => {
     return 'ALL';
   }
 
-  // Manager: Strictly restricted to their assigned branch
-  if (!managerBranch || (managerBranch !== 1 && managerBranch !== 2)) {
-    throw { status: 403, message: 'Access denied: Manager is not assigned to an authorized branch.' };
+  // Non-CEO staff (ADMIN, MANAGER, etc.): Strictly restricted to their assigned branch
+  if (!assignedBranch || (assignedBranch !== 1 && assignedBranch !== 2)) {
+    throw { status: 403, message: `Access denied: ${role} is not assigned to an authorized branch.` };
   }
 
   const qBranch = req.query?.branchId || req.body?.branchId;
   if (qBranch) {
     const cleanQ = String(qBranch).trim().toUpperCase();
-    if (cleanQ === 'ALL' || parseInt(cleanQ, 10) !== managerBranch) {
+    if (cleanQ === 'ALL' || parseInt(cleanQ, 10) !== assignedBranch) {
       throw {
         status: 403,
-        message: `Access denied: Managers are restricted to their assigned branch (${managerBranch}). Cannot access consolidated 'ALL' or other branches.`
+        message: `Access denied: ${role} accounts are restricted to their assigned branch (${assignedBranch}). Cannot access consolidated 'ALL' or other branches.`
       };
     }
   }
 
-  return managerBranch;
+  return assignedBranch;
 };
 
 /**
@@ -124,21 +124,23 @@ exports.createAccount = async (req, res, next) => {
 
     let targetBranchId = null;
     const role = String(req.user?.role || '').toUpperCase();
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
 
-    if (branchId !== undefined && branchId !== null && branchId !== '') {
-      targetBranchId = parseInt(branchId, 10);
-      if (targetBranchId !== 1 && targetBranchId !== 2) {
-        return res.status(400).json({ success: false, message: 'Branch ID must be 1 (JB Group Main) or 2 (Bella Design).' });
+    if (isCeo) {
+      if (branchId !== undefined && branchId !== null && branchId !== '') {
+        targetBranchId = parseInt(branchId, 10);
+        if (targetBranchId !== 1 && targetBranchId !== 2) {
+          return res.status(400).json({ success: false, message: 'Branch ID must be 1 (JB Group Main) or 2 (Bella Design).' });
+        }
       }
-
-      if (role === 'MANAGER' && req.user.branchId !== targetBranchId) {
+    } else {
+      targetBranchId = req.user.branchId || 1;
+      if (branchId && parseInt(branchId, 10) !== targetBranchId) {
         return res.status(403).json({
           success: false,
-          message: `Access denied: Managers cannot create accounts for other branches.`
+          message: `Access denied: You cannot create accounts for another branch.`
         });
       }
-    } else if (role === 'MANAGER') {
-      targetBranchId = req.user.branchId;
     }
 
     const initialOpening = Number(openingBalance) || 0.00;
@@ -209,7 +211,8 @@ exports.getAccountById = async (req, res, next) => {
     }
 
     const role = String(req.user?.role || '').toUpperCase();
-    if (role === 'MANAGER' && account.branchId && account.branchId !== req.user.branchId) {
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+    if (!isCeo && account.branchId && account.branchId !== req.user.branchId) {
       return res.status(403).json({ success: false, message: 'Access denied: You are not authorized to view this account.' });
     }
 

@@ -11,16 +11,16 @@ const { logFinancialAudit } = require('../utils/financialAuditLogger');
 
 /**
  * Resolve branch scope for bills strictly by RBAC.
- * Executive (SUPER_ADMIN, ADMIN, CEO) -> 'ALL', 1, or 2.
- * Manager -> Strictly locked to their assigned branch (1 or 2).
+ * - CEO / SUPER_ADMIN -> 'ALL', 1, or 2.
+ * - Non-CEO (ADMIN, MANAGER, etc.) -> Strictly locked to their assigned branch (1 or 2).
  */
 const resolveBranchScope = (req) => {
   const user = req.user;
   const role = String(user?.role || '').toUpperCase();
-  const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
-  const managerBranch = user?.branchId ? Number(user.branchId) : null;
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+  const assignedBranch = user?.branchId ? Number(user.branchId) : null;
 
-  if (isExecutive) {
+  if (isCeo) {
     const qBranch = req.query?.branchId || req.body?.branchId;
     if (qBranch && String(qBranch).trim().toUpperCase() !== 'ALL') {
       const bId = parseInt(qBranch, 10);
@@ -32,22 +32,22 @@ const resolveBranchScope = (req) => {
     return 'ALL';
   }
 
-  if (!managerBranch || (managerBranch !== 1 && managerBranch !== 2)) {
-    throw { status: 403, message: 'Access denied: Manager is not assigned to an active branch.' };
+  if (!assignedBranch || (assignedBranch !== 1 && assignedBranch !== 2)) {
+    throw { status: 403, message: `Access denied: ${role} is not assigned to an active branch.` };
   }
 
   const qBranch = req.query?.branchId || req.body?.branchId;
   if (qBranch) {
     const cleanQ = String(qBranch).trim().toUpperCase();
-    if (cleanQ === 'ALL' || parseInt(cleanQ, 10) !== managerBranch) {
+    if (cleanQ === 'ALL' || parseInt(cleanQ, 10) !== assignedBranch) {
       throw {
         status: 403,
-        message: `Access denied: Managers are restricted to their assigned branch (${managerBranch}).`
+        message: `Access denied: ${role} accounts are restricted to their assigned branch (${assignedBranch}).`
       };
     }
   }
 
-  return managerBranch;
+  return assignedBranch;
 };
 
 // Map bill category string to AccountingCategory code
@@ -204,10 +204,10 @@ exports.createMonthlyBill = async (req, res, next) => {
     } = req.body;
 
     const role = String(req.user?.role || '').toUpperCase();
-    const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
     let targetBranchId;
 
-    if (isExecutive) {
+    if (isCeo) {
       targetBranchId = parseInt(branchId, 10);
       if (targetBranchId !== 1 && targetBranchId !== 2) {
         return res.status(400).json({ success: false, message: 'Branch ID must be 1 (JB Group Main) or 2 (Bella Design).' });
@@ -215,7 +215,7 @@ exports.createMonthlyBill = async (req, res, next) => {
     } else {
       targetBranchId = Number(req.user?.branchId);
       if (!targetBranchId || (targetBranchId !== 1 && targetBranchId !== 2)) {
-        return res.status(403).json({ success: false, message: 'Access denied: Manager is not assigned to an active branch.' });
+        return res.status(403).json({ success: false, message: `Access denied: ${role} is not assigned to an active branch.` });
       }
     }
 
@@ -394,10 +394,10 @@ exports.payMonthlyBill = async (req, res, next) => {
 
     // Role and branch authorization
     const role = String(req.user?.role || '').toUpperCase();
-    const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
-    if (!isExecutive) {
-      const managerBranch = Number(req.user?.branchId);
-      if (bill.branchId !== managerBranch) {
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+    if (!isCeo) {
+      const userBranch = Number(req.user?.branchId);
+      if (bill.branchId !== userBranch) {
         return res.status(403).json({
           success: false,
           message: `Access denied: You are not authorized to pay bills for branch ${bill.branchId}.`
@@ -571,10 +571,10 @@ exports.deleteMonthlyBill = async (req, res, next) => {
     }
 
     const role = String(req.user?.role || '').toUpperCase();
-    const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
-    if (!isExecutive) {
-      const managerBranch = Number(req.user?.branchId);
-      if (bill.branchId !== managerBranch) {
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+    if (!isCeo) {
+      const userBranch = Number(req.user?.branchId);
+      if (bill.branchId !== userBranch) {
         return res.status(403).json({ success: false, message: 'Access denied: Cannot delete bill from another branch.' });
       }
     }

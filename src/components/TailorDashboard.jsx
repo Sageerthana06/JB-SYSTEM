@@ -387,7 +387,7 @@ export const TailorDashboard = () => {
                 {user?.name || 'Master Craftsman'}
               </div>
               <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                Role: {user?.role || 'TAILOR'} • {user?.branchName || 'Branch 1'}
+                Role: {user?.role || 'TAILOR'} • {user?.branchName || (user?.branchId === 2 ? 'Bella Design' : 'JB Group (Main)')}
               </div>
             </div>
           </div>

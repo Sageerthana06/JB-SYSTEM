@@ -170,7 +170,9 @@ export const Sidebar = () => {
           backgroundColor: 'rgba(0,0,0,0.15)'
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ffffff' }}>{user.name}</div>
-          <div style={{ fontSize: '0.65rem', color: 'var(--jb-blue-accent)', fontWeight: 600, marginTop: '2px' }}>{roleLabel}</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--jb-blue-accent)', fontWeight: 600, marginTop: '2px' }}>
+            {roleLabel} {user.role !== 'SUPER_ADMIN' ? `• ${user.branchName || (user.branchId === 2 ? 'Bella Design' : 'JB Group')}` : '• Multi-Branch'}
+          </div>
         </div>
       )}
 

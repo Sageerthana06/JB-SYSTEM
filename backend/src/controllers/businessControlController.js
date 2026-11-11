@@ -11,44 +11,44 @@ const COLOMBO_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 /**
  * Helper: Resolve branch scope strictly according to RBAC.
- * Executive (SUPER_ADMIN, ADMIN, CEO) -> 'ALL', 1, or 2.
- * Manager -> Strictly locked to their assigned branch (1 or 2).
+ * - CEO / SUPER_ADMIN -> 'ALL', 1, or 2.
+ * - Non-CEO (ADMIN, MANAGER, etc.) -> Strictly locked to their assigned branch (1 or 2).
  */
 const resolveBranchScope = (req) => {
   const user = req.user;
   const role = String(user?.role || '').toUpperCase();
-  const isExecutive = ['SUPER_ADMIN', 'ADMIN', 'CEO'].includes(role);
-  const managerBranch = user?.branchId ? Number(user.branchId) : null;
+  const isCeo = ['SUPER_ADMIN', 'CEO'].includes(role);
+  const assignedBranch = user?.branchId ? Number(user.branchId) : null;
 
-  if (isExecutive) {
+  if (isCeo) {
     const qBranch = req.query?.branchId || req.body?.branchId;
     if (qBranch && String(qBranch).trim().toUpperCase() !== 'ALL') {
       const bId = parseInt(qBranch, 10);
       if (bId !== 1 && bId !== 2) {
-        throw { status: 400, message: 'Invalid branch ID. JB GROUP operates only Branch 1 and Branch 2.' };
+        throw { status: 400, message: 'Invalid branch ID. JB SYSTEM operates only Branch 1 (JB Group) and Branch 2 (Bella Design).' };
       }
       return bId;
     }
     return 'ALL';
   }
 
-  // Managers are strictly isolated
-  if (!managerBranch || (managerBranch !== 1 && managerBranch !== 2)) {
-    throw { status: 403, message: 'Access denied: Manager is not assigned to an active branch.' };
+  // Non-CEO staff (ADMIN, MANAGER, etc.) are strictly isolated to their assigned business/branch
+  if (!assignedBranch || (assignedBranch !== 1 && assignedBranch !== 2)) {
+    throw { status: 403, message: `Access denied: ${role} is not assigned to an active branch.` };
   }
 
   const qBranch = req.query?.branchId || req.body?.branchId;
   if (qBranch) {
     const cleanQ = String(qBranch).trim().toUpperCase();
-    if (cleanQ === 'ALL' || parseInt(cleanQ, 10) !== managerBranch) {
+    if (cleanQ === 'ALL' || parseInt(cleanQ, 10) !== assignedBranch) {
       throw {
         status: 403,
-        message: `Access denied: Managers are restricted to their assigned branch (${managerBranch}). Cannot access consolidated 'ALL' or other branches.`
+        message: `Access denied: ${role} accounts are restricted to their assigned branch (${assignedBranch}). Cannot access consolidated 'ALL' or other branches.`
       };
     }
   }
 
-  return managerBranch;
+  return assignedBranch;
 };
 
 /**

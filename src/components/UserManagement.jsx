@@ -48,7 +48,8 @@ const ROLE_COLORS = {
 
 export const UserManagement = () => {
   const { user: currentUser, getAuthHeaders } = useAuth();
-  const isCeo = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+  const isCeo = currentUser?.role === 'SUPER_ADMIN';
+  const isBranchRestricted = currentUser?.role !== 'SUPER_ADMIN';
   const isManager = currentUser?.role === 'MANAGER';
 
   // Data state
@@ -61,7 +62,7 @@ export const UserManagement = () => {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState('ALL');
-  const [selectedBranch, setSelectedBranch] = useState(isManager ? String(currentUser.branchId || 1) : 'ALL');
+  const [selectedBranch, setSelectedBranch] = useState(isBranchRestricted ? String(currentUser?.branchId || 1) : 'ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
 
   // Modals state
@@ -86,7 +87,7 @@ export const UserManagement = () => {
     email: '',
     phone: '',
     role: 'STAFF',
-    branchId: isManager ? currentUser.branchId || 1 : 1,
+    branchId: isBranchRestricted ? (currentUser?.branchId || 1) : 1,
     setupMethod: 'email', // 'email' or 'manual'
     password: '',
     isActive: true
@@ -221,7 +222,7 @@ export const UserManagement = () => {
           name: formData.name,
           email: formData.email,
           role: formData.role,
-          branchId: formData.branchId,
+          branchId: parseInt(formData.branchId, 10) || 1,
           password: formData.setupMethod === 'manual' ? formData.password : undefined,
           sendSetupLink: formData.setupMethod === 'email',
           employeeRecordId: formData.mode === 'existing' ? formData.employeeRecordId : undefined,
@@ -242,7 +243,7 @@ export const UserManagement = () => {
           email: '',
           phone: '',
           role: 'STAFF',
-          branchId: isManager ? currentUser.branchId || 1 : 1,
+          branchId: isBranchRestricted ? (currentUser?.branchId || 1) : 1,
           setupMethod: 'email',
           password: '',
           isActive: true
@@ -507,7 +508,9 @@ export const UserManagement = () => {
   // Allowed roles for dropdown
   const permittedRoles = isCeo
     ? ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'STAFF', 'TAILOR', 'CUTTING', 'EMBROIDERY', 'CASHIER']
-    : ['STAFF', 'TAILOR', 'CUTTING', 'EMBROIDERY', 'CASHIER'];
+    : currentUser?.role === 'ADMIN'
+      ? ['MANAGER', 'STAFF', 'TAILOR', 'CUTTING', 'EMBROIDERY', 'CASHIER']
+      : ['STAFF', 'TAILOR', 'CUTTING', 'EMBROIDERY', 'CASHIER'];
 
   // Format date helper
   const formatDate = (dateStr) => {
@@ -651,7 +654,13 @@ export const UserManagement = () => {
 
           {/* Create Login Account Button */}
           <button
-            onClick={() => setCreateModalOpen(true)}
+            onClick={() => {
+              setFormData(prev => ({
+                ...prev,
+                branchId: isBranchRestricted ? (currentUser?.branchId || 1) : (selectedBranch !== 'ALL' ? parseInt(selectedBranch, 10) : 1)
+              }));
+              setCreateModalOpen(true);
+            }}
             style={{
               padding: '10px 18px',
               borderRadius: '10px',
@@ -814,18 +823,18 @@ export const UserManagement = () => {
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              disabled={isManager} // Restricted for branch manager
-              title={isManager ? 'Branch locked to your authorized assignment' : 'Select Branch'}
+              disabled={isBranchRestricted} // Restricted for non-CEO users
+              title={isBranchRestricted ? 'Branch locked to your authorized assignment' : 'Select Branch'}
               style={{
                 padding: '9px 12px',
                 borderRadius: '10px',
                 border: '1.5px solid var(--border-color)',
-                backgroundColor: isManager ? '#f1f5f9' : 'var(--bg-main)',
+                backgroundColor: isBranchRestricted ? '#f1f5f9' : 'var(--bg-main)',
                 color: 'var(--text-main)',
                 fontSize: '0.85rem',
                 fontWeight: 600,
                 outline: 'none',
-                cursor: isManager ? 'not-allowed' : 'pointer'
+                cursor: isBranchRestricted ? 'not-allowed' : 'pointer'
               }}
             >
               {isCeo && <option value="ALL">All Branches Combined</option>}
@@ -1001,12 +1010,16 @@ export const UserManagement = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
-                          fontSize: '0.82rem',
-                          fontWeight: 600,
-                          color: 'var(--text-main)'
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          backgroundColor: row.branchId === 2 ? '#f5f3ff' : '#eff6ff',
+                          color: row.branchId === 2 ? '#6d28d9' : '#1d4ed8',
+                          border: `1px solid ${row.branchId === 2 ? '#ddd6fe' : '#bfdbfe'}`
                         }}>
-                          <Building size={14} color="#64748b" />
-                          <span>{row.branchName}</span>
+                          <Building size={13} color={row.branchId === 2 ? '#7c3aed' : '#2563eb'} />
+                          <span>{row.branchId === 2 ? '🪡 Bella Design' : (row.branchName || '🏢 JB Group (Main)')}</span>
                         </span>
                       </td>
 
@@ -1403,12 +1416,12 @@ export const UserManagement = () => {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    Branch *
+                    Branch Assignment *
                   </label>
                   <select
                     value={formData.branchId}
-                    onChange={(e) => setFormData(p => ({ ...p, branchId: e.target.value }))}
-                    disabled={isManager}
+                    onChange={(e) => setFormData(p => ({ ...p, branchId: parseInt(e.target.value, 10) }))}
+                    disabled={isBranchRestricted}
                     style={{
                       width: '100%',
                       padding: '11px 12px',
@@ -1416,13 +1429,24 @@ export const UserManagement = () => {
                       border: '1.5px solid #cbd5e1',
                       fontSize: '0.88rem',
                       outline: 'none',
-                      backgroundColor: isManager ? '#f8fafc' : '#ffffff'
+                      backgroundColor: isBranchRestricted ? '#f8fafc' : '#ffffff',
+                      cursor: isBranchRestricted ? 'not-allowed' : 'pointer'
                     }}
                   >
                     {branches.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                      <option key={b.id} value={b.id}>{b.name} (Branch ID: {b.id})</option>
                     ))}
                   </select>
+                  {Number(formData.branchId) === 2 && (
+                    <div style={{ marginTop: '5px', fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>🪡</span> <span>Bella Design Studio (Branch ID: 2)</span>
+                    </div>
+                  )}
+                  {Number(formData.branchId) === 1 && (
+                    <div style={{ marginTop: '5px', fontSize: '0.75rem', color: '#0052cc', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>🏢</span> <span>JB Group Main (Branch ID: 1)</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2319,19 +2343,20 @@ export const UserManagement = () => {
                 </label>
                 <select
                   value={editFormData.branchId}
-                  onChange={(e) => setEditFormData(p => ({ ...p, branchId: e.target.value }))}
-                  disabled={isManager}
+                  onChange={(e) => setEditFormData(p => ({ ...p, branchId: parseInt(e.target.value, 10) }))}
+                  disabled={isBranchRestricted}
                   style={{
                     width: '100%',
                     padding: '11px 12px',
                     borderRadius: '10px',
                     border: '1.5px solid #cbd5e1',
                     fontSize: '0.88rem',
-                    backgroundColor: isManager ? '#f8fafc' : '#ffffff'
+                    backgroundColor: isBranchRestricted ? '#f8fafc' : '#ffffff',
+                    cursor: isBranchRestricted ? 'not-allowed' : 'pointer'
                   }}
                 >
                   {branches.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
+                    <option key={b.id} value={b.id}>{b.name} (Branch ID: {b.id})</option>
                   ))}
                 </select>
               </div>
