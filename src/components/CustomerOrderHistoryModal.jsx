@@ -26,10 +26,17 @@ export const CustomerOrderHistoryModal = ({
   rankingType = 'ORDERS',
   onOpenVaultProfile
 }) => {
-  if (!isOpen || !customerData) return null;
-
-  const [activeModalTab, setActiveModalTab] = useState(rankingType === 'PAYMENTS' && customerData.payments?.length > 0 ? 'payments' : 'orders');
+  const [activeModalTab, setActiveModalTab] = useState('orders');
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
+
+  // Sync tab with rankingType and customerData when modal opens
+  React.useEffect(() => {
+    if (customerData) {
+      setActiveModalTab(rankingType === 'PAYMENTS' && customerData.payments?.length > 0 ? 'payments' : 'orders');
+    }
+  }, [customerData, rankingType]);
+
+  if (!isOpen || !customerData) return null;
   const orders = customerData.orders || [];
   const payments = customerData.payments || [];
   const isPaymentMode = rankingType === 'PAYMENTS';

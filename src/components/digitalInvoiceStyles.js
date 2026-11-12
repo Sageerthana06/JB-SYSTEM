@@ -4,15 +4,13 @@ export const digitalInvoiceStyles = `
     width: 100%;
     max-width: 500px;
     position: relative;
-    overflow: hidden;
-    isolation: isolate;
     border: 1.5px solid #002b66;
     border-radius: 14px;
     background: #ffffff;
     color: #0f172a;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    font-size: 11.5px;
-    line-height: 1.28;
+    font-size: 11px;
+    line-height: 1.25;
     box-shadow: 0 8px 30px rgba(0, 43, 102, 0.08);
     display: flex;
     flex-direction: column;
@@ -21,14 +19,13 @@ export const digitalInvoiceStyles = `
   .jb-invoice-standard {
     height: 617px;
     min-height: 617px;
-    max-height: 617px;
   }
   .jb-invoice-expanded {
     height: auto;
     min-height: 617px;
   }
   .jb-invoice-body {
-    padding: 10px 14px 4px 14px;
+    padding: 8px 12px 2px 12px;
     position: relative;
     z-index: 1;
     display: flex;
@@ -49,26 +46,26 @@ export const digitalInvoiceStyles = `
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-bottom: 5px;
+    padding-bottom: 3px;
   }
   .jb-invoice-brand img {
-    height: 38px;
+    height: 36px;
     width: auto;
-    max-width: 90px;
+    max-width: 85px;
     object-fit: contain;
     flex-shrink: 0;
     display: block;
   }
   .jb-invoice-brand-divider {
     width: 1.5px;
-    height: 34px;
+    height: 32px;
     background-color: #002b66;
     flex-shrink: 0;
   }
   .jb-invoice-brand-info strong {
     display: block;
     color: #002b66;
-    font-size: 1.12rem;
+    font-size: 1.08rem;
     font-weight: 900;
     line-height: 1.1;
     letter-spacing: -0.2px;
@@ -76,7 +73,7 @@ export const digitalInvoiceStyles = `
   .jb-invoice-brand-info span {
     display: block;
     margin-top: 1px;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: #334155;
     font-weight: 600;
   }
@@ -85,16 +82,16 @@ export const digitalInvoiceStyles = `
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    padding: 4px 0 5px 0;
+    padding: 3px 0 4px 0;
     border-top: 1px solid #e2e8f0;
   }
   .jb-invoice-hq {
     display: inline-block;
     background: #002b66;
     color: #ffffff;
-    font-size: 0.62rem;
+    font-size: 0.60rem;
     font-weight: 800;
-    padding: 2px 8px;
+    padding: 1.5px 7px;
     border-radius: 9999px;
     margin-bottom: 2px;
     letter-spacing: 0.3px;
@@ -103,7 +100,7 @@ export const digitalInvoiceStyles = `
     display: flex;
     align-items: flex-start;
     gap: 3px;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     color: #334155;
     line-height: 1.25;
   }
@@ -114,7 +111,7 @@ export const digitalInvoiceStyles = `
   .jb-invoice-numbers {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2.5px;
     flex-shrink: 0;
   }
   .jb-invoice-wa-pill {
@@ -124,10 +121,10 @@ export const digitalInvoiceStyles = `
     background-color: #25D366;
     color: #ffffff;
     border-radius: 9999px;
-    padding: 2px 8px 2px 4px;
+    padding: 1.5px 7px 1.5px 3.5px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     text-decoration: none;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.2px;
     white-space: nowrap;
@@ -137,8 +134,8 @@ export const digitalInvoiceStyles = `
     background-color: #002b66;
   }
   .jb-invoice-wa-icon {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     border-radius: 50%;
     background-color: #ffffff;
     display: flex;
@@ -150,49 +147,46 @@ export const digitalInvoiceStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 4px 0 5px 0;
     position: relative;
+    margin: 3px 0 4px 0;
   }
   .jb-invoice-title-wing-left {
     flex: 1;
-    height: 4px;
+    height: 2px;
     background: linear-gradient(90deg, transparent, #dc2626);
-    border-radius: 2px;
-    margin-right: 8px;
+    margin-right: 6px;
   }
   .jb-invoice-title-wing-right {
     flex: 1;
-    height: 4px;
+    height: 2px;
     background: linear-gradient(90deg, #dc2626, transparent);
-    border-radius: 2px;
-    margin-left: 8px;
+    margin-left: 6px;
   }
   .jb-invoice-title-pill {
     background-color: #002b66;
     color: #ffffff;
     font-weight: 900;
-    font-size: 0.85rem;
-    letter-spacing: 1.1px;
-    padding: 3px 24px;
+    font-size: 0.88rem;
+    letter-spacing: 1px;
+    padding: 3px 18px;
     border-radius: 9999px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 43, 102, 0.2);
+    box-shadow: 0 2px 6px rgba(0, 43, 102, 0.25);
+    text-transform: uppercase;
     white-space: nowrap;
   }
   .jb-invoice-billing {
     display: flex;
     justify-content: space-between;
     align-items: stretch;
-    background-color: #f8fafc;
-    border: 1px solid #002b66;
-    border-radius: 8px;
-    padding: 5px 10px;
-    margin-bottom: 5px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
     gap: 8px;
   }
   .jb-invoice-customer {
     flex: 1 1 52%;
-    min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -202,23 +196,23 @@ export const digitalInvoiceStyles = `
     align-items: center;
     gap: 4px;
     color: #002b66;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.4px;
   }
   .jb-invoice-customer-name {
-    font-size: 1.12rem;
+    font-size: 1.05rem;
     font-weight: 900;
     color: #0f172a;
     line-height: 1.1;
-    margin: 2px 0 3px 0;
+    margin: 1px 0 2px 0;
     word-break: break-word;
   }
   .jb-invoice-customer-phone {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 800;
     color: #002b66;
     font-variant-numeric: tabular-nums;
@@ -233,8 +227,8 @@ export const digitalInvoiceStyles = `
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 2px;
-    font-size: 0.72rem;
+    gap: 1.5px;
+    font-size: 0.70rem;
     padding-left: 4px;
   }
   .jb-invoice-ref-row {
@@ -252,7 +246,7 @@ export const digitalInvoiceStyles = `
     font-variant-numeric: tabular-nums;
   }
   .jb-invoice-table-wrapper {
-    margin-bottom: 5px;
+    margin-bottom: 4px;
     border-radius: 6px;
     overflow: hidden;
     border: 1.5px solid #002b66;
@@ -266,8 +260,8 @@ export const digitalInvoiceStyles = `
   .jb-invoice th {
     background-color: #002b66;
     color: #ffffff;
-    padding: 5px 8px;
-    font-size: 0.74rem;
+    padding: 3.5px 6px;
+    font-size: 0.72rem;
     font-weight: 800;
     border-right: 1.5px solid #002b66;
   }
@@ -275,12 +269,12 @@ export const digitalInvoiceStyles = `
     border-right: none;
   }
   .jb-invoice td {
-    padding: 5px 8px;
+    padding: 3.5px 6px;
     vertical-align: middle;
     border-right: 1.5px solid #002b66;
     border-top: 1px solid #002b66;
     overflow-wrap: anywhere;
-    font-size: 0.75rem;
+    font-size: 0.73rem;
   }
   .jb-invoice td:last-child {
     border-right: none;
@@ -289,8 +283,8 @@ export const digitalInvoiceStyles = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 5px;
+    gap: 8px;
+    margin-bottom: 4px;
   }
   .jb-invoice-art-box {
     flex: 1 1 42%;
@@ -298,7 +292,8 @@ export const digitalInvoiceStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 110px;
+    min-height: 95px;
+    max-height: 105px;
     border-radius: 8px;
     overflow: hidden;
   }
@@ -314,14 +309,14 @@ export const digitalInvoiceStyles = `
   }
   .jb-invoice-watermark img {
     width: 85%;
-    max-width: 140px;
+    max-width: 130px;
     height: auto;
   }
   .jb-invoice-art-img {
     position: relative;
     z-index: 1;
     max-width: 100%;
-    max-height: 105px;
+    max-height: 98px;
     object-fit: contain;
   }
   .jb-invoice-totals-box {
@@ -329,15 +324,15 @@ export const digitalInvoiceStyles = `
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 3.5px;
+    gap: 2.5px;
   }
   .jb-invoice-pill {
-    border-radius: 6px;
-    padding: 3px 8px;
+    border-radius: 5px;
+    padding: 2.5px 7px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-variant-numeric: tabular-nums;
   }
   .jb-invoice-pill-subtotal {
@@ -355,8 +350,8 @@ export const digitalInvoiceStyles = `
     background-color: #002b66;
     color: #ffffff;
     font-weight: 900;
-    font-size: 0.78rem;
-    padding: 3.5px 8px;
+    font-size: 0.76rem;
+    padding: 3px 7px;
     box-shadow: 0 1px 3px rgba(0,43,102,0.2);
   }
   .jb-invoice-pill-paid {
@@ -366,14 +361,14 @@ export const digitalInvoiceStyles = `
     font-weight: 800;
   }
   .jb-invoice-pill-due {
-    border-radius: 6px;
+    border-radius: 5px;
     font-weight: 900;
-    font-size: 0.78rem;
-    padding: 3.5px 8px;
+    font-size: 0.76rem;
+    padding: 3px 7px;
   }
   /* Original Bill-Style Rubber Stamp */
   .jb-invoice-rubber-stamp-container {
-    margin-top: 3px;
+    margin-top: 2px;
     align-self: center;
     transform: rotate(-4deg);
     display: flex;
@@ -382,14 +377,14 @@ export const digitalInvoiceStyles = `
   }
   .jb-invoice-rubber-stamp {
     border-radius: 5px;
-    padding: 2.5px 14px;
+    padding: 2px 12px;
     background-color: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     font-weight: 900;
-    font-size: 0.86rem;
+    font-size: 0.82rem;
     letter-spacing: 1.2px;
     text-transform: uppercase;
   }
@@ -399,10 +394,10 @@ export const digitalInvoiceStyles = `
     align-items: center;
     background-color: #f8fafc;
     border: 1px solid #002b66;
-    border-radius: 8px;
-    padding: 5px 8px;
+    border-radius: 6px;
+    padding: 3.5px 7px;
     gap: 8px;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
   }
   .jb-invoice-terms-box {
     flex: 1 1 auto;
@@ -412,17 +407,17 @@ export const digitalInvoiceStyles = `
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     font-weight: 900;
     color: #002b66;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
   .jb-invoice-terms-list {
     margin: 0;
-    padding-left: 14px;
-    font-size: 0.66rem;
+    padding-left: 12px;
+    font-size: 0.64rem;
     color: #334155;
-    line-height: 1.35;
+    line-height: 1.30;
     font-weight: 600;
   }
   .jb-invoice-thanks-box {
@@ -438,7 +433,7 @@ export const digitalInvoiceStyles = `
     position: relative;
     width: 100%;
     margin-top: auto;
-    height: 32px;
+    height: 30px;
     background-color: #002b66;
     display: flex;
     flex-direction: column;
@@ -460,13 +455,13 @@ export const digitalInvoiceStyles = `
     bottom: 0;
     right: 0;
     width: 55px;
-    height: 32px;
+    height: 30px;
     pointer-events: none;
   }
   .jb-invoice-footer-title {
     color: #ffffff;
     font-weight: 900;
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     letter-spacing: 0.4px;
     line-height: 1.1;
     position: relative;
@@ -474,7 +469,7 @@ export const digitalInvoiceStyles = `
   }
   .jb-invoice-footer-tagline {
     color: #cbd5e1;
-    font-size: 0.58rem;
+    font-size: 0.56rem;
     font-weight: 600;
     letter-spacing: 0.3px;
     margin-top: 1px;

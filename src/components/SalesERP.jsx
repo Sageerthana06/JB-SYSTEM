@@ -1547,21 +1547,28 @@ const ViewOrderModal = ({
                       Tailoring: LKR {Number(order.serviceCharge).toLocaleString()} | Work: LKR {Number(order.additionalWorkCharge || 0).toLocaleString()} | Material: LKR {Number(order.materialCharge || 0).toLocaleString()}
                     </div>
                   )}
-                  <div><strong>Paid Amount:</strong> {order.advancePayment !== null && order.advancePayment !== undefined ? `LKR ${Number(order.advancePayment).toLocaleString()}` : '0'}</div>
-                  <div><strong>Balance:</strong> {order.balanceAmount !== null && order.balanceAmount !== undefined ? `LKR ${Number(order.balanceAmount).toLocaleString()}` : '0'}</div>
-                  <div><strong>Payment Status:</strong> {
-                    Number(order.totalAmount || 0) === 0 ? (
-                      <span className="badge badge-secondary" style={{ backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 800 }}>
-                        PRICE PENDING / UNPRICED
-                      </span>
-                    ) : Number(order.balanceAmount || 0) <= 0 ? (
-                      <span className="badge badge-success">✓ Paid in Full</span>
-                    ) : Number(order.advancePayment || 0) > 0 ? (
-                      <span className="badge badge-warning">Partially Paid (Due: LKR {Number(order.balanceAmount).toLocaleString()})</span>
-                    ) : (
-                      <span className="badge badge-danger">Payment Due (LKR {Number(order.balanceAmount).toLocaleString()})</span>
-                    )
-                  }</div>
+                  {(() => {
+                    const pay = calculateOrderPaymentSummary(order);
+                    return (
+                      <>
+                        <div><strong>Paid Amount:</strong> LKR {pay.paidAmount.toLocaleString()}</div>
+                        <div><strong>Balance:</strong> LKR {pay.balanceDue.toLocaleString()}</div>
+                        <div><strong>Payment Status:</strong> {
+                          Number(order.totalAmount || 0) === 0 ? (
+                            <span className="badge badge-secondary" style={{ backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 800 }}>
+                              PRICE PENDING / UNPRICED
+                            </span>
+                          ) : pay.isFullyPaid ? (
+                            <span className="badge badge-success">✓ Paid in Full</span>
+                          ) : pay.isPartiallyPaid ? (
+                            <span className="badge badge-warning">Partially Paid (Due: LKR {pay.balanceDue.toLocaleString()})</span>
+                          ) : (
+                            <span className="badge badge-danger">Payment Due (LKR {pay.balanceDue.toLocaleString()})</span>
+                          )
+                        }</div>
+                      </>
+                    );
+                  })()}
 
                   {/* Action Buttons Panel */}
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>

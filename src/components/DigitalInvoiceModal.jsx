@@ -13,6 +13,9 @@ import {
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { digitalInvoiceStyles } from './digitalInvoiceStyles';
+import {
+  computeInvoicePaymentStatus as computeInvoicePaymentStatusUtil
+} from '../utils/paymentCalculations';
 
 export const normalizePhoneForWhatsApp = (phone) => {
   if (!phone) return '';
@@ -23,117 +26,7 @@ export const normalizePhoneForWhatsApp = (phone) => {
 };
 
 export const computeInvoicePaymentStatus = (order) => {
-  if (!order) {
-    return {
-      statusKey: 'PRICE_PENDING',
-      label: 'Balance Due',
-      stampText: 'PRICE PENDING',
-      color: '#d97706',
-      bgColor: '#fffbeb',
-      borderColor: '#fde68a',
-      stampBorderColor: '#d97706',
-      stampTextColor: '#d97706',
-      totalAmount: 0,
-      amountPaid: 0,
-      balanceDue: 0
-    };
-  }
-
-  const rawTotal = Number(
-    order.totalAmount !== undefined && order.totalAmount !== null
-      ? order.totalAmount
-      : (order.agreedTotal !== undefined && order.agreedTotal !== null ? order.agreedTotal : 0)
-  );
-  const totalAmount = isNaN(rawTotal) ? 0 : rawTotal;
-
-  const isPricePending =
-    totalAmount <= 0 ||
-    order.priceStatus === 'PENDING' ||
-    order.priceStatus === 'PRICE_PENDING' ||
-    order.priceStatus === 'DECLINED' ||
-    order.priceApproved === false ||
-    order.status === 'PENDING_APPROVAL';
-
-  // Real verified payment calculation from PostgreSQL
-  // Pending, unverified, or rejected payments must not count as received
-  const verifiedPayments = Array.isArray(order.payments)
-    ? order.payments.filter((p) => p && p.status === 'VERIFIED')
-    : [];
-
-  let amountPaid = 0;
-  if (verifiedPayments.length > 0) {
-    amountPaid = verifiedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  } else if ((!Array.isArray(order.payments) || order.payments.length === 0) && order.advancePayment !== undefined && order.advancePayment !== null) {
-    amountPaid = Number(order.advancePayment) || 0;
-  }
-
-  const balanceDue = isPricePending ? 0 : Math.max(0, totalAmount - amountPaid);
-
-  if (isPricePending) {
-    return {
-      statusKey: 'PRICE_PENDING',
-      label: 'PRICE PENDING',
-      stampText: 'PRICE PENDING',
-      balanceLabel: 'Balance Due',
-      color: '#d97706',
-      bgColor: '#fffbeb',
-      borderColor: '#fde68a',
-      stampBorderColor: '#d97706',
-      stampTextColor: '#d97706',
-      totalAmount: 0,
-      amountPaid: 0,
-      balanceDue: 0
-    };
-  }
-
-  if (amountPaid >= totalAmount && totalAmount > 0) {
-    return {
-      statusKey: 'PAID',
-      label: 'PAID',
-      stampText: 'PAID',
-      balanceLabel: 'Balance Due',
-      color: '#16a34a',
-      bgColor: '#f0fdf4',
-      borderColor: '#bbf7d0',
-      stampBorderColor: '#16a34a',
-      stampTextColor: '#16a34a',
-      totalAmount,
-      amountPaid,
-      balanceDue: 0
-    };
-  }
-
-  if (amountPaid > 0 && balanceDue > 0) {
-    return {
-      statusKey: 'PARTIALLY_PAID',
-      label: 'PARTIALLY PAID',
-      stampText: 'PARTIALLY PAID',
-      balanceLabel: 'Balance Due',
-      color: '#ea580c',
-      bgColor: '#fff7ed',
-      borderColor: '#fed7aa',
-      stampBorderColor: '#ea580c',
-      stampTextColor: '#ea580c',
-      totalAmount,
-      amountPaid,
-      balanceDue
-    };
-  }
-
-  return {
-    statusKey: 'UNPAID',
-    label: 'UNPAID',
-    stampText: 'UNPAID',
-    balanceLabel: 'Balance Due',
-    color: '#dc2626',
-    bgColor: '#fef2f2',
-    borderColor: '#fecaca',
-    stampBorderColor: '#dc2626',
-    stampTextColor: '#dc2626',
-    totalAmount,
-    amountPaid: 0,
-    balanceDue: totalAmount
-  };
+  return computeInvoicePaymentStatusUtil(order);
 };
 
 export const generateDigitalInvoiceWhatsAppMessage = (order) => {
@@ -314,10 +207,9 @@ export const DigitalInvoiceModal = ({ order, isOpen, onClose }) => {
           boxShadow: 'none',
           position: 'static'
         });
-        if (isSingleItem) {
+        if (isSingleItem && card.scrollHeight <= 620) {
           card.style.height = '617px';
           card.style.minHeight = '617px';
-          card.style.maxHeight = '617px';
         } else {
           card.style.height = 'auto';
           card.style.minHeight = '617px';
