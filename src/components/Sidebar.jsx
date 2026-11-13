@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { hasPermission, ROLE_LABELS, MODULE_PERMISSIONS } from '../utils/permissions';
 import {
   LayoutDashboard,
+  Target,
   ShoppingCart,
   Scissors,
   Users,
@@ -40,8 +41,9 @@ export const Sidebar = () => {
     {
       title: 'MAIN MENU',
       items: [
-        { id: 'overview',    label: 'Dashboard',           icon: LayoutDashboard, badge: 'Live Orders' },
-        { id: 'sales',       label: 'Sales',               icon: ShoppingCart,    badge: pendingApprovals > 0 ? `${pendingApprovals} Pending` : undefined },
+        { id: 'overview',      label: 'Dashboard',             icon: LayoutDashboard, badge: 'Live Orders' },
+        { id: 'action-centre', label: 'Daily Action Centre',   icon: Target,          badge: 'Today' },
+        { id: 'sales',         label: 'Sales',                 icon: ShoppingCart,    badge: pendingApprovals > 0 ? `${pendingApprovals} Pending` : undefined },
         { id: 'production',  label: 'Production',          icon: Scissors,        badge: 'Production Kanban' },
         { id: 'tailors',     label: 'Tailor Performance',  icon: Award },
         { id: 'customers',   label: 'Customers',           icon: Users }

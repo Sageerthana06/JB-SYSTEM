@@ -96,6 +96,10 @@ model User {
   supplierPaymentsCreated       SupplierPaymentHistory[] @relation("SupplierPaymentCreator")
   loansCreated                  BusinessLoan[]          @relation("LoanCreator")
   loanRepaymentsCreated         LoanRepaymentHistory[]  @relation("LoanRepaymentCreator")
+  assignedFollowUps             ActionFollowUp[]        @relation("FollowUpAssignee")
+  managerChecklists             ManagerDailyChecklist[] @relation("ManagerChecklists")
+  completedChecklists           ManagerDailyChecklist[] @relation("ChecklistCompleter")
+  checklistAuditLogs            ManagerChecklistAuditLog[] @relation("ChecklistAuditor")
 }
 
 model Branch {
@@ -123,6 +127,8 @@ model Branch {
   businessExpenses        BusinessExpense[]
   supplierPayables        SupplierPayable[]
   loans                   BusinessLoan[]
+  managerDailyChecklists  ManagerDailyChecklist[]
+  managerChecklistAuditLogs ManagerChecklistAuditLog[]
 }
 
 model Customer {
@@ -241,6 +247,7 @@ model Order {
   stockMovements    StockMovement[]
   tasks             OrderTask[]
   customerFabrics   CustomerFabric[]
+  actionFollowUps   ActionFollowUp[]
 }
 
 model GarmentDetails {
@@ -1302,5 +1309,79 @@ model LoanRepaymentHistory {
   @@index([paymentDate])
   @@index([paidFromAccountId])
 }
+
+model ActionFollowUp {
+  id                    Int       @id @default(autoincrement())
+  orderId               Int
+  order                 Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  queueType             String    // "QUOTATION", "COLLECTION", "DELIVERY"
+  followUpDate          DateTime?
+  responsiblePersonId   Int?
+  responsiblePerson     User?     @relation("FollowUpAssignee", fields: [responsiblePersonId], references: [id], onDelete: SetNull)
+  responsiblePersonName String?
+  assignedBy            String?
+  assignedAt            DateTime? @default(now())
+  status                String    @default("PENDING") // "PENDING", "COMPLETED", "SNOOZED"
+  outcome               String?
+  nextAction            String?
+  completedAt           DateTime?
+  completedBy           String?
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([orderId])
+  @@index([queueType, status])
+  @@index([responsiblePersonId])
+  @@index([followUpDate])
+}
+
+model ManagerDailyChecklist {
+  id                Int       @id @default(autoincrement())
+  branchId          Int
+  branch            Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId            Int
+  user              User      @relation("ManagerChecklists", fields: [userId], references: [id], onDelete: Cascade)
+  checklistItemId   String    // "overdueOrders", "unassignedTasks", "pricePending", "customerCollections", "readyGarments", "staffAttendance"
+  businessDate      String    // YYYY-MM-DD in Asia/Colombo
+  status            String    @default("PENDING") // "PENDING", "COMPLETED"
+  completedByUserId Int?
+  completedByUser   User?     @relation("ChecklistCompleter", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  completedByName   String?
+  completedAt       DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  auditLogs         ManagerChecklistAuditLog[]
+
+  @@unique([branchId, userId, checklistItemId, businessDate], name: "uq_manager_daily_checklist")
+  @@index([branchId, businessDate])
+  @@index([userId, businessDate])
+  @@index([businessDate])
+  @@index([status])
+}
+
+model ManagerChecklistAuditLog {
+  id                 Int                    @id @default(autoincrement())
+  checklistRecordId  Int?
+  checklistRecord    ManagerDailyChecklist? @relation(fields: [checklistRecordId], references: [id], onDelete: SetNull)
+  branchId           Int
+  branch             Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId             Int
+  checklistItemId    String
+  businessDate       String
+  action             String                 // "MARKED_COMPLETED", "MARKED_PENDING"
+  performedByUserId  Int
+  performedByUser    User                   @relation("ChecklistAuditor", fields: [performedByUserId], references: [id], onDelete: Cascade)
+  performedByName    String
+  notes              String?
+  createdAt          DateTime               @default(now())
+
+  @@index([branchId, businessDate])
+  @@index([businessDate])
+  @@index([createdAt])
+}
+
+
 
 

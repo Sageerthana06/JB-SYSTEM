@@ -13,6 +13,7 @@ import { WeeklySalaryERP } from './WeeklySalaryERP';
 import { DailyReportsERP } from './DailyReportsERP';
 import { FinanceERP } from './FinanceERP';
 import { ExpenseManagementERP } from './Expenses/ExpenseManagementERP';
+import { DailyActionCentreView } from './ActionCentre/DailyActionCentreView';
 import { Scissors, Award, Users, Package, CreditCard, DollarSign, UserCheck, Share2, Building, AlertTriangle, Brain, Smartphone, FileSpreadsheet } from 'lucide-react';
 
 /**
@@ -47,6 +48,10 @@ export const ModuleRenderer = () => {
       );
     }
     return <UserManagement />;
+  }
+
+  if (activeTab === 'action-centre') {
+    return <DailyActionCentreView />;
   }
 
   if (activeTab === 'sales' || activeTab === 'overview') {

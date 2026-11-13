@@ -155,7 +155,10 @@ export const TailorERP = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_URL}/api/orders/tailors/performance`, {
+      const branchParam = (activeBranch && activeBranch !== 'ALL' && activeBranch !== 'All Branches')
+        ? `?branchId=${encodeURIComponent(activeBranch)}`
+        : '';
+      const res = await fetch(`${API_URL}/api/orders/tailors/performance${branchParam}`, {
         headers: getAuthHeaders ? getAuthHeaders() : {
           'Authorization': `Bearer ${localStorage.getItem('jb_token')}`
         }
@@ -229,14 +232,8 @@ export const TailorERP = () => {
     };
   };
 
-  // Filter tailors based on active branch selection
-  const branchFilteredTailors = tailors.filter((tailor) => {
-    if (!activeBranch || activeBranch === 'ALL') return true;
-    const bName = (tailor.branch || '').toLowerCase();
-    return bName.includes(activeBranch.toLowerCase());
-  });
-
   // Filter candidates for current production stage view
+  // Branch access and filtering is enforced by the backend API query parameter (?branchId)
   const getWorkersForView = (workers, view) => {
     if (view === 'cutting') {
       const list = workers.filter(w => w.role === 'CUTTING' || (w.cutting && (w.cutting.assignedTasks > 0 || w.cutting.totalCompleted > 0 || w.cutting.activeWorkload > 0)));
@@ -249,7 +246,7 @@ export const TailorERP = () => {
     return workers;
   };
 
-  const candidateTailors = getWorkersForView(branchFilteredTailors, productionView);
+  const candidateTailors = getWorkersForView(tailors, productionView);
 
   // Dynamic ranking based on the active view's real numbers
   const sortedTailors = [...candidateTailors].sort((a, b) => {
@@ -586,8 +583,10 @@ export const TailorERP = () => {
             No verified {productionView === 'cutting' ? 'cutting master' : productionView === 'stitching' ? 'stitching tailor' : 'craftsman'} performance data available.
           </h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto 20px auto' }}>
-            {activeBranch !== 'ALL'
-              ? `No active task assignments or completed garments found for ${activeBranch}. Switch to "All Branches" or assign tasks to craftsmen.`
+            {activeBranch !== 'ALL' && activeBranch !== 'All Branches'
+              ? `No active task assignments or completed garments found for ${
+                  activeBranch === '1' || activeBranch === 1 ? 'JB Group (Main)' : activeBranch === '2' || activeBranch === 2 ? 'Bella Design' : activeBranch
+                }. Switch to "All Branches" or assign tasks to craftsmen.`
               : 'When production tasks are assigned and completed in the production workflow, their verified output rankings will appear here automatically.'}
           </p>
           <button className="btn-secondary" onClick={fetchTailorPerformance}>

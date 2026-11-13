@@ -2890,22 +2890,51 @@ exports.getTailorPerformance = async (req, res, next) => {
   try {
     const { branchId } = req.query;
 
+    // Branch permissions: CEO can see all branches or filter by branchId; Admin/Manager restricted to their branch
+    const roleUpper = String(req.user?.role || '').toUpperCase();
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
+    let targetBranchId;
+
+    if (isCeo) {
+      if (branchId !== undefined && branchId !== null && String(branchId).trim() !== '') {
+        const branchStr = String(branchId).trim().toUpperCase();
+        if (branchStr === 'ALL') {
+          targetBranchId = undefined; // Missing branchId or ALL = all branches
+        } else {
+          const parsed = parseInt(branchStr, 10);
+          if (isNaN(parsed) || parsed <= 0 || String(parsed) !== branchStr) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid branch ID. Use a valid positive branch ID or "ALL".'
+            });
+          }
+          targetBranchId = parsed;
+        }
+      } else {
+        targetBranchId = undefined; // Missing branchId = all branches
+      }
+    } else {
+      const userBranchId = Number(req.user?.branchId);
+      if (!userBranchId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No valid branch assigned.'
+        });
+      }
+      targetBranchId = userBranchId;
+    }
+
     const whereUser = {
       OR: [
         { role: { in: ['TAILOR', 'CUTTING', 'EMBROIDERY'] } },
-        { assignedTasks: { some: {} } },
-        { assignedOrders: { some: {} } }
+        { assignedTasks: { some: targetBranchId !== undefined ? { order: { branchId: targetBranchId } } : {} } },
+        { assignedOrders: { some: targetBranchId !== undefined ? { branchId: targetBranchId } : {} } }
       ],
       isActive: true
     };
 
-    // Branch restriction for Managers
-    if (req.user?.role === 'MANAGER') {
-      if (req.user.branchId) {
-        whereUser.branchId = req.user.branchId;
-      }
-    } else if (branchId && branchId !== 'ALL') {
-      whereUser.branchId = parseInt(branchId, 10);
+    if (targetBranchId !== undefined) {
+      whereUser.branchId = targetBranchId;
     }
 
     const workers = await prisma.user.findMany({
@@ -2918,12 +2947,14 @@ exports.getTailorPerformance = async (req, res, next) => {
         branchId: true,
         branch: { select: { id: true, name: true } },
         assignedTasks: {
+          where: targetBranchId !== undefined ? { order: { branchId: targetBranchId } } : undefined,
           include: {
             order: {
               select: {
                 id: true,
                 orderNumber: true,
                 status: true,
+                branchId: true,
                 createdAt: true,
                 updatedAt: true,
                 customer: { select: { id: true, name: true } },
@@ -2939,10 +2970,12 @@ exports.getTailorPerformance = async (req, res, next) => {
           orderBy: { createdAt: 'desc' }
         },
         assignedOrders: {
+          where: targetBranchId !== undefined ? { branchId: targetBranchId } : undefined,
           select: {
             id: true,
             orderNumber: true,
             status: true,
+            branchId: true,
             createdAt: true,
             updatedAt: true,
             completedAt: true,

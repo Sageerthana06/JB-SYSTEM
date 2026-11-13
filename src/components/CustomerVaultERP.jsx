@@ -35,6 +35,7 @@ import { ImageUploadCapture } from './common/ImageUploadCapture';
 import { validateImageFileClient } from '../utils/imageUploadHelper';
 import { MonthlyCustomerWinnersSection } from './MonthlyCustomerWinnersSection';
 import { DigitalInvoiceModal } from './DigitalInvoiceModal';
+import { useAuth } from '../context/AuthContext';
 
 const normalizePhoneForWhatsApp = (phone) => {
   if (!phone) return '';
@@ -71,9 +72,12 @@ const formatMeasurementLabel = (key) => {
 };
 
 export const CustomerVaultERP = () => {
+  const { user, activeBranch } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [customers, setCustomers] = useState([]);
+  const [vaultSummary, setVaultSummary] = useState(null);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [customerDetails, setCustomerDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -84,6 +88,7 @@ export const CustomerVaultERP = () => {
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
 
   const ordersTableRef = useRef(null);
+  const searchAbortRef = useRef(null);
 
   const handleSelectCustomerFromWinners = (customerId) => {
     setSelectedCustomerId(customerId);
@@ -104,35 +109,53 @@ export const CustomerVaultERP = () => {
 
   // 1. Fetch real customers list from PostgreSQL
   const fetchCustomers = async (query = '') => {
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
     setLoadingCustomers(true);
+    setLoadError('');
     try {
-      const token = localStorage.getItem('jb_token');
-      const res = await fetch(`${API_URL}/api/customers/search?query=${encodeURIComponent(query)}`, {
+      const token = localStorage.getItem('jb_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
+      const branchParam = activeBranch && activeBranch !== 'ALL' ? `&branchId=${activeBranch}` : '';
+      const res = await fetch(`${API_URL}/api/customers/search?query=${encodeURIComponent(query)}${branchParam}`, {
+        signal: controller.signal,
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       const data = await res.json();
       if (data.success && Array.isArray(data.customers)) {
         setCustomers(data.customers);
-        // Automatically select first customer if none selected or if previous selection not in list
+        if (data.summary) {
+          setVaultSummary(data.summary);
+        }
+        // Automatically select matching customer immediately
         if (data.customers.length > 0) {
-          if (!selectedCustomerId || !data.customers.some(c => c.id === selectedCustomerId)) {
+          if (!selectedCustomerId || !data.customers.some(c => c.id === selectedCustomerId) || query.trim().length > 0) {
             setSelectedCustomerId(data.customers[0].id);
           }
         } else {
           setSelectedCustomerId(null);
           setCustomerDetails(null);
         }
+      } else {
+        setLoadError(data.message || 'Unable to retrieve customer directory.');
       }
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load customers for vault:', err);
+      setLoadError('Network error connecting to customer database.');
     } finally {
-      setLoadingCustomers(false);
+      if (searchAbortRef.current === controller) {
+        setLoadingCustomers(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchCustomers(searchQuery);
-  }, [searchQuery]);
+  }, [searchQuery, activeBranch]);
 
   // 2. Fetch full Customer 360 profile from PostgreSQL when selectedCustomerId changes
   const fetchCustomerDetails = async (id) => {
@@ -140,7 +163,7 @@ export const CustomerVaultERP = () => {
     setLoadingDetails(true);
     setSelectedMeasurementIdx(0);
     try {
-      const token = localStorage.getItem('jb_token');
+      const token = localStorage.getItem('jb_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/customers/${id}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
@@ -221,11 +244,11 @@ export const CustomerVaultERP = () => {
     }
   };
 
-  // 4. Calculate real KPI stats from real database orders
-  const totalCustomers = customers.length;
-  const totalOrders = customers.reduce((sum, c) => sum + (c.orders?.length || 0), 0);
-  const totalMeasured = customers.filter(c => (c.measurements?.length || 0) > 0).length;
-  const totalRevenue = customers.reduce((sum, c) => {
+  // 4. Calculate real KPI stats from real database summary or database orders fallback
+  const totalCustomers = vaultSummary?.totalCustomers ?? customers.length;
+  const totalOrders = vaultSummary?.totalOrders ?? customers.reduce((sum, c) => sum + (c.orders?.length || 0), 0);
+  const totalMeasured = vaultSummary?.totalMeasured ?? customers.filter(c => (c.measurements?.length || 0) > 0).length;
+  const totalRevenue = vaultSummary?.totalRevenue ?? customers.reduce((sum, c) => {
     const custOrders = c.orders || [];
     return sum + custOrders.reduce((oSum, o) => oSum + (Number(o.totalAmount) || 0), 0);
   }, 0);
@@ -519,7 +542,28 @@ export const CustomerVaultERP = () => {
 
             {/* Customer List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '72vh', overflowY: 'auto', paddingRight: '2px' }}>
-              {customers.length === 0 ? (
+              {loadError ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#b91c1c', fontSize: '0.825rem', backgroundColor: '#fef2f2', borderRadius: '10px', border: '1px solid #fecaca' }}>
+                  <AlertCircle size={22} style={{ margin: '0 auto 8px', color: '#dc2626' }} />
+                  <div style={{ fontWeight: 700, marginBottom: '6px' }}>{loadError}</div>
+                  <button
+                    type="button"
+                    onClick={() => fetchCustomers(searchQuery)}
+                    style={{
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '5px 12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Retry Connection
+                  </button>
+                </div>
+              ) : customers.length === 0 ? (
                 <div style={{ padding: '30px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.825rem', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
                   {loadingCustomers ? 'Loading client records...' : 'No customers match your search.'}
                 </div>

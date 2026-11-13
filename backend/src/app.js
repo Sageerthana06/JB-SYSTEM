@@ -14,6 +14,7 @@ const salaryRoutes = require('./routes/salaryRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const financeRoutes = require('./routes/financeRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
+const actionCentreRoutes = require('./routes/actionCentreRoutes');
 
 const { protectPaymentSlips } = require('./middleware/slipProtectionMiddleware');
 
@@ -62,6 +63,7 @@ app.use('/api/salary', salaryRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/action-centre', actionCentreRoutes);
 
 app.use(errorHandler);
 

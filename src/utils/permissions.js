@@ -152,6 +152,7 @@ export const ROLE_LABELS = {
  * Each sidebar item maps to a required permission.
  */
 export const MODULE_PERMISSIONS = {
+  'action-centre': 'orders.view',
   overview: 'dashboard.view',
   sales: 'orders.view',
   production: 'production.view',

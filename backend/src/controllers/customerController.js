@@ -357,40 +357,188 @@ exports.searchCustomer = async (req, res, next) => {
     }
 
     const roleUpper = (req.user?.role || '').toUpperCase();
-    const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(roleUpper);
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
+    const isFullAccess = ['SUPER_ADMIN', 'CEO', 'ADMIN', 'MANAGER'].includes(roleUpper);
+
+    // Branch scoping: CEO/SUPER_ADMIN can filter by branch or view ALL; others locked to assigned branch
+    let targetBranchId = undefined;
+    if (isCeo) {
+      const qBranch = req.query.branchId;
+      if (qBranch !== undefined && qBranch !== null && String(qBranch).trim() !== '') {
+        const branchStr = String(qBranch).trim().toUpperCase();
+        if (branchStr === 'ALL') {
+          targetBranchId = undefined;
+        } else {
+          const parsed = parseInt(branchStr, 10);
+          if (isNaN(parsed) || parsed <= 0 || String(parsed) !== branchStr) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid branch ID. Use a valid positive branch ID or "ALL".'
+            });
+          }
+          targetBranchId = parsed;
+        }
+      }
+    } else {
+      const uBranch = Number(req.user?.branchId);
+      if (!uBranch) {
+        return res.status(403).json({ success: false, message: 'Access denied: No valid branch assigned.' });
+      }
+      targetBranchId = uBranch;
+    }
+
+    const branchOrderWhere = targetBranchId !== undefined ? { branchId: targetBranchId } : undefined;
+    const branchCustomerWhere = targetBranchId !== undefined ? { orders: { some: { branchId: targetBranchId } } } : {};
 
     const { query } = req.query;
 
-    const where = query && query.trim() ? {
-      OR: [
-        { primaryPhone: { contains: query.trim() } },
-        { name: { contains: query.trim(), mode: 'insensitive' } },
-        { email: { contains: query.trim(), mode: 'insensitive' } }
-      ]
-    } : {};
+    let where = {};
+    if (targetBranchId !== undefined) {
+      where.orders = { some: { branchId: targetBranchId } };
+    }
 
-    const customers = await prisma.customer.findMany({
-      where,
-      take: 50,
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        ...(isFullAccess && {
-          orders: { orderBy: { createdAt: 'desc' }, take: 10, include: { garmentDetails: true } },
-          measurements: { orderBy: { createdAt: 'desc' }, take: 5 }
-        })
+    if (query && query.trim()) {
+      const q = query.trim();
+      const phoneVariants = getPhoneSearchVariants(q);
+      const digitsOnly = q.replace(/\D/g, '');
+
+      const searchConditions = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+        { primaryPhone: { contains: q } },
+        { alternativePhone: { contains: q } }
+      ];
+
+      // Numeric ID search
+      const numId = parseInt(q, 10);
+      if (!isNaN(numId) && String(numId) === q) {
+        searchConditions.push({ id: numId });
       }
-    });
 
-    // If STAFF or TAILOR, return name and id only
-    if (!isFullAccess) {
-      const sanitized = customers.map(c => ({
+      // Order number search
+      searchConditions.push({
+        orders: {
+          some: {
+            orderNumber: { contains: q, mode: 'insensitive' },
+            ...(targetBranchId !== undefined ? { branchId: targetBranchId } : {})
+          }
+        }
+      });
+
+      if (phoneVariants.length > 0) {
+        searchConditions.push(
+          { primaryPhone: { in: phoneVariants } },
+          { alternativePhone: { in: phoneVariants } }
+        );
+      }
+
+      if (digitsOnly.length >= 3) {
+        searchConditions.push(
+          { primaryPhone: { contains: digitsOnly } },
+          { alternativePhone: { contains: digitsOnly } }
+        );
+
+        // Strip leading 0 (e.g. 0770362314 -> 770362314 or partial 077036 -> 77036)
+        if (digitsOnly.startsWith('0')) {
+          const withoutZero = digitsOnly.replace(/^0+/, '');
+          if (withoutZero.length >= 3) {
+            searchConditions.push(
+              { primaryPhone: { contains: withoutZero } },
+              { alternativePhone: { contains: withoutZero } }
+            );
+          }
+        }
+
+        // Strip leading 94 (e.g. 94770362314 -> 770362314 or +9477036 -> 77036)
+        if (digitsOnly.startsWith('94')) {
+          const without94 = digitsOnly.slice(2);
+          if (without94.length >= 3) {
+            searchConditions.push(
+              { primaryPhone: { contains: without94 } },
+              { alternativePhone: { contains: without94 } },
+              { primaryPhone: { contains: '0' + without94 } },
+              { alternativePhone: { contains: '0' + without94 } }
+            );
+          }
+        }
+      }
+
+      if (targetBranchId !== undefined) {
+        where = {
+          AND: [
+            { orders: { some: { branchId: targetBranchId } } },
+            { OR: searchConditions }
+          ]
+        };
+      } else {
+        where = { OR: searchConditions };
+      }
+    }
+
+    // Parallel aggregate summary from real PostgreSQL database
+    const [totalCustomersCount, totalOrdersCount, measuredCount, revenueAgg, customers] = await Promise.all([
+      prisma.customer.count({
+        where: branchCustomerWhere
+      }),
+      prisma.order.count({ where: branchOrderWhere }),
+      prisma.customer.count({
+        where: {
+          measurements: { some: {} },
+          ...branchCustomerWhere
+        }
+      }),
+      prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: branchOrderWhere
+      }),
+      prisma.customer.findMany({
+        where,
+        take: 200,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          ...(isFullAccess && {
+            orders: {
+              where: branchOrderWhere,
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+              include: { garmentDetails: true }
+            },
+            measurements: {
+              orderBy: { createdAt: 'desc' },
+              take: 10
+            }
+          })
+        }
+      })
+    ]);
+
+    const summary = {
+      totalCustomers: totalCustomersCount,
+      totalOrders: totalOrdersCount,
+      totalMeasured: measuredCount,
+      totalRevenue: revenueAgg._sum.totalAmount || 0
+    };
+
+    let returnedCustomers;
+    if (isFullAccess) {
+      // Full customer profile without password for authorized management roles
+      returnedCustomers = customers.map(c => {
+        const { password: _pwd, ...rest } = c;
+        return rest;
+      });
+    } else {
+      // Restricted roles (STAFF, TAILOR, CUTTING, EMBROIDERY): return only permitted fields (id, name)
+      returnedCustomers = customers.map(c => ({
         id: c.id,
         name: c.name
       }));
-      return res.status(200).json({ success: true, customers: sanitized });
     }
 
-    return res.status(200).json({ success: true, customers });
+    return res.status(200).json({
+      success: true,
+      customers: returnedCustomers,
+      summary
+    });
   } catch (error) {
     console.error('Error searching customers:', error);
     return res.status(500).json({ success: false, message: 'Server error searching customers.' });
@@ -516,29 +664,45 @@ exports.getCustomerById = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid customer ID.' });
     }
 
-    // RBAC: Only CEO & MANAGER have access to full customer profiles
     const roleUpper = (req.user?.role || '').toUpperCase();
-    const isFullAccess = ['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(roleUpper);
+    const isCustomerPortal = roleUpper === 'CUSTOMER';
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
+    const isAuthorizedStaff = ['ADMIN', 'MANAGER', 'STAFF', 'CASHIER'].includes(roleUpper);
 
-    if (!isFullAccess) {
-      if (req.user?.role === 'CUSTOMER' && customerId === req.user.id) {
-        // Customer viewing own portal profile is ok
-      } else {
+    // 1. Role validation
+    if (isCustomerPortal) {
+      // Customer portal can ONLY view their own profile
+      if (customerId !== req.user.id && customerId !== req.user.customerId) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied. Full customer profiles are restricted to CEO and Managers.'
+          message: 'Access denied. You can only view your own customer profile.'
+        });
+      }
+    } else if (!isCeo && !isAuthorizedStaff) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Customer profiles are restricted to authorized personnel.'
+      });
+    }
+
+    // 2. Branch access validation for non-CEO staff
+    let userBranchId = undefined;
+    if (!isCeo && !isCustomerPortal) {
+      userBranchId = Number(req.user?.branchId);
+      if (!userBranchId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No valid branch assigned.'
         });
       }
     }
 
-    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
-    const userBranchId = req.user?.branchId || 1;
-
+    // 3. Fetch customer with branch-scoped orders
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
       include: {
         orders: {
-          where: isCeo ? undefined : { branchId: userBranchId },
+          where: userBranchId ? { branchId: userBranchId } : undefined,
           orderBy: { createdAt: 'desc' },
           include: {
             garmentDetails: true,
@@ -564,12 +728,31 @@ exports.getCustomerById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Customer not found.' });
     }
 
+    // 4. Branch Isolation check: Non-CEO users cannot access customers belonging to other branches
+    if (!isCeo && !isCustomerPortal && userBranchId) {
+      const branchOrderCount = await prisma.order.count({
+        where: {
+          customerId,
+          branchId: userBranchId
+        }
+      });
+
+      if (branchOrderCount === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Customer does not belong to your assigned branch.'
+        });
+      }
+    }
+
+    // 5. Sanitize sensitive fields (password, etc.)
+    const { password: _pwd, ...sanitizedCustomer } = customer;
     const primaryBranch = customer.orders?.[0]?.branch?.name || 'Main Branch';
 
     return res.status(200).json({
       success: true,
       customer: {
-        ...customer,
+        ...sanitizedCustomer,
         branch: primaryBranch
       }
     });
@@ -637,7 +820,8 @@ exports.registerCustomerOnly = async (req, res, next) => {
 
     // 6. Check existing customer by phone variants OR email
     const duplicateChecks = [
-      { primaryPhone: { in: phoneVariants } }
+      { primaryPhone: { in: phoneVariants } },
+      { alternativePhone: { in: phoneVariants } }
     ];
     if (cleanEmail) {
       duplicateChecks.push({ email: cleanEmail });
