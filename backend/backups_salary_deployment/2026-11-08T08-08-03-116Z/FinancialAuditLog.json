@@ -1,0 +1,922 @@
+[
+  {
+    "id": 19,
+    "action": "BILL_CREATED",
+    "entityType": "MONTHLY_BILL",
+    "entityId": 1,
+    "amount": "18500.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "SYSTEM",
+    "performedByRole": "SYSTEM",
+    "previousState": null,
+    "newState": {
+      "category": "ELECTRICITY",
+      "billNumber": "BILL-202611-0001",
+      "billingMonth": "2026-11",
+      "expectedAmount": 18500
+    },
+    "ipAddress": null,
+    "reason": "Created monthly bill BILL-202611-0001 for ELECTRICITY (2026-11)",
+    "createdAt": "2026-11-05T05:16:34.961Z"
+  },
+  {
+    "id": 20,
+    "action": "BILL_DELETED",
+    "entityType": "MONTHLY_BILL",
+    "entityId": 1,
+    "amount": "18500.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "SYSTEM",
+    "performedByRole": "SYSTEM",
+    "previousState": {
+      "id": 1,
+      "notes": "Unit test bill verification",
+      "status": "UNPAID",
+      "dueDate": {},
+      "billDate": {},
+      "billName": "Test Electricity Bill November 2026",
+      "branchId": 1,
+      "category": "ELECTRICITY",
+      "createdAt": {},
+      "updatedAt": {},
+      "billNumber": "BILL-202611-0001",
+      "paidAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "createdById": 1,
+      "paymentDate": null,
+      "actualAmount": {
+        "d": {
+          "0": 19200
+        },
+        "e": 4,
+        "s": 1
+      },
+      "billingMonth": "2026-11",
+      "providerName": "Ceylon Electricity Board",
+      "receiptImage": null,
+      "billReference": "CEB-TEST-8841",
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "paymentMethod": null,
+      "expectedAmount": {
+        "d": {
+          "0": 18500
+        },
+        "e": 4,
+        "s": 1
+      },
+      "paymentAccountId": null
+    },
+    "newState": null,
+    "ipAddress": null,
+    "reason": "Cancelled unpaid bill BILL-202611-0001",
+    "createdAt": "2026-11-05T05:16:36.804Z"
+  },
+  {
+    "id": 21,
+    "action": "TRANSACTION_RECORDED",
+    "entityType": "TRANSACTION",
+    "entityId": 20,
+    "amount": "3500.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 20,
+      "type": "EXPENSE",
+      "notes": "Audit verification test record",
+      "amount": {
+        "d": {
+          "0": 3500
+        },
+        "e": 3,
+        "s": 1
+      },
+      "branch": {
+        "id": 1,
+        "name": "JB Group (Main)"
+      },
+      "account": {
+        "id": 7,
+        "accountName": "Test Cash Drawer for Verification",
+        "accountType": "CASH"
+      },
+      "branchId": 1,
+      "category": {
+        "id": 8,
+        "code": "EXP_ELECTRICITY",
+        "name": "Electricity & Water Utilities"
+      },
+      "accountId": 7,
+      "createdAt": {},
+      "updatedAt": {},
+      "approvedAt": {},
+      "categoryId": 8,
+      "isReversed": false,
+      "createdById": 1,
+      "description": "Safe Test Operating Expense (Water & Transport)",
+      "referenceNo": "TEST-EXP-001",
+      "toAccountId": null,
+      "approvedById": 1,
+      "receiptImage": null,
+      "reversalOfId": null,
+      "sourceModule": "MANUAL",
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "paymentMethod": "CASH",
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)",
+      "reversalReason": null,
+      "sourceRecordId": null,
+      "transactionDate": {},
+      "transactionNumber": "EXP-2026-0001"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T05:37:22.288Z"
+  },
+  {
+    "id": 22,
+    "action": "BILL_CREATED",
+    "entityType": "MONTHLY_BILL",
+    "entityId": 2,
+    "amount": "12000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "SYSTEM",
+    "performedByRole": "SYSTEM",
+    "previousState": null,
+    "newState": {
+      "category": "ELECTRICITY",
+      "billNumber": "BILL-202611-0001",
+      "billingMonth": "2026-11",
+      "expectedAmount": 12000
+    },
+    "ipAddress": null,
+    "reason": "Created monthly bill BILL-202611-0001 for ELECTRICITY (2026-11)",
+    "createdAt": "2026-11-05T05:37:29.294Z"
+  },
+  {
+    "id": 23,
+    "action": "BILL_PAID",
+    "entityType": "MONTHLY_BILL",
+    "entityId": 2,
+    "amount": "12500.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "SYSTEM",
+    "performedByRole": "SYSTEM",
+    "previousState": {
+      "status": "UNPAID",
+      "paidAmount": 0
+    },
+    "newState": {
+      "status": "PAID",
+      "paidAmount": 12500,
+      "transactionNumber": "EXP-2026-0002"
+    },
+    "ipAddress": null,
+    "reason": "Settled LKR 12500 for BILL-202611-0001 from account Test Cash Drawer for Verification",
+    "createdAt": "2026-11-05T05:37:34.995Z"
+  },
+  {
+    "id": 24,
+    "action": "EXPENSE_CREATED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 1,
+    "amount": "45000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 1,
+      "notes": null,
+      "title": "TEST_Shop_Rent_Nov_2026",
+      "paidBy": null,
+      "paidTo": "Test Landlord Properties",
+      "status": "PENDING",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "SHOP_RENT",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly showroom lease test voucher",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": null,
+      "pendingAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T05:58:30.021Z"
+  },
+  {
+    "id": 25,
+    "action": "EXPENSE_RECORDED_AND_PAID",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 2,
+    "amount": "8500.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 2,
+      "notes": null,
+      "title": "TEST_CEB_Electricity_Nov",
+      "paidBy": "Test Cashier",
+      "paidTo": "Ceylon Electricity Board",
+      "status": "PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "ELECTRICITY_BILL",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 8500
+        },
+        "e": 3,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly electricity bill immediate settlement",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 8500
+        },
+        "e": 3,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0002",
+      "paymentMethod": "CASH",
+      "pendingAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T05:58:33.085Z"
+  },
+  {
+    "id": 26,
+    "action": "EXPENSE_PAYMENT_RECORDED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 1,
+    "amount": "20000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 1,
+      "notes": null,
+      "title": "TEST_Shop_Rent_Nov_2026",
+      "paidBy": "Admin Officer",
+      "paidTo": "Test Landlord Properties",
+      "status": "PARTIALLY_PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "SHOP_RENT",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 20000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly showroom lease test voucher",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": "BANK_TRANSFER",
+      "pendingAmount": {
+        "d": {
+          "0": 25000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T05:58:37.908Z"
+  },
+  {
+    "id": 27,
+    "action": "EXPENSE_PAYMENT_RECORDED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 1,
+    "amount": "25000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 1,
+      "notes": null,
+      "title": "TEST_Shop_Rent_Nov_2026",
+      "paidBy": "CEO",
+      "paidTo": "Test Landlord Properties",
+      "status": "PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "SHOP_RENT",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly showroom lease test voucher",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": "CHEQUE",
+      "pendingAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T05:58:40.675Z"
+  },
+  {
+    "id": 28,
+    "action": "EXPENSE_CREATED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 3,
+    "amount": "45000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 3,
+      "notes": null,
+      "title": "TEST_Shop_Rent_Nov_2026",
+      "paidBy": null,
+      "paidTo": "Test Landlord Properties",
+      "status": "PENDING",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "SHOP_RENT",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly showroom lease test voucher",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": null,
+      "pendingAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T06:21:04.095Z"
+  },
+  {
+    "id": 29,
+    "action": "EXPENSE_RECORDED_AND_PAID",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 4,
+    "amount": "8500.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 4,
+      "notes": null,
+      "title": "TEST_CEB_Electricity_Nov",
+      "paidBy": "Test Cashier",
+      "paidTo": "Ceylon Electricity Board",
+      "status": "PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "ELECTRICITY_BILL",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 8500
+        },
+        "e": 3,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly electricity bill immediate settlement",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 8500
+        },
+        "e": 3,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0002",
+      "paymentMethod": "CASH",
+      "pendingAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T06:21:07.119Z"
+  },
+  {
+    "id": 30,
+    "action": "EXPENSE_PAYMENT_RECORDED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 3,
+    "amount": "20000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 3,
+      "notes": null,
+      "title": "TEST_Shop_Rent_Nov_2026",
+      "paidBy": "Admin Officer",
+      "paidTo": "Test Landlord Properties",
+      "status": "PARTIALLY_PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "SHOP_RENT",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 20000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly showroom lease test voucher",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": "BANK_TRANSFER",
+      "pendingAmount": {
+        "d": {
+          "0": 25000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T06:21:09.927Z"
+  },
+  {
+    "id": 31,
+    "action": "EXPENSE_PAYMENT_RECORDED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 3,
+    "amount": "25000.00",
+    "branchId": 1,
+    "performedById": 1,
+    "performedByName": "Jeyatheepan Joseph (CEO)",
+    "performedByRole": "SUPER_ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 3,
+      "notes": null,
+      "title": "TEST_Shop_Rent_Nov_2026",
+      "paidBy": "CEO",
+      "paidTo": "Test Landlord Properties",
+      "status": "PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "SHOP_RENT",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "createdById": 1,
+      "description": "Monthly showroom lease test voucher",
+      "expenseDate": {},
+      "totalAmount": {
+        "d": {
+          "0": 45000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 1,
+      "receiptImage": null,
+      "createdByName": "Jeyatheepan Joseph (CEO)",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": "CHEQUE",
+      "pendingAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "Jeyatheepan Joseph (CEO)"
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T06:21:12.671Z"
+  },
+  {
+    "id": 32,
+    "action": "EXPENSE_CREATED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 5,
+    "amount": "32000.00",
+    "branchId": 1,
+    "performedById": 2,
+    "performedByName": "admin",
+    "performedByRole": "ADMIN",
+    "previousState": null,
+    "newState": {
+      "id": 5,
+      "notes": null,
+      "title": "TEST_Printer_Toner_Cartridges",
+      "paidBy": null,
+      "paidTo": "Test Stationery Hub",
+      "status": "PENDING",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "OFFICE_EXPENSES",
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      },
+      "createdById": 2,
+      "description": "LaserJet cartridges replacement",
+      "expenseDate": {},
+      "isRecurring": false,
+      "totalAmount": {
+        "d": {
+          "0": 32000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 2,
+      "billingMonth": null,
+      "receiptImage": null,
+      "createdByName": "admin",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": null,
+      "pendingAmount": {
+        "d": {
+          "0": 32000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "admin",
+      "expectedAmount": {
+        "d": {
+          "0": 32000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "previousBalance": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      }
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T13:24:59.756Z"
+  },
+  {
+    "id": 33,
+    "action": "EXPENSE_UPDATED",
+    "entityType": "BUSINESS_EXPENSE",
+    "entityId": 5,
+    "amount": "35000.00",
+    "branchId": 1,
+    "performedById": 2,
+    "performedByName": "admin",
+    "performedByRole": "ADMIN",
+    "previousState": {
+      "id": 5,
+      "notes": null,
+      "title": "TEST_Printer_Toner_Cartridges",
+      "paidBy": "Admin Officer",
+      "paidTo": "Test Stationery Hub",
+      "status": "PARTIALLY_PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "OFFICE_EXPENSES",
+      "payments": {
+        "0": {
+          "id": 7,
+          "notes": "Initial partial payment",
+          "amount": {
+            "d": {
+              "0": 12000
+            },
+            "e": 4,
+            "s": 1
+          },
+          "paidBy": "Admin Officer",
+          "paidTo": "Test Stationery Hub",
+          "accountId": null,
+          "createdAt": {},
+          "expenseId": 5,
+          "createdById": 2,
+          "paymentDate": {},
+          "receiptImage": null,
+          "paymentMethod": "CASH",
+          "paymentNumber": "EXPPAY-202611-0001",
+          "transactionId": null
+        }
+      },
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 12000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "createdById": 2,
+      "description": "LaserJet cartridges replacement",
+      "expenseDate": {},
+      "isRecurring": false,
+      "totalAmount": {
+        "d": {
+          "0": 32000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 2,
+      "billingMonth": null,
+      "receiptImage": null,
+      "createdByName": "admin",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": "CASH",
+      "pendingAmount": {
+        "d": {
+          "0": 20000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "admin",
+      "expectedAmount": {
+        "d": {
+          "0": 32000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "previousBalance": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      }
+    },
+    "newState": {
+      "id": 5,
+      "notes": "Price adjustment for extra ream of paper",
+      "title": "TEST_Printer_Toner_Cartridges_Updated",
+      "branch": {
+        "id": 1,
+        "name": "JB Group (Main)"
+      },
+      "paidBy": "Admin Officer",
+      "paidTo": "Test Stationery Hub",
+      "status": "PARTIALLY_PAID",
+      "dueDate": {},
+      "branchId": 1,
+      "category": "OFFICE_EXPENSES",
+      "payments": {
+        "0": {
+          "id": 7,
+          "notes": "Initial partial payment",
+          "amount": {
+            "d": {
+              "0": 12000
+            },
+            "e": 4,
+            "s": 1
+          },
+          "paidBy": "Admin Officer",
+          "paidTo": "Test Stationery Hub",
+          "accountId": null,
+          "createdAt": {},
+          "expenseId": 5,
+          "createdById": 2,
+          "paymentDate": {},
+          "receiptImage": null,
+          "paymentMethod": "CASH",
+          "paymentNumber": "EXPPAY-202611-0001",
+          "transactionId": null
+        }
+      },
+      "createdAt": {},
+      "updatedAt": {},
+      "paidAmount": {
+        "d": {
+          "0": 12000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "createdById": 2,
+      "description": "LaserJet cartridges replacement",
+      "expenseDate": {},
+      "isRecurring": false,
+      "totalAmount": {
+        "d": {
+          "0": 35000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvedById": 2,
+      "billingMonth": null,
+      "receiptImage": null,
+      "createdByName": "admin",
+      "expenseNumber": "EXP-202611-0001",
+      "paymentMethod": "CASH",
+      "pendingAmount": {
+        "d": {
+          "0": 23000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "approvalStatus": "APPROVED",
+      "approvedByName": "admin",
+      "expectedAmount": {
+        "d": {
+          "0": 32000
+        },
+        "e": 4,
+        "s": 1
+      },
+      "previousBalance": {
+        "d": {
+          "0": 0
+        },
+        "e": 0,
+        "s": 1
+      }
+    },
+    "ipAddress": "127.0.0.1",
+    "reason": null,
+    "createdAt": "2026-11-05T13:25:52.333Z"
+  }
+]

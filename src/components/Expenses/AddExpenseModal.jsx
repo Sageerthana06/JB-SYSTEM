@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE } from '../../config/api';
+import { API_BASE, getImageUrl } from '../../config/api';
 import { EXPENSE_CATEGORIES, formatLKR } from './expenseConstants';
-import { X, Upload, CheckCircle, AlertCircle, Calendar, DollarSign, Tag, Building, CreditCard, User, FileText } from 'lucide-react';
+import { X, Upload, CheckCircle, AlertCircle, Calendar, DollarSign, Tag, Building, CreditCard, User, FileText, Trash2, RefreshCw } from 'lucide-react';
+import { compressReceiptImage, uploadReceiptImageFile, formatFileSize, validateReceiptFile } from '../../utils/imageCompressor';
 
 export const AddExpenseModal = ({ isOpen, onClose, onExpenseAdded, initialCategory, defaultBranchId }) => {
   const { user, getAuthHeaders } = useAuth();
@@ -25,23 +26,48 @@ export const AddExpenseModal = ({ isOpen, onClose, onExpenseAdded, initialCatego
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [receiptImage, setReceiptImage] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [optimizingImage, setOptimizingImage] = useState(false);
+  const [imageStats, setImageStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Receipt image must be smaller than 5MB');
+
+    const validation = validateReceiptFile(file);
+    if (!validation.valid) {
+      setError(validation.error);
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setReceiptImage(reader.result);
-    };
-    reader.readAsDataURL(file);
+
+    setOptimizingImage(true);
+    setError(null);
+
+    try {
+      const compressed = await compressReceiptImage(file);
+      setSelectedFile(compressed.blob);
+      setReceiptImage(compressed.dataUrl);
+      setImageStats({
+        original: formatFileSize(compressed.originalSize),
+        compressed: formatFileSize(compressed.compressedSize),
+        reduction: compressed.reductionPercent
+      });
+    } catch (err) {
+      console.error('Receipt image optimization failed:', err);
+      setError(err.message || 'Failed to process receipt image.');
+    } finally {
+      setOptimizingImage(false);
+    }
+  };
+
+  const handleRemoveReceipt = () => {
+    setReceiptImage('');
+    setSelectedFile(null);
+    setImageStats(null);
   };
 
   const handleSubmit = async (e) => {
@@ -60,6 +86,23 @@ export const AddExpenseModal = ({ isOpen, onClose, onExpenseAdded, initialCatego
 
     setLoading(true);
     try {
+      let finalReceiptUrl = receiptImage;
+
+      // Upload compressed receipt file via multipart/form-data to /api/upload
+      if (selectedFile) {
+        try {
+          const uploadResult = await uploadReceiptImageFile(selectedFile, getAuthHeaders());
+          if (uploadResult?.receiptImage) {
+            finalReceiptUrl = uploadResult.receiptImage;
+          }
+        } catch (uploadErr) {
+          console.warn('Multipart receipt upload error:', uploadErr);
+          if (uploadErr.message && uploadErr.message.includes('413')) {
+            throw uploadErr;
+          }
+        }
+      }
+
       const payload = {
         title: title.trim(),
         category,
@@ -73,7 +116,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onExpenseAdded, initialCatego
         paidTo: paidTo.trim() || null,
         description: description.trim() || null,
         notes: notes.trim() || null,
-        receiptImage: receiptImage || null,
+        receiptImage: finalReceiptUrl || null,
         approvalStatus: 'APPROVED'
       };
 
@@ -85,6 +128,10 @@ export const AddExpenseModal = ({ isOpen, onClose, onExpenseAdded, initialCatego
         },
         body: JSON.stringify(payload)
       });
+
+      if (response.status === 413) {
+        throw new Error('The request payload is too large for the server (HTTP 413). Please choose a smaller image.');
+      }
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
@@ -493,50 +540,113 @@ export const AddExpenseModal = ({ isOpen, onClose, onExpenseAdded, initialCatego
 
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                Receipt / Bill Image (Max 5MB)
+                Receipt / Invoice Image (Auto-Optimized)
               </label>
-              <div style={{
-                border: '2px dashed #cbd5e1',
-                borderRadius: '8px',
-                padding: '12px',
-                textAlign: 'center',
-                backgroundColor: '#f8fafc',
-                cursor: 'pointer',
-                position: 'relative',
-                height: '84px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={handleImageChange}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    opacity: 0,
-                    cursor: 'pointer'
-                  }}
-                />
-                {receiptImage ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16a34a' }}>
-                    <CheckCircle size={18} />
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700 }}>Receipt Attached</span>
+
+              {optimizingImage ? (
+                <div style={{
+                  padding: '16px',
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  color: '#475569',
+                  fontSize: '0.8rem',
+                  height: '84px'
+                }}>
+                  <RefreshCw size={18} className="animate-spin" /> Optimizing receipt photo...
+                </div>
+              ) : receiptImage ? (
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #bbf7d0',
+                  backgroundColor: '#f0fdf4',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  minHeight: '84px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <img
+                      src={getImageUrl(receiptImage)}
+                      alt="Receipt Thumbnail"
+                      style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #86efac' }}
+                    />
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontWeight: 700, fontSize: '0.82rem' }}>
+                        <CheckCircle size={15} /> Receipt Attached
+                      </div>
+                      {imageStats && (
+                        <div style={{ fontSize: '0.72rem', color: '#15803d', marginTop: '2px' }}>
+                          Optimized: {imageStats.compressed} (saved {imageStats.reduction}%)
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <Upload size={18} color="#64748b" />
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-                      Click or drag receipt photo
-                    </span>
-                  </>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveReceipt}
+                    title="Remove receipt image"
+                    style={{
+                      background: '#fee2e2',
+                      border: '1px solid #fca5a5',
+                      color: '#dc2626',
+                      borderRadius: '6px',
+                      padding: '5px 10px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                </div>
+              ) : (
+                <div style={{
+                  border: '2px dashed #cbd5e1',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  textAlign: 'center',
+                  backgroundColor: '#f8fafc',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  height: '84px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+                    onChange={handleImageChange}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      opacity: 0,
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <Upload size={20} color="#64748b" />
+                  <span style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600, marginTop: '2px' }}>
+                    Click or drag receipt photo
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                    Auto-optimized to prevent upload limits (up to 25MB)
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

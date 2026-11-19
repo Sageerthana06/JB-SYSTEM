@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE } from '../../config/api';
+import { API_BASE, getImageUrl } from '../../config/api';
 import { getCategoryMeta, formatLKR, getStatusBadge } from './expenseConstants';
 import {
   Plus,
@@ -33,7 +33,9 @@ import {
   Send,
   AlertTriangle,
   PlusCircle,
-  Receipt
+  Receipt,
+  Printer,
+  Download
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -52,7 +54,9 @@ const ICON_MAP = {
   Send,
   AlertTriangle,
   PlusCircle,
-  Receipt
+  Receipt,
+  Printer,
+  Download
 };
 
 export const ExpenseCategorySectionView = ({
@@ -134,6 +138,58 @@ export const ExpenseCategorySectionView = ({
     }
   };
 
+  const handleDownloadVoucherPdf = async (expenseId, expenseNumber) => {
+    try {
+      const res = await fetch(`${API_BASE}/expenses/${expenseId}/pdf`, {
+        headers: { ...getAuthHeaders() }
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to download PDF voucher');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Expense_Voucher_${expenseNumber || expenseId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || 'Error downloading PDF voucher');
+    }
+  };
+
+  const handleExportCategoryPdf = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (branchScope) params.set('branchId', branchScope);
+      params.set('category', categoryKey);
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      if (searchTerm.trim()) params.set('search', searchTerm.trim());
+
+      const res = await fetch(`${API_BASE}/expenses/export/pdf?${params.toString()}`, {
+        headers: { ...getAuthHeaders() }
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to export PDF statement');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Expense_Statement_${categoryKey}_${Date.now()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || 'Error exporting PDF statement');
+    }
+  };
+
   useEffect(() => {
     fetchExpenses();
   }, [categoryKey, branchScope, statusFilter]);
@@ -197,25 +253,48 @@ export const ExpenseCategorySectionView = ({
           </div>
         </div>
 
-        <button
-          onClick={() => onOpenAddExpense(categoryKey)}
-          style={{
-            padding: '10px 20px',
-            borderRadius: '10px',
-            border: 'none',
-            backgroundColor: meta.color,
-            color: '#ffffff',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: `0 4px 8px -2px ${meta.color}50`
-          }}
-        >
-          <Plus size={18} /> Add {meta.label} Expense
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleExportCategoryPdf}
+            title={`Export ${meta.label} Statement as Landscape PDF`}
+            style={{
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: `1px solid ${meta.borderColor}`,
+              backgroundColor: '#ffffff',
+              color: meta.color,
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+            }}
+          >
+            <Printer size={16} /> Export Statement PDF
+          </button>
+
+          <button
+            onClick={() => onOpenAddExpense(categoryKey)}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '10px',
+              border: 'none',
+              backgroundColor: meta.color,
+              color: '#ffffff',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: `0 4px 8px -2px ${meta.color}50`
+            }}
+          >
+            <Plus size={18} /> Add {meta.label} Expense
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards for This Category */}
@@ -487,6 +566,23 @@ export const ExpenseCategorySectionView = ({
                       {/* Actions */}
                       <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                          <button
+                            onClick={() => handleDownloadVoucherPdf(exp.id, exp.expenseNumber)}
+                            title="Download Official PDF Voucher"
+                            style={{
+                              padding: '5px 7px',
+                              borderRadius: '6px',
+                              border: '1px solid #fed7aa',
+                              backgroundColor: '#fff7ed',
+                              color: '#ea580c',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <FileText size={13} />
+                          </button>
+
                           {onOpenViewExpense && (
                             <button
                               onClick={() => onOpenViewExpense(exp)}
@@ -648,7 +744,7 @@ export const ExpenseCategorySectionView = ({
               ✕
             </button>
             <img
-              src={selectedReceipt}
+              src={getImageUrl(selectedReceipt)}
               alt="Receipt Attachment"
               style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px' }}
             />

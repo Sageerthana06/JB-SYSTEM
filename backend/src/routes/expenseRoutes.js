@@ -61,6 +61,13 @@ router.get(
   expenseController.getExpenses
 );
 
+// 6B. Export Filtered Expenses as Landscape Statement PDF
+router.get(
+  '/export/pdf',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  expenseController.exportExpensesPdf
+);
+
 // 7. Create New Expense (Paid Now or Pending / Bill)
 router.post(
   '/',
@@ -73,6 +80,13 @@ router.get(
   '/:id',
   authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
   expenseController.getExpenseById
+);
+
+// 8B. Download / Print Single Expense Voucher PDF
+router.get(
+  '/:id/pdf',
+  authorizeRoles('ADMIN', 'CEO', 'MANAGER'),
+  expenseController.generateExpensePdf
 );
 
 // 9. Update Expense (unpaid or partially paid; amount cannot be below paidAmount)

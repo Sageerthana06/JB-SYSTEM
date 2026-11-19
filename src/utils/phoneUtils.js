@@ -77,6 +77,18 @@ export const formatPhoneDisplay = (phone, international = false) => {
   return norm;
 };
 
+/**
+ * Normalizes phone number for WhatsApp wa.me / api.whatsapp URL scheme (no '+' or leading '0').
+ * Converts '0771234567' -> '94771234567'.
+ */
+export const normalizePhoneForWhatsApp = (phone) => {
+  if (!phone) return '';
+  const raw = String(phone).replace(/\D/g, '');
+  if (raw.startsWith('00')) return raw.slice(2);
+  if (raw.startsWith('0')) return '94' + raw.slice(1);
+  return raw;
+};
+
 // Backward-compatible alias matching backend utility name
 export const formatPhoneNumber = formatPhoneDisplay;
 

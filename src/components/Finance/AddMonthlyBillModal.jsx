@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { API_BASE } from '../../config/api';
-import { X, Calendar, Upload, AlertCircle, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { API_BASE, getImageUrl } from '../../config/api';
+import { X, Calendar, Upload, AlertCircle, CheckCircle2, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react';
 import { getColomboTodayDateString } from './financeUtils';
+import { compressReceiptImage, uploadReceiptImageFile, formatFileSize, validateReceiptFile } from '../../utils/imageCompressor';
 
 const BILL_CATEGORIES = [
   { value: 'RENT', label: '1. Shop / Office Rent' },
@@ -35,6 +36,9 @@ export const AddMonthlyBillModal = ({ isOpen, onClose, user, branchScope, getAut
   const [dueDate, setDueDate] = useState('');
   const [billReference, setBillReference] = useState('');
   const [receiptImage, setReceiptImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [optimizingImage, setOptimizingImage] = useState(false);
+  const [imageStats, setImageStats] = useState(null);
   const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -42,18 +46,40 @@ export const AddMonthlyBillModal = ({ isOpen, onClose, user, branchScope, getAut
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size exceeds 5MB limit.');
+
+    const validation = validateReceiptFile(file);
+    if (!validation.valid) {
+      setError(validation.error);
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setReceiptImage(reader.result);
-    };
-    reader.readAsDataURL(file);
+
+    setOptimizingImage(true);
+    setError(null);
+
+    try {
+      const compressed = await compressReceiptImage(file);
+      setSelectedFile(compressed.blob);
+      setReceiptImage(compressed.dataUrl);
+      setImageStats({
+        original: formatFileSize(compressed.originalSize),
+        compressed: formatFileSize(compressed.compressedSize),
+        reduction: compressed.reductionPercent
+      });
+    } catch (err) {
+      console.error('Bill document optimization failed:', err);
+      setError(err.message || 'Failed to process bill image.');
+    } finally {
+      setOptimizingImage(false);
+    }
+  };
+
+  const handleRemoveReceipt = () => {
+    setReceiptImage(null);
+    setSelectedFile(null);
+    setImageStats(null);
   };
 
   const handleCategoryChange = (e) => {
@@ -86,6 +112,23 @@ export const AddMonthlyBillModal = ({ isOpen, onClose, user, branchScope, getAut
 
     setSubmitting(true);
     try {
+      let finalReceiptUrl = receiptImage;
+
+      // Upload compressed receipt file via multipart/form-data to /api/upload
+      if (selectedFile) {
+        try {
+          const uploadResult = await uploadReceiptImageFile(selectedFile, getAuthHeaders());
+          if (uploadResult?.receiptImage) {
+            finalReceiptUrl = uploadResult.receiptImage;
+          }
+        } catch (uploadErr) {
+          console.warn('Multipart bill upload error:', uploadErr);
+          if (uploadErr.message && uploadErr.message.includes('413')) {
+            throw uploadErr;
+          }
+        }
+      }
+
       const payload = {
         branchId: Number(branchId),
         billName: billName.trim(),
@@ -97,7 +140,7 @@ export const AddMonthlyBillModal = ({ isOpen, onClose, user, branchScope, getAut
         billDate,
         dueDate,
         billReference: billReference.trim() || null,
-        receiptImage: receiptImage || null,
+        receiptImage: finalReceiptUrl || null,
         notes: notes.trim() || null
       };
 
@@ -109,6 +152,16 @@ export const AddMonthlyBillModal = ({ isOpen, onClose, user, branchScope, getAut
         },
         body: JSON.stringify(payload)
       });
+
+      if (res.status === 413) {
+        throw new Error('The request payload is too large for the server (HTTP 413). Please choose a smaller image.');
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(`Server returned ${res.status}: ${text.substring(0, 120)}`);
+      }
 
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -370,20 +423,98 @@ export const AddMonthlyBillModal = ({ isOpen, onClose, user, branchScope, getAut
             />
           </div>
 
-          {/* Bill Photo / PDF Upload */}
+          {/* Bill Photo / Scan Upload */}
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px', color: 'var(--text-main)' }}>
               Bill Document / Invoice Scan (Optional)
             </label>
-            <input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileUpload}
-              style={{ fontSize: '0.8rem' }}
-            />
-            {receiptImage && (
-              <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle2 size={14} /> Document attached
+
+            {optimizingImage ? (
+              <div style={{ padding: '12px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.8rem' }}>
+                <RefreshCw size={16} className="animate-spin" /> Optimizing bill document...
+              </div>
+            ) : receiptImage ? (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #bbf7d0',
+                backgroundColor: '#f0fdf4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img
+                    src={getImageUrl(receiptImage)}
+                    alt="Bill Document"
+                    style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #86efac' }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontWeight: 700, fontSize: '0.8rem' }}>
+                      <CheckCircle2 size={14} /> Document Attached
+                    </div>
+                    {imageStats && (
+                      <div style={{ fontSize: '0.72rem', color: '#15803d' }}>
+                        Optimized: {imageStats.compressed} (saved {imageStats.reduction}%)
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveReceipt}
+                  title="Remove document"
+                  style={{
+                    background: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    color: '#dc2626',
+                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <Trash2 size={13} /> Remove
+                </button>
+              </div>
+            ) : (
+              <div style={{
+                position: 'relative',
+                border: '1px dashed #cbd5e1',
+                borderRadius: '8px',
+                padding: '14px',
+                backgroundColor: '#f8fafc',
+                textAlign: 'center',
+                cursor: 'pointer'
+              }}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+                  onChange={handleFileUpload}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    cursor: 'pointer'
+                  }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  <Upload size={20} color="#64748b" />
+                  <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>
+                    Click or drag bill / invoice scan
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                    Auto-optimized for instant upload (JPG, PNG, WebP up to 25MB)
+                  </span>
+                </div>
               </div>
             )}
           </div>

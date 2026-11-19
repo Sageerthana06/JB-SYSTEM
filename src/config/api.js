@@ -1,4 +1,4 @@
-const envUrl = import.meta.env.VITE_API_URL;
+const envUrl = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_API_URL : (typeof process !== 'undefined' ? process.env?.VITE_API_URL : null);
 const baseOrigin = (envUrl && !envUrl.includes('trycloudflare.com'))
   ? String(envUrl).trim().replace(/\/api\/?$/i, '').replace(/\/+$/, '')
   : 'http://localhost:5000';
@@ -13,7 +13,14 @@ export const getApiUrl = (endpoint = '') => {
 
 export const getImageUrl = (imagePath) => {
   if (!imagePath) return '';
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
+  if (
+    imagePath.startsWith('http://') ||
+    imagePath.startsWith('https://') ||
+    imagePath.startsWith('data:') ||
+    imagePath.startsWith('blob:')
+  ) {
+    return imagePath;
+  }
   const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
   return `${API_URL}${cleanPath}`;
 };

@@ -837,9 +837,22 @@ exports.registerCustomerOnly = async (req, res, next) => {
     if (existingCustomer) {
       // If customer exists and already has a portal password, check if it's duplicate
       if (existingCustomer.password && hashedPassword) {
+        const isPhoneMatch = phoneVariants.includes(existingCustomer.primaryPhone) ||
+                             (existingCustomer.alternativePhone && phoneVariants.includes(existingCustomer.alternativePhone));
+        const isEmailMatch = cleanEmail && existingCustomer.email && existingCustomer.email.toLowerCase() === cleanEmail.toLowerCase();
+
+        let detailMsg = 'A customer account with this phone number or email already has portal access.';
+        if (isPhoneMatch && isEmailMatch) {
+          detailMsg = `A customer account with phone ${existingCustomer.primaryPhone} and email ${existingCustomer.email} (${existingCustomer.name}) already has portal access.`;
+        } else if (isPhoneMatch) {
+          detailMsg = `Phone number ${primaryPhone} is already registered to customer "${existingCustomer.name}" (${existingCustomer.primaryPhone}) who already has portal access.`;
+        } else if (isEmailMatch) {
+          detailMsg = `Email address "${cleanEmail}" is already registered to customer "${existingCustomer.name}" who already has portal access.`;
+        }
+
         return res.status(409).json({
           success: false,
-          message: 'A customer account with this phone number or email already has portal access. Please log in or use password reset.'
+          message: `${detailMsg} Please search for this customer in the Customer Book or use password reset.`
         });
       }
 

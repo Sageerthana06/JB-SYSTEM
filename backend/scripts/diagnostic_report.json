@@ -1,0 +1,35 @@
+{
+  "pageErrors": [
+    {
+      "message": "The requested module '/src/components/Finance/ProfitLossReportView.jsx?t=1793850782831' does not provide an export named 'ProfitLossReportView'",
+      "stack": "SyntaxError: The requested module '/src/components/Finance/ProfitLossReportView.jsx?t=1793850782831' does not provide an export named 'ProfitLossReportView'"
+    }
+  ],
+  "consoleLogs": [
+    {
+      "type": "debug",
+      "text": "[vite] connecting...",
+      "location": {
+        "url": "http://localhost:5173/@vite/client",
+        "lineNumber": 858,
+        "columnNumber": 8
+      }
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected.",
+      "location": {
+        "url": "http://localhost:5173/@vite/client",
+        "lineNumber": 967,
+        "columnNumber": 11
+      }
+    }
+  ],
+  "failedRequests": [],
+  "rootInfo": {
+    "exists": true,
+    "innerHTML": "",
+    "childElementCount": 0,
+    "innerText": ""
+  }
+}

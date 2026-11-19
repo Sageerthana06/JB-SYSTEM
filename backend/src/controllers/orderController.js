@@ -3501,10 +3501,8 @@ const generateOrderDeliveredWhatsAppMessage = (order) => {
 
   const formatLKR = (num) => {
     const n = Number(num || 0);
-    if (isNaN(n)) return '0';
-    return n % 1 === 0
-      ? n.toLocaleString('en-US')
-      : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (isNaN(n)) return '0.00';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   return `${EMOJIS.SPARKLES} JB GROUP (PVT) LTD ${EMOJIS.SPARKLES}
@@ -3768,10 +3766,8 @@ const generateOrderBookingWhatsAppMessage = (order) => {
 
   const formatLKR = (num) => {
     const n = Number(num || 0);
-    if (isNaN(n)) return '0';
-    return n % 1 === 0
-      ? n.toLocaleString('en-US')
-      : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (isNaN(n)) return '0.00';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const companyHeader = isBella ? 'BELLA DESIGN' : 'JB GROUP (PVT) LTD';

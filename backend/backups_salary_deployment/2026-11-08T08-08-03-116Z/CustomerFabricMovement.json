@@ -1,0 +1,40 @@
+[
+  {
+    "id": 29,
+    "customerFabricId": 21,
+    "movementType": "RECEIPT",
+    "quantity": 1.5,
+    "previousAvailableQty": 0,
+    "newAvailableQty": 1.5,
+    "previousTailorQty": 0,
+    "newTailorQty": 0,
+    "tailorId": null,
+    "tailorName": null,
+    "notes": "Condition: Good. Customer material received into store.",
+    "branchId": 1,
+    "performedById": 3,
+    "performedByName": "Manager",
+    "performedByRole": "MANAGER",
+    "idempotencyKey": "RECEIVE:214:1793692172658",
+    "createdAt": "2026-11-03T02:19:32.660Z"
+  },
+  {
+    "id": 30,
+    "customerFabricId": 22,
+    "movementType": "RECEIPT",
+    "quantity": 1.5,
+    "previousAvailableQty": 0,
+    "newAvailableQty": 1.5,
+    "previousTailorQty": 0,
+    "newTailorQty": 0,
+    "tailorId": null,
+    "tailorName": null,
+    "notes": "Condition: Good. Customer material received into store.",
+    "branchId": 1,
+    "performedById": 3,
+    "performedByName": "Manager",
+    "performedByRole": "MANAGER",
+    "idempotencyKey": "RECEIVE:215:1793692244556",
+    "createdAt": "2026-11-03T02:20:44.556Z"
+  }
+]

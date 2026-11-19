@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Receipt,
   Edit,
-  ExternalLink
+  ExternalLink,
+  Printer
 } from 'lucide-react';
 
 export const ViewExpenseModal = ({
@@ -49,6 +50,30 @@ export const ViewExpenseModal = ({
         });
     }
   }, [isOpen, expenseId]);
+
+  const handleDownloadPdf = async () => {
+    if (!expense) return;
+    try {
+      const res = await fetch(`${API_BASE}/expenses/${expense.id}/pdf`, {
+        headers: { ...getAuthHeaders() }
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to download PDF voucher');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Expense_Voucher_${expense.expenseNumber || expense.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || 'Error downloading PDF voucher');
+    }
+  };
 
   if (!isOpen) return null;
 

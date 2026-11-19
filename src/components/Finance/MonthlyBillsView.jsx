@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../../config/api';
+import { API_BASE, getImageUrl } from '../../config/api';
 import { formatLKR, getBranchName } from './financeUtils';
 import { AddMonthlyBillModal } from './AddMonthlyBillModal';
 import { PayBillModal } from './PayBillModal';
@@ -466,7 +466,7 @@ export const MonthlyBillsView = ({ branchScope, user, getAuthHeaders, onNavigate
               <button onClick={() => setViewingReceipt(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             <div style={{ overflow: 'auto', textAlign: 'center' }}>
-              <img src={viewingReceipt} alt="Bill Scan" style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }} />
+              <img src={getImageUrl(viewingReceipt)} alt="Bill Scan" style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }} />
             </div>
           </div>
         </div>

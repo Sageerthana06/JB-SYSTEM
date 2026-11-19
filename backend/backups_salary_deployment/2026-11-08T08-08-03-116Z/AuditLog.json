@@ -1,0 +1,6190 @@
+[
+  {
+    "id": 1,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 19,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "STAFF",
+      "branchId": 1,
+      "employeeId": "EMP-014",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:19:32.841Z"
+  },
+  {
+    "id": 2,
+    "action": "PASSWORD_RESET_REQUESTED_BY_ADMIN",
+    "entityType": "USER",
+    "entityId": 19,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "emailSent": true,
+      "targetRole": "STAFF",
+      "targetEmailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:19:37.871Z"
+  },
+  {
+    "id": 3,
+    "action": "PASSWORD_RESET_COMPLETED",
+    "entityType": "USER",
+    "entityId": 19,
+    "userId": 19,
+    "userName": "Automated Test Staff",
+    "userRole": "STAFF",
+    "details": {
+      "role": "STAFF",
+      "emailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:19:44.130Z"
+  },
+  {
+    "id": 4,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 19,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "STAFF"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:20:00.529Z"
+  },
+  {
+    "id": 5,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 19,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "STAFF"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:20:04.320Z"
+  },
+  {
+    "id": 6,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 20,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "STAFF",
+      "branchId": 1,
+      "employeeId": "EMP-014",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:57:14.603Z"
+  },
+  {
+    "id": 7,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 21,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "TAILOR",
+      "branchId": 1,
+      "employeeId": "EMP-016",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:57:22.123Z"
+  },
+  {
+    "id": 8,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 22,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "CASHIER",
+      "branchId": 1,
+      "employeeId": "EMP-017",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T22:57:28.478Z"
+  },
+  {
+    "id": 9,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 23,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "STAFF",
+      "branchId": 1,
+      "employeeId": "EMP-019",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:03:27.479Z"
+  },
+  {
+    "id": 10,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 24,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "TAILOR",
+      "branchId": 1,
+      "employeeId": "EMP-020",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:03:31.857Z"
+  },
+  {
+    "id": 11,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 25,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "CASHIER",
+      "branchId": 1,
+      "employeeId": "EMP-021",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:03:35.903Z"
+  },
+  {
+    "id": 12,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 26,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "STAFF",
+      "branchId": 1,
+      "employeeId": "EMP-022",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:04:24.833Z"
+  },
+  {
+    "id": 13,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 27,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "TAILOR",
+      "branchId": 1,
+      "employeeId": "EMP-024",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:04:28.750Z"
+  },
+  {
+    "id": 14,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 28,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "CASHIER",
+      "branchId": 1,
+      "employeeId": "EMP-025",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:04:33.096Z"
+  },
+  {
+    "id": 15,
+    "action": "PASSWORD_RESET_REQUESTED_BY_ADMIN",
+    "entityType": "USER",
+    "entityId": 26,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "emailSent": true,
+      "targetRole": "STAFF",
+      "targetEmailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:05:46.745Z"
+  },
+  {
+    "id": 16,
+    "action": "PASSWORD_RESET_COMPLETED",
+    "entityType": "USER",
+    "entityId": 26,
+    "userId": 26,
+    "userName": "Test STAFF Member",
+    "userRole": "STAFF",
+    "details": {
+      "role": "STAFF",
+      "emailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:06:04.236Z"
+  },
+  {
+    "id": 17,
+    "action": "PASSWORD_RESET_REQUESTED",
+    "entityType": "USER",
+    "entityId": 1,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "method": "SELF_FORGOT_PASSWORD"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:06:23.737Z"
+  },
+  {
+    "id": 18,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 30,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "STAFF",
+      "branchId": 1,
+      "employeeId": "EMP-022",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:24.320Z"
+  },
+  {
+    "id": 19,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 31,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "TAILOR",
+      "branchId": 1,
+      "employeeId": "EMP-028",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:28.537Z"
+  },
+  {
+    "id": 20,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 32,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "CASHIER",
+      "branchId": 1,
+      "employeeId": "EMP-029",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:32.529Z"
+  },
+  {
+    "id": 21,
+    "action": "USER_LINKED",
+    "entityType": "USER",
+    "entityId": 33,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "STAFF",
+      "branchId": 1,
+      "employeeId": "EMP-999"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:38.828Z"
+  },
+  {
+    "id": 22,
+    "action": "PASSWORD_RESET_REQUESTED_BY_ADMIN",
+    "entityType": "USER",
+    "entityId": 30,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "emailSent": true,
+      "targetRole": "STAFF",
+      "targetEmailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:43.365Z"
+  },
+  {
+    "id": 23,
+    "action": "PASSWORD_RESET_COMPLETED",
+    "entityType": "USER",
+    "entityId": 30,
+    "userId": 30,
+    "userName": "Test STAFF Member",
+    "userRole": "STAFF",
+    "details": {
+      "role": "STAFF",
+      "emailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:50.627Z"
+  },
+  {
+    "id": 24,
+    "action": "PASSWORD_RESET_REQUESTED",
+    "entityType": "USER",
+    "entityId": 1,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "method": "SELF_FORGOT_PASSWORD"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:08:55.515Z"
+  },
+  {
+    "id": 25,
+    "action": "PASSWORD_RESET_REQUESTED_BY_ADMIN",
+    "entityType": "USER",
+    "entityId": 6,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "emailSent": true,
+      "targetRole": "CUTTING",
+      "targetEmailDomain": "jbgroup.com"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-23T23:15:19.058Z"
+  },
+  {
+    "id": 26,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 164,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261024-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-24T01:58:45.727Z"
+  },
+  {
+    "id": 27,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 164,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Test TAILOR Member",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261024-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-24T02:18:55.076Z"
+  },
+  {
+    "id": 28,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 4,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "STAFF",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "::ffff:127.0.0.1",
+    "createdAt": "2026-10-24T20:27:21.101Z"
+  },
+  {
+    "id": 29,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 18,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Jeyatheepan Joseph (CEO)",
+      "changedByRole": "SUPER_ADMIN",
+      "targetBranchId": 1
+    },
+    "ipAddress": "::ffff:127.0.0.1",
+    "createdAt": "2026-10-24T20:28:09.837Z"
+  },
+  {
+    "id": 30,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 20,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "STAFF",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "::ffff:127.0.0.1",
+    "createdAt": "2026-10-24T20:29:35.797Z"
+  },
+  {
+    "id": 31,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 3,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "targetRole": "MANAGER",
+      "changedByName": "Jeyatheepan Joseph (CEO)",
+      "changedByRole": "SUPER_ADMIN",
+      "targetBranchId": 1
+    },
+    "ipAddress": "::ffff:127.0.0.1",
+    "createdAt": "2026-10-24T20:29:40.536Z"
+  },
+  {
+    "id": 32,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 18,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Jeyatheepan Joseph (CEO)",
+      "changedByRole": "SUPER_ADMIN",
+      "targetBranchId": 1
+    },
+    "ipAddress": "::ffff:127.0.0.1",
+    "createdAt": "2026-10-24T20:30:10.914Z"
+  },
+  {
+    "id": 33,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 36,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "TAILOR",
+      "branchId": 1,
+      "employeeId": "EMP-022",
+      "setupViaEmail": false
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-25T00:51:46.105Z"
+  },
+  {
+    "id": 34,
+    "action": "CUSTOMER_FINISHED_NOTIFICATION_SENT",
+    "entityType": "ORDER",
+    "entityId": 182,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "sentAt": "2026-10-25T16:20:56.468Z",
+      "sentBy": "Manager",
+      "message": "Dear Kasun Perera,\n\nYour order TEST-ORD-1792945215265-1 from JB GROUP is now ready for collection.\n\nThank you for choosing JB GROUP!",
+      "sentByRole": "MANAGER",
+      "orderNumber": "TEST-ORD-1792945215265-1",
+      "customerName": "Kasun Perera",
+      "customerPhone": "0771234567"
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-25T10:51:27.032Z"
+  },
+  {
+    "id": 35,
+    "action": "TAILOR_SALARY_PAID",
+    "entityType": "TailorSalaryPayment",
+    "entityId": 1,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "orderId": 144,
+      "tailorId": 11,
+      "workType": "CUTTING",
+      "amountPaid": 625,
+      "tailorName": "Susitha",
+      "orderNumber": "JB-20261020-0001",
+      "referenceNo": "oo",
+      "paymentMethod": "Cash"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:40:17.615Z"
+  },
+  {
+    "id": 36,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:53:34.491Z"
+  },
+  {
+    "id": 37,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:53:37.718Z"
+  },
+  {
+    "id": 38,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:54:03.750Z"
+  },
+  {
+    "id": 39,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:54:06.902Z"
+  },
+  {
+    "id": 40,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:55:23.947Z"
+  },
+  {
+    "id": 41,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:55:25.754Z"
+  },
+  {
+    "id": 42,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:55:47.497Z"
+  },
+  {
+    "id": 43,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:55:49.546Z"
+  },
+  {
+    "id": 44,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:55:52.045Z"
+  },
+  {
+    "id": 45,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:56:33.381Z"
+  },
+  {
+    "id": 51,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:14:19.594Z"
+  },
+  {
+    "id": 52,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:14:22.749Z"
+  },
+  {
+    "id": 53,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:14:37.955Z"
+  },
+  {
+    "id": 46,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T22:56:37.405Z"
+  },
+  {
+    "id": 47,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:11:47.654Z"
+  },
+  {
+    "id": 48,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:11:49.898Z"
+  },
+  {
+    "id": 49,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:11:52.200Z"
+  },
+  {
+    "id": 50,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:14:16.968Z"
+  },
+  {
+    "id": 54,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:18:36.753Z"
+  },
+  {
+    "id": 55,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:18:38.694Z"
+  },
+  {
+    "id": 56,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:18:40.696Z"
+  },
+  {
+    "id": 57,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:18:43.197Z"
+  },
+  {
+    "id": 58,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:19:32.407Z"
+  },
+  {
+    "id": 59,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:19:36.006Z"
+  },
+  {
+    "id": 60,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:19:49.350Z"
+  },
+  {
+    "id": 61,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:19:51.389Z"
+  },
+  {
+    "id": 62,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:19:53.617Z"
+  },
+  {
+    "id": 63,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:20:12.178Z"
+  },
+  {
+    "id": 64,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:20:22.308Z"
+  },
+  {
+    "id": 65,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:20:51.906Z"
+  },
+  {
+    "id": 66,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:20:53.899Z"
+  },
+  {
+    "id": 67,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:20:56.003Z"
+  },
+  {
+    "id": 68,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:21:09.524Z"
+  },
+  {
+    "id": 69,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:25:36.420Z"
+  },
+  {
+    "id": 70,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:25:40.786Z"
+  },
+  {
+    "id": 71,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:25:56.558Z"
+  },
+  {
+    "id": 72,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:25:58.981Z"
+  },
+  {
+    "id": 73,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:26:01.272Z"
+  },
+  {
+    "id": 74,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:26:35.909Z"
+  },
+  {
+    "id": 75,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:26:38.068Z"
+  },
+  {
+    "id": 76,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:26:40.594Z"
+  },
+  {
+    "id": 77,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:26:56.463Z"
+  },
+  {
+    "id": 78,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:27:27.081Z"
+  },
+  {
+    "id": 79,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:55:04.234Z"
+  },
+  {
+    "id": 80,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:55:07.972Z"
+  },
+  {
+    "id": 81,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:57:31.595Z"
+  },
+  {
+    "id": 82,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:57:35.156Z"
+  },
+  {
+    "id": 83,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:57:49.197Z"
+  },
+  {
+    "id": 84,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:57:51.622Z"
+  },
+  {
+    "id": 85,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-25T23:57:54.514Z"
+  },
+  {
+    "id": 86,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 187,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261026-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-26T00:49:03.384Z"
+  },
+  {
+    "id": 87,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-26T21:54:06.878Z"
+  },
+  {
+    "id": 88,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-26T21:54:09.033Z"
+  },
+  {
+    "id": 89,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-26T23:19:05.683Z"
+  },
+  {
+    "id": 90,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-26T23:19:10.305Z"
+  },
+  {
+    "id": 91,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 194,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Cutting"
+        }
+      },
+      "taskCount": 1,
+      "orderNumber": "JB-20261027-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:33:37.326Z"
+  },
+  {
+    "id": 92,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:33:50.373Z"
+  },
+  {
+    "id": 93,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:33:53.361Z"
+  },
+  {
+    "id": 94,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:34:48.387Z"
+  },
+  {
+    "id": 95,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:34:50.566Z"
+  },
+  {
+    "id": 96,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:46:04.978Z"
+  },
+  {
+    "id": 97,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:46:07.511Z"
+  },
+  {
+    "id": 98,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:47:00.778Z"
+  },
+  {
+    "id": 99,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T07:47:03.186Z"
+  },
+  {
+    "id": 100,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:00:40.311Z"
+  },
+  {
+    "id": 101,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:00:43.400Z"
+  },
+  {
+    "id": 102,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:01:25.173Z"
+  },
+  {
+    "id": 103,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:01:29.924Z"
+  },
+  {
+    "id": 104,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:22:05.374Z"
+  },
+  {
+    "id": 105,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:22:08.733Z"
+  },
+  {
+    "id": 106,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:42:27.852Z"
+  },
+  {
+    "id": 107,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:42:27.989Z"
+  },
+  {
+    "id": 108,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:58:44.795Z"
+  },
+  {
+    "id": 109,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:58:51.447Z"
+  },
+  {
+    "id": 110,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:59:04.369Z"
+  },
+  {
+    "id": 111,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T08:59:08.002Z"
+  },
+  {
+    "id": 112,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:05:13.891Z"
+  },
+  {
+    "id": 113,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:05:16.822Z"
+  },
+  {
+    "id": 114,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:12:46.607Z"
+  },
+  {
+    "id": 115,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:12:49.510Z"
+  },
+  {
+    "id": 116,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:15:30.905Z"
+  },
+  {
+    "id": 117,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:15:46.395Z"
+  },
+  {
+    "id": 118,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:24:14.822Z"
+  },
+  {
+    "id": 119,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:26:28.064Z"
+  },
+  {
+    "id": 120,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T09:26:30.744Z"
+  },
+  {
+    "id": 121,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T21:43:36.192Z"
+  },
+  {
+    "id": 122,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-28T21:43:38.101Z"
+  },
+  {
+    "id": 123,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T01:31:25.366Z"
+  },
+  {
+    "id": 124,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T01:31:27.295Z"
+  },
+  {
+    "id": 125,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 5,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:01:42.308Z"
+  },
+  {
+    "id": 126,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 6,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CUTTING"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:01:48.266Z"
+  },
+  {
+    "id": 127,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 6,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CUTTING"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:01:51.968Z"
+  },
+  {
+    "id": 128,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 8,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CASHIER"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:01:57.297Z"
+  },
+  {
+    "id": 129,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 7,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "EMBROIDERY"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:02:02.527Z"
+  },
+  {
+    "id": 130,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T10:22:28.351Z"
+  },
+  {
+    "id": 131,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T10:44:39.065Z"
+  },
+  {
+    "id": 132,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 36,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:44:58.663Z"
+  },
+  {
+    "id": 133,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 25,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CASHIER"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:08.129Z"
+  },
+  {
+    "id": 134,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 25,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CASHIER"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:12.535Z"
+  },
+  {
+    "id": 135,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 24,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:20.102Z"
+  },
+  {
+    "id": 136,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 22,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CASHIER"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:25.405Z"
+  },
+  {
+    "id": 137,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 23,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "STAFF"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:29.961Z"
+  },
+  {
+    "id": 138,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 25,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "CASHIER"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:33.995Z"
+  },
+  {
+    "id": 139,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 21,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:39.223Z"
+  },
+  {
+    "id": 140,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 20,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "STAFF"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:43.387Z"
+  },
+  {
+    "id": 141,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 18,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:47.384Z"
+  },
+  {
+    "id": 142,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 12,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.175.110",
+    "createdAt": "2026-10-29T10:45:51.463Z"
+  },
+  {
+    "id": 143,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T10:51:39.841Z"
+  },
+  {
+    "id": 144,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 11,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "127.0.0.1",
+    "createdAt": "2026-10-29T11:12:07.710Z"
+  },
+  {
+    "id": 145,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 195,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 1,
+      "orderNumber": "JB-20261029-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T11:12:35.272Z"
+  },
+  {
+    "id": 146,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T11:13:16.844Z"
+  },
+  {
+    "id": 147,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T11:15:41.798Z"
+  },
+  {
+    "id": 148,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T11:15:43.446Z"
+  },
+  {
+    "id": 149,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T21:01:41.564Z"
+  },
+  {
+    "id": 150,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T22:43:16.610Z"
+  },
+  {
+    "id": 151,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T23:18:49.320Z"
+  },
+  {
+    "id": 152,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-29T23:19:35.897Z"
+  },
+  {
+    "id": 153,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 11,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Jeyatheepan Joseph (CEO)",
+      "changedByRole": "SUPER_ADMIN",
+      "targetBranchId": 1
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:11:40.084Z"
+  },
+  {
+    "id": 154,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 12,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:12:51.731Z"
+  },
+  {
+    "id": 155,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 8,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "CASHIER"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:13:10.208Z"
+  },
+  {
+    "id": 156,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 6,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "CUTTING"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:13:21.290Z"
+  },
+  {
+    "id": 157,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 7,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "EMBROIDERY"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:13:28.185Z"
+  },
+  {
+    "id": 158,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 5,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:13:38.099Z"
+  },
+  {
+    "id": 159,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 4,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "STAFF"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:13:46.339Z"
+  },
+  {
+    "id": 160,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 2,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "ADMIN"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:13:59.083Z"
+  },
+  {
+    "id": 161,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T00:16:08.549Z"
+  },
+  {
+    "id": 162,
+    "action": "USER_ACTIVATED",
+    "entityType": "USER",
+    "entityId": 18,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "175.157.12.228",
+    "createdAt": "2026-10-30T00:18:40.124Z"
+  },
+  {
+    "id": 163,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 198,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261030-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T00:42:51.111Z"
+  },
+  {
+    "id": 164,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 197,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261030-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T01:08:04.159Z"
+  },
+  {
+    "id": 165,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T01:53:57.757Z"
+  },
+  {
+    "id": 166,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 199,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261030-0004"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T02:03:14.119Z"
+  },
+  {
+    "id": 167,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T02:24:38.069Z"
+  },
+  {
+    "id": 168,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T07:10:42.471Z"
+  },
+  {
+    "id": 169,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:46:04.226Z"
+  },
+  {
+    "id": 170,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:46:35.426Z"
+  },
+  {
+    "id": 171,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:47:25.615Z"
+  },
+  {
+    "id": 172,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:48:44.746Z"
+  },
+  {
+    "id": 173,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:50:37.218Z"
+  },
+  {
+    "id": 174,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:24.149Z"
+  },
+  {
+    "id": 175,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "19 Oct 2026 – 25 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:29.635Z"
+  },
+  {
+    "id": 176,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "12 Oct 2026 – 18 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:30.200Z"
+  },
+  {
+    "id": 177,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "19 Oct 2026 – 25 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:31.507Z"
+  },
+  {
+    "id": 178,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "12 Oct 2026 – 18 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:34.833Z"
+  },
+  {
+    "id": 179,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "05 Oct 2026 – 11 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:36.771Z"
+  },
+  {
+    "id": 180,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "28 Sep 2026 – 04 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:38.811Z"
+  },
+  {
+    "id": 181,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "28 Sep 2026 – 04 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:43.691Z"
+  },
+  {
+    "id": 182,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "28 Sep 2026 – 04 Oct 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:51:47.065Z"
+  },
+  {
+    "id": 183,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T08:53:55.264Z"
+  },
+  {
+    "id": 184,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T09:44:58.631Z"
+  },
+  {
+    "id": 185,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T09:45:09.968Z"
+  },
+  {
+    "id": 186,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T09:51:18.089Z"
+  },
+  {
+    "id": 187,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 12,
+    "userId": 1,
+    "userName": "Jeyatheepan Joseph (CEO)",
+    "userRole": "SUPER_ADMIN",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Jeyatheepan Joseph (CEO)",
+      "changedByRole": "SUPER_ADMIN",
+      "targetBranchId": 1
+    },
+    "ipAddress": "123.231.105.46",
+    "createdAt": "2026-10-30T10:38:22.575Z"
+  },
+  {
+    "id": 188,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T10:40:42.980Z"
+  },
+  {
+    "id": 189,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T10:59:31.494Z"
+  },
+  {
+    "id": 190,
+    "action": "USER_CREATED",
+    "entityType": "USER",
+    "entityId": 37,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "role": "TAILOR",
+      "branchId": 1,
+      "employeeId": "EMP-032",
+      "setupViaEmail": false
+    },
+    "ipAddress": "111.223.167.220",
+    "createdAt": "2026-10-30T22:46:24.636Z"
+  },
+  {
+    "id": 191,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T22:50:59.112Z"
+  },
+  {
+    "id": 192,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 9,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "111.223.167.220",
+    "createdAt": "2026-10-30T23:33:29.249Z"
+  },
+  {
+    "id": 193,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 11,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "111.223.167.220",
+    "createdAt": "2026-10-30T23:33:56.837Z"
+  },
+  {
+    "id": 194,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 12,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "111.223.167.220",
+    "createdAt": "2026-10-30T23:34:27.113Z"
+  },
+  {
+    "id": 195,
+    "action": "USER_PASSWORD_SET_MANUALLY",
+    "entityType": "USER",
+    "entityId": 10,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "targetRole": "TAILOR",
+      "changedByName": "Manager",
+      "changedByRole": "MANAGER",
+      "targetBranchId": 1
+    },
+    "ipAddress": "111.223.167.220",
+    "createdAt": "2026-10-30T23:35:01.870Z"
+  },
+  {
+    "id": 196,
+    "action": "USER_DEACTIVATED",
+    "entityType": "USER",
+    "entityId": 18,
+    "userId": 3,
+    "userName": "Manager",
+    "userRole": "MANAGER",
+    "details": {
+      "warning": null,
+      "targetRole": "TAILOR"
+    },
+    "ipAddress": "111.223.167.220",
+    "createdAt": "2026-10-30T23:43:19.191Z"
+  },
+  {
+    "id": 197,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-30T23:49:03.042Z"
+  },
+  {
+    "id": 198,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 200,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261031-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-31T07:50:35.792Z"
+  },
+  {
+    "id": 199,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 204,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261031-0005"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-31T08:28:34.137Z"
+  },
+  {
+    "id": 200,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 200,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261031-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-10-31T08:29:24.588Z"
+  },
+  {
+    "id": 201,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T01:25:52.769Z"
+  },
+  {
+    "id": 202,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 202,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261031-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T02:09:08.629Z"
+  },
+  {
+    "id": 203,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 203,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261031-0004"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T02:11:00.935Z"
+  },
+  {
+    "id": 204,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 203,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261031-0004"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T02:59:03.490Z"
+  },
+  {
+    "id": 205,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 202,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261031-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T02:59:39.653Z"
+  },
+  {
+    "id": 206,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 201,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261031-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T03:51:31.798Z"
+  },
+  {
+    "id": 207,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T09:19:18.346Z"
+  },
+  {
+    "id": 208,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T09:19:19.849Z"
+  },
+  {
+    "id": 209,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T11:11:19.634Z"
+  },
+  {
+    "id": 210,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T11:12:18.082Z"
+  },
+  {
+    "id": 211,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T11:12:38.473Z"
+  },
+  {
+    "id": 212,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T11:12:53.957Z"
+  },
+  {
+    "id": 213,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "26 Oct 2026 – 01 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T11:12:55.761Z"
+  },
+  {
+    "id": 214,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 207,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261101-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-01T23:54:51.696Z"
+  },
+  {
+    "id": 215,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 208,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261101-0004"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T04:11:40.193Z"
+  },
+  {
+    "id": 216,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 209,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261101-0005"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T04:13:57.681Z"
+  },
+  {
+    "id": 217,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 206,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261101-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T06:47:13.331Z"
+  },
+  {
+    "id": 218,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 209,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "COMPLETED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "COMPLETED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261101-0005"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T06:56:25.362Z"
+  },
+  {
+    "id": 219,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 212,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261102-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T07:40:50.259Z"
+  },
+  {
+    "id": 220,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 213,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        }
+      },
+      "taskCount": 2,
+      "orderNumber": "JB-20261102-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T07:41:22.510Z"
+  },
+  {
+    "id": 221,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T21:54:04.432Z"
+  },
+  {
+    "id": 222,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T21:54:05.754Z"
+  },
+  {
+    "id": 223,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T21:56:46.796Z"
+  },
+  {
+    "id": 224,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T21:57:46.647Z"
+  },
+  {
+    "id": 225,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T21:57:47.744Z"
+  },
+  {
+    "id": 226,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T21:58:29.712Z"
+  },
+  {
+    "id": 227,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:09:45.907Z"
+  },
+  {
+    "id": 228,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:09:47.129Z"
+  },
+  {
+    "id": 229,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:13:41.715Z"
+  },
+  {
+    "id": 230,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:13:42.950Z"
+  },
+  {
+    "id": 231,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:14:02.277Z"
+  },
+  {
+    "id": 238,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:38:54.126Z"
+  },
+  {
+    "id": 239,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:41:57.222Z"
+  },
+  {
+    "id": 232,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:14:03.584Z"
+  },
+  {
+    "id": 233,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:14:49.014Z"
+  },
+  {
+    "id": 234,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:14:50.163Z"
+  },
+  {
+    "id": 235,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:38:07.852Z"
+  },
+  {
+    "id": 236,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:38:11.592Z"
+  },
+  {
+    "id": 237,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:38:52.526Z"
+  },
+  {
+    "id": 240,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:47:28.529Z"
+  },
+  {
+    "id": 241,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:48:56.318Z"
+  },
+  {
+    "id": 242,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T22:49:04.032Z"
+  },
+  {
+    "id": 243,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:13:32.620Z"
+  },
+  {
+    "id": 244,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:16:12.432Z"
+  },
+  {
+    "id": 245,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:19:14.649Z"
+  },
+  {
+    "id": 246,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:19:18.677Z"
+  },
+  {
+    "id": 247,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:38:56.271Z"
+  },
+  {
+    "id": 248,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:55:54.284Z"
+  },
+  {
+    "id": 249,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-02T23:56:09.962Z"
+  },
+  {
+    "id": 250,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-03T01:43:27.026Z"
+  },
+  {
+    "id": 251,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-03T22:07:28.880Z"
+  },
+  {
+    "id": 252,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-03T22:10:09.154Z"
+  },
+  {
+    "id": 253,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-03T22:23:53.337Z"
+  },
+  {
+    "id": 254,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-03T22:28:58.060Z"
+  },
+  {
+    "id": 255,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-03T22:28:59.590Z"
+  },
+  {
+    "id": 256,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-04T22:18:47.295Z"
+  },
+  {
+    "id": 257,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-04T22:18:49.200Z"
+  },
+  {
+    "id": 258,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 207,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "COMPLETED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "IN_PROGRESS",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261101-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:03:33.274Z"
+  },
+  {
+    "id": 259,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 212,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "COMPLETED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "IN_PROGRESS",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261102-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:09:52.736Z"
+  },
+  {
+    "id": 260,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 213,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "COMPLETED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "IN_PROGRESS",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261102-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:13:40.238Z"
+  },
+  {
+    "id": 261,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 214,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:38:26.102Z"
+  },
+  {
+    "id": 262,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 215,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:39:13.866Z"
+  },
+  {
+    "id": 263,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 216,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:45:34.066Z"
+  },
+  {
+    "id": 264,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 223,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Fitting / Alteration"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0010"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T00:54:35.054Z"
+  },
+  {
+    "id": 265,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 218,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0005"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:06:10.330Z"
+  },
+  {
+    "id": 266,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 217,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0004"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:06:42.654Z"
+  },
+  {
+    "id": 267,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 221,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0008"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:07:43.933Z"
+  },
+  {
+    "id": 268,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 222,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0009"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:09:06.137Z"
+  },
+  {
+    "id": 269,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 224,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261103-0011"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:20:24.586Z"
+  },
+  {
+    "id": 270,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 225,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261104-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:20:58.026Z"
+  },
+  {
+    "id": 271,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 226,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261104-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:22:19.255Z"
+  },
+  {
+    "id": 272,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 227,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261104-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T01:22:42.496Z"
+  },
+  {
+    "id": 273,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 228,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T02:11:47.545Z"
+  },
+  {
+    "id": 274,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 229,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T05:32:48.949Z"
+  },
+  {
+    "id": 275,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 233,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0006"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T05:35:25.102Z"
+  },
+  {
+    "id": 276,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 234,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0007"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T06:16:52.506Z"
+  },
+  {
+    "id": 277,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 234,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0007"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T06:19:32.742Z"
+  },
+  {
+    "id": 278,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T07:27:03.663Z"
+  },
+  {
+    "id": 279,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T07:27:05.927Z"
+  },
+  {
+    "id": 280,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:11:38.754Z"
+  },
+  {
+    "id": 281,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 230,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:14:27.161Z"
+  },
+  {
+    "id": 282,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 235,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Susitha",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0008"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:21:30.610Z"
+  },
+  {
+    "id": 283,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 234,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0007"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:25:37.577Z"
+  },
+  {
+    "id": 285,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:33:27.928Z"
+  },
+  {
+    "id": 284,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 238,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0011"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:26:38.658Z"
+  },
+  {
+    "id": 286,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T08:35:29.429Z"
+  },
+  {
+    "id": 287,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T09:24:43.257Z"
+  },
+  {
+    "id": 288,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-05T09:25:15.513Z"
+  },
+  {
+    "id": 289,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 237,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0010"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T03:25:47.920Z"
+  },
+  {
+    "id": 290,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 241,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0014"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T03:28:03.317Z"
+  },
+  {
+    "id": 291,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 243,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0016"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T03:28:35.448Z"
+  },
+  {
+    "id": 292,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 244,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0017"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T03:29:45.456Z"
+  },
+  {
+    "id": 293,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 245,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0018"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T03:30:13.571Z"
+  },
+  {
+    "id": 294,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 241,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0014"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T10:16:01.306Z"
+  },
+  {
+    "id": 295,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 252,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261106-0007"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T10:58:18.302Z"
+  },
+  {
+    "id": 296,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 251,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261106-0006"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T10:58:44.214Z"
+  },
+  {
+    "id": 297,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 242,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0015"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T23:21:08.558Z"
+  },
+  {
+    "id": 298,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 236,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0009"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T23:23:48.034Z"
+  },
+  {
+    "id": 299,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 253,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Fitting / Alteration"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261107-0001"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T23:31:29.331Z"
+  },
+  {
+    "id": 300,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 254,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Fitting / Alteration"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261107-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-06T23:38:53.530Z"
+  },
+  {
+    "id": 301,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 240,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0013"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-07T00:39:29.275Z"
+  },
+  {
+    "id": 302,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 239,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261105-0012"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-07T00:39:53.859Z"
+  },
+  {
+    "id": 303,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 248,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Pushpamalar",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261106-0003"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-07T02:47:52.183Z"
+  },
+  {
+    "id": 304,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 249,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Uruththiradevi",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261106-0004"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-07T02:48:53.286Z"
+  },
+  {
+    "id": 305,
+    "action": "TASKS_ASSIGNED",
+    "entityType": "Order",
+    "entityId": 247,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "tasks": {
+        "0": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Cutting"
+        },
+        "1": {
+          "status": "ASSIGNED",
+          "tailor": "Jagatheeswary",
+          "taskName": "Stitching"
+        },
+        "2": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Finishing"
+        },
+        "3": {
+          "status": "ASSIGNED",
+          "tailor": "Sasikala",
+          "taskName": "Quality Check"
+        }
+      },
+      "taskCount": 4,
+      "orderNumber": "JB-20261106-0002"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-07T05:22:30.549Z"
+  },
+  {
+    "id": 306,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T00:26:44.603Z"
+  },
+  {
+    "id": 307,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T00:26:46.588Z"
+  },
+  {
+    "id": 308,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T01:08:12.451Z"
+  },
+  {
+    "id": 309,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T01:54:59.773Z"
+  },
+  {
+    "id": 310,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": 1,
+      "requestedBranchId": "1"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T01:55:02.356Z"
+  },
+  {
+    "id": 311,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T02:31:56.752Z"
+  },
+  {
+    "id": 312,
+    "action": "SALARY_REPORT_VIEWED",
+    "entityType": "WeeklySalaryReport",
+    "entityId": null,
+    "userId": null,
+    "userName": "SYSTEM",
+    "userRole": "SYSTEM",
+    "details": {
+      "week": "02 Nov 2026 – 08 Nov 2026",
+      "branchScope": "ALL",
+      "requestedBranchId": "ALL"
+    },
+    "ipAddress": null,
+    "createdAt": "2026-11-08T02:34:15.379Z"
+  }
+]

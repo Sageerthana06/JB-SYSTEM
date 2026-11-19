@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { API_BASE } from '../../config/api';
+import { API_BASE, getImageUrl } from '../../config/api';
 import { formatLKR, getCategoryMeta, getStatusBadge } from './expenseConstants';
 import { X, Calendar, User, CreditCard, FileText, CheckCircle, ExternalLink, AlertCircle } from 'lucide-react';
 
@@ -332,7 +332,7 @@ export const ExpensePaymentHistoryModal = ({ isOpen, onClose, expenseId }) => {
                       <X size={18} />
                     </button>
                     <img
-                      src={previewImage}
+                      src={getImageUrl(previewImage)}
                       alt="Receipt Voucher"
                       style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)' }}
                     />

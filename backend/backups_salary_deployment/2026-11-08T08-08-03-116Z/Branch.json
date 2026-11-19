@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "name": "JB Group (Main)",
+    "address": "No. 128 Galle Road, Colombo 03, Sri Lanka",
+    "phone": "+94 11 234 5678",
+    "manager": null,
+    "status": "ACTIVE",
+    "createdAt": "2026-09-16T00:24:16.960Z",
+    "updatedAt": "2026-10-05T22:15:14.483Z"
+  },
+  {
+    "id": 2,
+    "name": "Bella Design",
+    "address": "Boutique & Studio, Colombo 04, Sri Lanka",
+    "phone": "+94 11 987 6543",
+    "manager": null,
+    "status": "ACTIVE",
+    "createdAt": "2026-10-05T22:14:39.168Z",
+    "updatedAt": "2026-10-05T22:15:14.815Z"
+  }
+]

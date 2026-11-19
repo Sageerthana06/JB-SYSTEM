@@ -15,6 +15,7 @@ const {
   generateTransactionNumberTx
 } = require('../utils/financialSequenceGenerator');
 const { logFinancialAudit } = require('../utils/financialAuditLogger');
+const PDFDocument = require('pdfkit');
 
 // 15 Standard Expense Categories for JB GROUP
 const VALID_CATEGORIES = [
@@ -1736,3 +1737,529 @@ exports.getBusinessCashSummary = async (req, res, next) => {
     res.status(500).json({ success: false, message: 'Server error generating Business Cash Summary.' });
   }
 };
+
+/**
+ * GET /api/expenses/:id/pdf
+ * Generate and stream official printable Expense / Payment Voucher PDF
+ */
+exports.generateExpensePdf = async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid expense ID' });
+    }
+
+    const branchScope = resolveBranchScope(req);
+
+    const expense = await prisma.businessExpense.findUnique({
+      where: { id },
+      include: {
+        branch: { select: { id: true, name: true } },
+        payments: {
+          orderBy: { paymentDate: 'asc' }
+        }
+      }
+    });
+
+    if (!expense) {
+      return res.status(404).json({ success: false, message: 'Expense record not found.' });
+    }
+
+    if (branchScope !== 'ALL' && expense.branchId !== branchScope) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Cannot access expense vouchers outside your assigned branch.'
+      });
+    }
+
+    // Determine overdue status
+    const isPastDue = expense.dueDate && new Date(expense.dueDate) < new Date() && Number(expense.pendingAmount) > 0;
+    const effectiveStatus = isPastDue && expense.status !== 'PAID' ? 'OVERDUE' : expense.status;
+
+    // Set HTTP response headers for PDF download/inline preview
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="Expense_Voucher_${expense.expenseNumber}.pdf"`
+    );
+
+    const doc = new PDFDocument({ size: 'A4', margin: 40, autoFirstPage: true });
+    doc.pipe(res);
+
+    const accentColor = '#dc2626';
+    const borderColor = '#cbd5e1';
+    const tableBg = '#f8fafc';
+
+    // Company Branch Branding
+    const branchName = expense.branchId === 2 ? 'BELLA DESIGN (PVT) LTD' : 'JB GROUP (PVT) LTD';
+    const branchSubtitle = expense.branchId === 2
+      ? 'Exclusive Atelier & Design Studio — Official Operating Disbursement'
+      : 'Main Showroom & Executive Operations — Official Operating Disbursement';
+    const branchAddress = expense.branchId === 2
+      ? 'Branch 2 — Commercial Hub, Sri Lanka | Contact: +94 77 123 4568'
+      : 'Branch 1 — Main Street, Colombo / Jaffna, Sri Lanka | Contact: +94 77 123 4567';
+
+    // Header Bar
+    doc.rect(40, 40, 515, 60).fill('#1e293b');
+    doc.fillColor('#ffffff').fontSize(16).font('Helvetica-Bold').text(branchName, 55, 48);
+    doc.fontSize(8.5).font('Helvetica').fillColor('#cbd5e1').text(branchSubtitle, 55, 68);
+    doc.text(branchAddress, 55, 80);
+
+    // Voucher Title & Badge
+    doc.rect(40, 105, 515, 34).fill(tableBg);
+    doc.rect(40, 105, 515, 34).stroke(borderColor);
+    doc.fillColor(accentColor).fontSize(14).font('Helvetica-Bold').text('PAYMENT & EXPENSE VOUCHER', 55, 114);
+
+    // Status Badge
+    const statusColors = {
+      PAID: { bg: '#dcfce7', text: '#15803d' },
+      PARTIALLY_PAID: { bg: '#fef3c7', text: '#b45309' },
+      PENDING: { bg: '#ffedd5', text: '#c2410c' },
+      OVERDUE: { bg: '#fee2e2', text: '#b91c1c' },
+      CANCELLED: { bg: '#f1f5f9', text: '#64748b' }
+    };
+    const sc = statusColors[effectiveStatus] || { bg: '#f1f5f9', text: '#475569' };
+    doc.roundedRect(435, 112, 105, 20, 4).fill(sc.bg);
+    doc.fillColor(sc.text).fontSize(8.5).font('Helvetica-Bold').text(
+      effectiveStatus.replace(/_/g, ' '),
+      435,
+      117,
+      { width: 105, align: 'center' }
+    );
+
+    // Metadata Card
+    doc.rect(40, 145, 515, 96).fill('#ffffff');
+    doc.rect(40, 145, 515, 96).stroke(borderColor);
+
+    const metaLeft = 55;
+    const metaCol2 = 300;
+    let curY = 153;
+
+    const renderField = (label, val, x, y) => {
+      doc.fillColor('#64748b').fontSize(7.5).font('Helvetica-Bold').text(label.toUpperCase(), x, y);
+      doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica').text(String(val || '—'), x, y + 10);
+    };
+
+    renderField('Voucher Number', expense.expenseNumber, metaLeft, curY);
+    renderField(
+      'Branch / Unit',
+      expense.branch?.name || (expense.branchId === 1 ? 'JB Group (Main)' : 'Bella Design'),
+      metaCol2,
+      curY
+    );
+
+    curY += 28;
+    renderField('Category', expense.category.replace(/_/g, ' '), metaLeft, curY);
+    renderField('Payment Method', expense.paymentMethod || 'CASH', metaCol2, curY);
+
+    curY += 28;
+    renderField('Expense / Voucher Date', new Date(expense.expenseDate).toLocaleDateString('en-GB'), metaLeft, curY);
+    renderField(
+      'Due Date',
+      expense.dueDate ? new Date(expense.dueDate).toLocaleDateString('en-GB') : 'Immediate',
+      metaCol2,
+      curY
+    );
+
+    // Payee & Beneficiary Card
+    curY = 248;
+    doc.rect(40, curY, 515, 46).fill(tableBg);
+    doc.rect(40, curY, 515, 46).stroke(borderColor);
+
+    renderField('Paid To (Beneficiary / Vendor)', expense.paidTo || 'N/A', metaLeft, curY + 6);
+    renderField('Disbursed By (Cashier / Officer)', expense.paidBy || expense.createdByName || 'N/A', metaCol2, curY + 6);
+
+    // Particulars / Description
+    curY = 302;
+    doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica-Bold').text('PARTICULARS & DISBURSEMENT DETAILS', 40, curY);
+    curY += 14;
+    doc.rect(40, curY, 515, 55).fill('#ffffff');
+    doc.rect(40, curY, 515, 55).stroke(borderColor);
+
+    doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica-Bold').text(expense.title, 50, curY + 8);
+    if (expense.description) {
+      doc.fillColor('#475569').fontSize(8.5).font('Helvetica').text(expense.description, 50, curY + 22, { width: 495 });
+    }
+    if (expense.notes) {
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica-Oblique').text(`Notes: ${expense.notes}`, 50, curY + 36, { width: 495 });
+    }
+
+    // Financial Breakdown Box
+    curY = 368;
+    doc.rect(40, curY, 515, 52).fill('#f1f5f9');
+    doc.rect(40, curY, 515, 52).stroke(borderColor);
+
+    const colWidth = 515 / 3;
+    // Total Incurred
+    doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold').text('TOTAL INCURRED', 40, curY + 10, { width: colWidth, align: 'center' });
+    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text(
+      `LKR ${Number(expense.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      40,
+      curY + 24,
+      { width: colWidth, align: 'center' }
+    );
+
+    // Paid Amount
+    doc.fillColor('#15803d').fontSize(8).font('Helvetica-Bold').text('AMOUNT PAID', 40 + colWidth, curY + 10, { width: colWidth, align: 'center' });
+    doc.fillColor('#15803d').fontSize(13).font('Helvetica-Bold').text(
+      `LKR ${Number(expense.paidAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      40 + colWidth,
+      curY + 24,
+      { width: colWidth, align: 'center' }
+    );
+
+    // Pending Amount
+    const pendColor = Number(expense.pendingAmount) > 0 ? '#ea580c' : '#64748b';
+    doc.fillColor(pendColor).fontSize(8).font('Helvetica-Bold').text('BALANCE PENDING', 40 + colWidth * 2, curY + 10, { width: colWidth, align: 'center' });
+    doc.fillColor(pendColor).fontSize(13).font('Helvetica-Bold').text(
+      `LKR ${Number(expense.pendingAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      40 + colWidth * 2,
+      curY + 24,
+      { width: colWidth, align: 'center' }
+    );
+
+    // Payment Settlements Table
+    curY = 432;
+    doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica-Bold').text('SETTLEMENT / PAYMENT TRANSACTIONS', 40, curY);
+    curY += 14;
+
+    // Table Header
+    doc.rect(40, curY, 515, 20).fill('#1e293b');
+    doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold');
+    doc.text('REC #', 45, curY + 6);
+    doc.text('DATE', 125, curY + 6);
+    doc.text('METHOD', 190, curY + 6);
+    doc.text('PAID BY', 255, curY + 6);
+    doc.text('PAID TO', 330, curY + 6);
+    doc.text('AMOUNT (LKR)', 445, curY + 6, { width: 100, align: 'right' });
+    curY += 20;
+
+    if (expense.payments && expense.payments.length > 0) {
+      expense.payments.forEach((p, idx) => {
+        if (curY > 700) {
+          doc.addPage();
+          curY = 40;
+        }
+
+        const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+        doc.rect(40, curY, 515, 18).fill(bg);
+        doc.rect(40, curY, 515, 18).stroke('#e2e8f0');
+
+        doc.fillColor('#0f172a').fontSize(7.5).font('Helvetica');
+        doc.text(p.paymentNumber, 45, curY + 5);
+        doc.text(new Date(p.paymentDate).toLocaleDateString('en-GB'), 125, curY + 5);
+        doc.text(p.paymentMethod || 'CASH', 190, curY + 5);
+        doc.text(p.paidBy || '—', 255, curY + 5);
+        doc.text(p.paidTo || '—', 330, curY + 5);
+        doc.font('Helvetica-Bold').text(
+          Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+          445,
+          curY + 5,
+          { width: 100, align: 'right' }
+        );
+        curY += 18;
+      });
+    } else {
+      doc.rect(40, curY, 515, 24).fill('#ffffff');
+      doc.rect(40, curY, 515, 24).stroke('#e2e8f0');
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica-Oblique').text(
+        `No settlements recorded yet. Full balance of LKR ${Number(expense.pendingAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} remains pending.`,
+        50,
+        curY + 8
+      );
+      curY += 24;
+    }
+
+    // Signatures Section (3 Signature Blocks)
+    if (curY + 90 > 770) {
+      doc.addPage();
+      curY = 50;
+    } else {
+      curY = Math.max(curY + 35, 680);
+    }
+
+    const sigWidth = 145;
+    const gap = 35;
+    const s1X = 40;
+    const s2X = s1X + sigWidth + gap;
+    const s3X = s2X + sigWidth + gap;
+
+    const renderSig = (x, title, name) => {
+      doc.strokeColor('#94a3b8').lineWidth(1).moveTo(x, curY + 30).lineTo(x + sigWidth, curY + 30).stroke();
+      doc.fillColor('#0f172a').fontSize(8.5).font('Helvetica-Bold').text(title, x, curY + 35, { width: sigWidth, align: 'center' });
+      doc.fillColor('#64748b').fontSize(7.5).font('Helvetica').text(name || 'Authorized Signatory', x, curY + 47, { width: sigWidth, align: 'center' });
+    };
+
+    renderSig(s1X, 'PREPARED BY', expense.createdByName || 'Cashier / Accountant');
+    renderSig(s2X, 'CHECKED & APPROVED BY', expense.approvedByName || 'Manager / CEO');
+    renderSig(s3X, 'RECEIVED BY', expense.paidTo || 'Beneficiary');
+
+    // Bottom Footer Note
+    doc.fillColor('#94a3b8').fontSize(7).font('Helvetica').text(
+      `JB GROUP ENTERPRISE ERP — Computer generated official voucher on ${new Date().toLocaleString('en-GB')}.`,
+      40,
+      785,
+      { width: 515, align: 'center' }
+    );
+
+    doc.end();
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error generating expense voucher PDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server error generating expense voucher PDF.' });
+    }
+  }
+};
+
+/**
+ * GET /api/expenses/export/pdf
+ * Export filtered expense statements / category reports in Landscape A4 PDF
+ */
+exports.exportExpensesPdf = async (req, res, next) => {
+  try {
+    const branchScope = resolveBranchScope(req);
+    const {
+      category,
+      status,
+      search,
+      period,
+      startDate,
+      endDate,
+      month,
+      year,
+      billingMonth,
+      isRecurring
+    } = req.query;
+
+    const where = {};
+    if (branchScope !== 'ALL') {
+      where.branchId = branchScope;
+    }
+    if (category && category !== 'ALL') {
+      where.category = String(category).toUpperCase();
+    }
+    if (status && status !== 'ALL') {
+      if (status === 'OVERDUE') {
+        where.pendingAmount = { gt: 0 };
+        where.dueDate = { lt: new Date() };
+      } else {
+        where.status = String(status).toUpperCase();
+      }
+    }
+    if (isRecurring !== undefined && isRecurring !== 'ALL') {
+      where.isRecurring = isRecurring === 'true' || isRecurring === true;
+    }
+    if (billingMonth) {
+      where.billingMonth = String(billingMonth).trim();
+    }
+
+    const dateFilter = buildDateFilter({ period, startDate, endDate, month, year });
+    if (dateFilter) {
+      where.expenseDate = dateFilter;
+    }
+
+    if (search) {
+      const q = String(search).trim();
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { expenseNumber: { contains: q, mode: 'insensitive' } },
+        { paidTo: { contains: q, mode: 'insensitive' } },
+        { paidBy: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { notes: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+
+    const expenses = await prisma.businessExpense.findMany({
+      where,
+      include: {
+        branch: { select: { id: true, name: true } }
+      },
+      orderBy: [{ expenseDate: 'desc' }, { id: 'desc' }]
+    });
+
+    const categoryTitle = category && category !== 'ALL'
+      ? category.replace(/_/g, ' ') + ' Expenses'
+      : 'All Business Expenses';
+
+    const branchLabel = branchScope === 'ALL'
+      ? 'All Branches (Consolidated)'
+      : (branchScope === 1 ? 'Branch 1 — JB Group (Main)' : 'Branch 2 — Bella Design');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="Expense_Statement_${category || 'ALL'}_${Date.now()}.pdf"`
+    );
+
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 35, autoFirstPage: true });
+    doc.pipe(res);
+
+    const pageWidth = 841.89;
+    const pageHeight = 595.28;
+    const margin = 35;
+    const contentWidth = pageWidth - margin * 2; // 771.89
+
+    // Header Banner
+    doc.rect(margin, margin, contentWidth, 54).fill('#1e293b');
+    doc.fillColor('#ffffff').fontSize(16).font('Helvetica-Bold').text('JB GROUP ENTERPRISE — EXPENSE STATEMENT', margin + 15, margin + 10);
+    doc.fillColor('#94a3b8').fontSize(9).font('Helvetica').text(
+      `Category: ${categoryTitle}  |  Branch: ${branchLabel}  |  Generated: ${new Date().toLocaleString('en-GB')}`,
+      margin + 15,
+      margin + 32
+    );
+
+    // Compute Totals
+    const totalIncurred = expenses.reduce((acc, e) => acc + Number(e.totalAmount || 0), 0);
+    const totalPaid = expenses.reduce((acc, e) => acc + Number(e.paidAmount || 0), 0);
+    const totalPending = expenses.reduce((acc, e) => acc + Number(e.pendingAmount || 0), 0);
+
+    // KPI Summary Bar
+    let curY = margin + 62;
+    doc.rect(margin, curY, contentWidth, 38).fill('#f8fafc');
+    doc.rect(margin, curY, contentWidth, 38).stroke('#cbd5e1');
+
+    const kpiWidth = contentWidth / 4;
+    const renderKpi = (label, val, col, x) => {
+      doc.fillColor('#64748b').fontSize(7.5).font('Helvetica-Bold').text(label.toUpperCase(), x, curY + 7, { width: kpiWidth, align: 'center' });
+      doc.fillColor(col).fontSize(11).font('Helvetica-Bold').text(val, x, curY + 19, { width: kpiWidth, align: 'center' });
+    };
+
+    renderKpi('Total Records', `${expenses.length} Vouchers`, '#0f172a', margin);
+    renderKpi('Total Incurred', `LKR ${totalIncurred.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, '#0f172a', margin + kpiWidth);
+    renderKpi('Total Paid', `LKR ${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, '#15803d', margin + kpiWidth * 2);
+    renderKpi('Total Pending', `LKR ${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, totalPending > 0 ? '#ea580c' : '#64748b', margin + kpiWidth * 3);
+
+    // Table Setup
+    curY += 46;
+    const cols = [
+      { label: 'VOUCHER #', width: 90, align: 'left' },
+      { label: 'DATE', width: 65, align: 'left' },
+      { label: 'BRANCH', width: 95, align: 'left' },
+      { label: 'EXPENSE TITLE & PARTICULARS', width: 200, align: 'left' },
+      { label: 'PAID TO', width: 95, align: 'left' },
+      { label: 'TOTAL (LKR)', width: 75, align: 'right' },
+      { label: 'PAID (LKR)', width: 75, align: 'right' },
+      { label: 'PENDING', width: 75, align: 'right' }
+    ];
+
+    const drawTableHeader = (y) => {
+      doc.rect(margin, y, contentWidth, 20).fill('#0f172a');
+      doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold');
+      let xOffset = margin + 6;
+      cols.forEach(c => {
+        doc.text(c.label, xOffset, y + 6, { width: c.width, align: c.align });
+        xOffset += c.width;
+      });
+    };
+
+    drawTableHeader(curY);
+    curY += 20;
+
+    expenses.forEach((e, idx) => {
+      if (curY > pageHeight - margin - 50) {
+        doc.addPage();
+        curY = margin;
+        drawTableHeader(curY);
+        curY += 20;
+      }
+
+      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      doc.rect(margin, curY, contentWidth, 20).fill(rowBg);
+      doc.rect(margin, curY, contentWidth, 20).stroke('#e2e8f0');
+
+      doc.fillColor('#0f172a').fontSize(7.5).font('Helvetica');
+      let xOffset = margin + 6;
+
+      doc.font('Helvetica-Bold').text(e.expenseNumber, xOffset, curY + 6, { width: cols[0].width });
+      xOffset += cols[0].width;
+
+      doc.font('Helvetica').text(new Date(e.expenseDate).toLocaleDateString('en-GB'), xOffset, curY + 6, { width: cols[1].width });
+      xOffset += cols[1].width;
+
+      const bName = e.branch?.name || (e.branchId === 1 ? 'JB Group (Main)' : 'Bella Design');
+      doc.text(bName, xOffset, curY + 6, { width: cols[2].width });
+      xOffset += cols[2].width;
+
+      doc.text(e.title || '—', xOffset, curY + 6, { width: cols[3].width, lineBreak: false });
+      xOffset += cols[3].width;
+
+      doc.text(e.paidTo || '—', xOffset, curY + 6, { width: cols[4].width });
+      xOffset += cols[4].width;
+
+      doc.font('Helvetica-Bold').text(
+        Number(e.totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        xOffset,
+        curY + 6,
+        { width: cols[5].width, align: 'right' }
+      );
+      xOffset += cols[5].width;
+
+      doc.fillColor('#15803d').text(
+        Number(e.paidAmount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        xOffset,
+        curY + 6,
+        { width: cols[6].width, align: 'right' }
+      );
+      xOffset += cols[6].width;
+
+      const pCol = Number(e.pendingAmount) > 0 ? '#ea580c' : '#64748b';
+      doc.fillColor(pCol).text(
+        Number(e.pendingAmount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        xOffset,
+        curY + 6,
+        { width: cols[7].width, align: 'right' }
+      );
+
+      curY += 20;
+    });
+
+    // Totals Row
+    if (curY > pageHeight - margin - 50) {
+      doc.addPage();
+      curY = margin;
+    }
+    doc.rect(margin, curY, contentWidth, 22).fill('#e2e8f0');
+    doc.rect(margin, curY, contentWidth, 22).stroke('#94a3b8');
+    doc.fillColor('#0f172a').fontSize(8).font('Helvetica-Bold');
+    doc.text('STATEMENT TOTALS:', margin + 10, curY + 7);
+
+    let xOffset = margin + 6 + cols[0].width + cols[1].width + cols[2].width + cols[3].width + cols[4].width;
+    doc.text(totalIncurred.toLocaleString('en-US', { minimumFractionDigits: 2 }), xOffset, curY + 7, { width: cols[5].width, align: 'right' });
+    xOffset += cols[5].width;
+    doc.fillColor('#15803d').text(totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 }), xOffset, curY + 7, { width: cols[6].width, align: 'right' });
+    xOffset += cols[6].width;
+    doc.fillColor(totalPending > 0 ? '#ea580c' : '#0f172a').text(totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 }), xOffset, curY + 7, { width: cols[7].width, align: 'right' });
+
+    // Signatures Block
+    curY = Math.min(curY + 35, pageHeight - margin - 40);
+    const sWidth = 160;
+    const sGap = (contentWidth - sWidth * 3) / 2;
+    const sigs = [
+      { title: 'PREPARED BY', sub: 'Accounts / Disbursement Officer' },
+      { title: 'VERIFIED BY', sub: 'Branch Manager / Audit' },
+      { title: 'APPROVED BY', sub: 'CEO / Managing Director' }
+    ];
+
+    sigs.forEach((s, i) => {
+      const sx = margin + i * (sWidth + sGap);
+      doc.strokeColor('#94a3b8').lineWidth(1).moveTo(sx, curY).lineTo(sx + sWidth, curY).stroke();
+      doc.fillColor('#0f172a').fontSize(8).font('Helvetica-Bold').text(s.title, sx, curY + 5, { width: sWidth, align: 'center' });
+      doc.fillColor('#64748b').fontSize(7).font('Helvetica').text(s.sub, sx, curY + 15, { width: sWidth, align: 'center' });
+    });
+
+    doc.end();
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    console.error('Error exporting expense statement PDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server error exporting expense statement PDF.' });
+    }
+  }
+};
+
