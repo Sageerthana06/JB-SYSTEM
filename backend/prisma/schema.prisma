@@ -129,6 +129,7 @@ model Branch {
   loans                   BusinessLoan[]
   managerDailyChecklists  ManagerDailyChecklist[]
   managerChecklistAuditLogs ManagerChecklistAuditLog[]
+  registeredCustomers     Customer[]               @relation("CustomerBranch")
 }
 
 model Customer {
@@ -140,11 +141,15 @@ model Customer {
   password         String?
   address          String?
   profilePhoto     String?
+  branchId         Int?
+  branch           Branch?               @relation("CustomerBranch", fields: [branchId], references: [id])
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   orders           Order[]
   measurements     CustomerMeasurement[]
   customerFabrics  CustomerFabric[]
+
+  @@index([branchId])
 }
 
 model Order {

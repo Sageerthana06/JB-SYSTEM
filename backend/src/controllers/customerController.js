@@ -70,6 +70,22 @@ exports.createCustomer = async (req, res, next) => {
       assignedTailorId
     } = req.body;
 
+    // Enforce Branch Ownership: Non-CEO users locked to authenticated branch; CEO/SUPER_ADMIN can select
+    const roleUpper = String(req.user?.role || '').toUpperCase();
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
+    let resolvedBranchId;
+    if (isCeo) {
+      resolvedBranchId = branchId ? parseInt(branchId, 10) : (req.user?.branchId ? Number(req.user.branchId) : 1);
+    } else {
+      resolvedBranchId = Number(req.user?.branchId);
+      if (!resolvedBranchId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No valid branch assigned to your account.'
+        });
+      }
+    }
+
     // Validation
     if (customerType === 'NEW') {
       if (!customerName || !primaryContact) {
@@ -122,6 +138,9 @@ exports.createCustomer = async (req, res, next) => {
         if (profilePhoto && typeof profilePhoto === 'string' && profilePhoto.trim()) {
           updateCustomerData.profilePhoto = profilePhoto.trim();
         }
+        if (!existing.branchId && resolvedBranchId) {
+          updateCustomerData.branchId = resolvedBranchId;
+        }
         customer = await prisma.customer.update({
           where: { id: existing.id },
           data: updateCustomerData
@@ -133,7 +152,8 @@ exports.createCustomer = async (req, res, next) => {
             primaryPhone: normalizedPhone,
             alternativePhone: alternativeContact ? alternativeContact.trim() : null,
             address: address ? address.trim() : null,
-            profilePhoto: (profilePhoto && typeof profilePhoto === 'string') ? profilePhoto.trim() : null
+            profilePhoto: (profilePhoto && typeof profilePhoto === 'string') ? profilePhoto.trim() : null,
+            ...(resolvedBranchId ? { branchId: resolvedBranchId } : {})
           }
         });
         createdCustomerId = customer.id;
@@ -224,10 +244,7 @@ exports.createCustomer = async (req, res, next) => {
     const orderNumber = await generateOrderNumber();
 
     // Step 4: Create order with nested garment
-    let targetBranchId = branchId ? parseInt(branchId, 10) : (req.user?.branchId || 1);
-    if (req.user && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'CEO') {
-      targetBranchId = req.user.branchId || 1;
-    }
+    const targetBranchId = resolvedBranchId;
 
     const totalAmount = paymentDetails?.totalAmount ? parseFloat(paymentDetails.totalAmount) : 0;
     const advancePayment = paymentDetails?.advancePayment ? parseFloat(paymentDetails.advancePayment) : 0;
@@ -388,13 +405,27 @@ exports.searchCustomer = async (req, res, next) => {
     }
 
     const branchOrderWhere = targetBranchId !== undefined ? { branchId: targetBranchId } : undefined;
-    const branchCustomerWhere = targetBranchId !== undefined ? { orders: { some: { branchId: targetBranchId } } } : {};
+    // For branch scoping: include customers who have placed orders at this branch,
+    // OR customers registered under this branch (strict branch isolation for 0-order customers).
+    const branchCustomerWhere = targetBranchId !== undefined
+      ? {
+          OR: [
+            { orders: { some: { branchId: targetBranchId } } },
+            { branchId: targetBranchId }
+          ]
+        }
+      : {};
 
     const { query } = req.query;
 
     let where = {};
     if (targetBranchId !== undefined) {
-      where.orders = { some: { branchId: targetBranchId } };
+      where = {
+        OR: [
+          { orders: { some: { branchId: targetBranchId } } },
+          { branchId: targetBranchId }
+        ]
+      };
     }
 
     if (query && query.trim()) {
@@ -466,7 +497,7 @@ exports.searchCustomer = async (req, res, next) => {
       if (targetBranchId !== undefined) {
         where = {
           AND: [
-            { orders: { some: { branchId: targetBranchId } } },
+            branchCustomerWhere,
             { OR: searchConditions }
           ]
         };
@@ -475,42 +506,45 @@ exports.searchCustomer = async (req, res, next) => {
       }
     }
 
-    // Parallel aggregate summary from real PostgreSQL database
-    const [totalCustomersCount, totalOrdersCount, measuredCount, revenueAgg, customers] = await Promise.all([
-      prisma.customer.count({
-        where: branchCustomerWhere
-      }),
-      prisma.order.count({ where: branchOrderWhere }),
-      prisma.customer.count({
-        where: {
-          measurements: { some: {} },
-          ...branchCustomerWhere
-        }
-      }),
-      prisma.order.aggregate({
-        _sum: { totalAmount: true },
-        where: branchOrderWhere
-      }),
-      prisma.customer.findMany({
-        where,
-        take: 200,
-        orderBy: { updatedAt: 'desc' },
-        include: {
-          ...(isFullAccess && {
-            orders: {
-              where: branchOrderWhere,
-              orderBy: { createdAt: 'desc' },
-              take: 20,
-              include: { garmentDetails: true }
-            },
-            measurements: {
-              orderBy: { createdAt: 'desc' },
-              take: 10
-            }
-          })
-        }
-      })
-    ]);
+    // 1. Fetch customer directory records first
+    const customers = await prisma.customer.findMany({
+      where,
+      take: 200,
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        ...(isFullAccess && {
+          orders: {
+            where: branchOrderWhere,
+            select: { id: true, orderNumber: true, branchId: true }
+          },
+          measurements: {
+            select: { id: true, dressType: true }
+          }
+        })
+      }
+    });
+
+    // 2. Fetch aggregate summary
+    const totalCustomersCount = await prisma.customer.count({
+      where: branchCustomerWhere
+    });
+    const totalOrdersCount = await prisma.order.count({
+      where: branchOrderWhere
+    });
+    const measuredCount = await prisma.customer.count({
+      where: targetBranchId !== undefined
+        ? {
+            AND: [
+              { measurements: { some: {} } },
+              branchCustomerWhere
+            ]
+          }
+        : { measurements: { some: {} } }
+    });
+    const revenueAgg = await prisma.order.aggregate({
+      _sum: { totalAmount: true },
+      where: branchOrderWhere
+    });
 
     const summary = {
       totalCustomers: totalCustomersCount,
@@ -701,6 +735,9 @@ exports.getCustomerById = async (req, res, next) => {
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
       include: {
+        branch: {
+          select: { id: true, name: true }
+        },
         orders: {
           where: userBranchId ? { branchId: userBranchId } : undefined,
           orderBy: { createdAt: 'desc' },
@@ -730,14 +767,12 @@ exports.getCustomerById = async (req, res, next) => {
 
     // 4. Branch Isolation check: Non-CEO users cannot access customers belonging to other branches
     if (!isCeo && !isCustomerPortal && userBranchId) {
-      const branchOrderCount = await prisma.order.count({
-        where: {
-          customerId,
-          branchId: userBranchId
-        }
-      });
+      // Customer has orders in user's assigned branch OR their registered branch matches user's branch
+      const hasBranchOrders = Array.isArray(customer.orders) && customer.orders.length > 0;
+      const isRegisteredAtBranch = customer.branchId === userBranchId;
+      const belongsToUserBranch = hasBranchOrders || isRegisteredAtBranch;
 
-      if (branchOrderCount === 0) {
+      if (!belongsToUserBranch) {
         return res.status(403).json({
           success: false,
           message: 'Access denied: Customer does not belong to your assigned branch.'
@@ -747,7 +782,7 @@ exports.getCustomerById = async (req, res, next) => {
 
     // 5. Sanitize sensitive fields (password, etc.)
     const { password: _pwd, ...sanitizedCustomer } = customer;
-    const primaryBranch = customer.orders?.[0]?.branch?.name || 'Main Branch';
+    const primaryBranch = customer.orders?.[0]?.branch?.name || customer.branch?.name || 'Main Branch';
 
     return res.status(200).json({
       success: true,
@@ -765,7 +800,23 @@ exports.getCustomerById = async (req, res, next) => {
 // REGISTER CUSTOMER ONLY (No Order)
 exports.registerCustomerOnly = async (req, res, next) => {
   try {
-    const { name, primaryPhone, alternativePhone, email, password, address, profilePhoto } = req.body;
+    const { name, primaryPhone, alternativePhone, email, password, address, profilePhoto, branchId } = req.body;
+
+    // Enforce Branch Ownership: Non-CEO users locked to authenticated branch; CEO/SUPER_ADMIN can select
+    const roleUpper = String(req.user?.role || '').toUpperCase();
+    const isCeo = ['SUPER_ADMIN', 'CEO'].includes(roleUpper);
+    let assignedBranchId;
+    if (isCeo) {
+      assignedBranchId = branchId ? parseInt(branchId, 10) : (req.user?.branchId ? Number(req.user.branchId) : 1);
+    } else {
+      assignedBranchId = Number(req.user?.branchId);
+      if (!assignedBranchId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: No valid branch assigned to your account.'
+        });
+      }
+    }
 
     // 1. Required fields
     if (!name || !name.trim()) {
@@ -871,6 +922,9 @@ exports.registerCustomerOnly = async (req, res, next) => {
       if (hashedPassword && !existingCustomer.password) {
         updateData.password = hashedPassword;
       }
+      if (!existingCustomer.branchId && assignedBranchId) {
+        updateData.branchId = assignedBranchId;
+      }
 
       customerResult = await prisma.customer.update({
         where: { id: existingCustomer.id },
@@ -886,7 +940,8 @@ exports.registerCustomerOnly = async (req, res, next) => {
           email: cleanEmail,
           password: hashedPassword,
           address: address ? address.trim() : null,
-          profilePhoto: profilePhoto || null
+          profilePhoto: profilePhoto || null,
+          ...(assignedBranchId ? { branchId: assignedBranchId } : {})
         }
       });
     }

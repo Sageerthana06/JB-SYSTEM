@@ -1,4 +1,8 @@
 const path = require('path');
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');

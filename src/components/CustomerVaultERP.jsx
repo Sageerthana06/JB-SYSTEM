@@ -1392,7 +1392,13 @@ export const CustomerVaultERP = () => {
       <CustomerCreationModal
         isOpen={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}
-        onSuccess={() => fetchCustomers(searchQuery)}
+        onSuccess={(created) => {
+          if (created?.id) {
+            setSelectedCustomerId(created.id);
+          }
+          setSearchQuery('');
+          fetchCustomers('');
+        }}
       />
 
       {/* Digital Invoice Preview Modal */}

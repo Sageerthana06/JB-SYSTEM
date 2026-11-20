@@ -79,7 +79,7 @@ export const CustomerCreationModal = ({ isOpen, onClose, onSuccess }) => {
 
       const data = await res.json();
       if (data.success) {
-        onSuccess && onSuccess();
+        onSuccess && onSuccess(data.data?.customer || data.customer);
         onClose();
         setFormData({ name: '', primaryPhone: '', alternativePhone: '', email: '', password: '', address: '' });
       } else {
